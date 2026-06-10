@@ -41,7 +41,7 @@ MAIN_MARKETS = [
     ("Swiss Real Estate (SXI Broad)",     "SRFCHA.SW", "CHF"),
     ("European Real Estate (Equities)",   "IPRP.AS",   "EUR"),
     ("Asian Real Estate (Equities)",      "RWX",       "USD"),
-    ("Commodities CMCI (CHF hedged)",     "PDBC",      "USD"),
+    ("Commodities (Diversified, unhedged)", "ICOM.L",    "USD"),
     ("Gold Bullion (unhedged)",            "ZGLD.SW",   "CHF"),
     ("CHF Bonds",                         "CHCORP.SW", "CHF"),
     ("EM Bonds Local Currency",           "EMLC",      "USD"),

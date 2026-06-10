@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600&display=swap" rel="stylesheet" />
+  <title>Market Returns in Swiss Francs · Oblique</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Markets" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <style>
+    /* ── Reset & Base ───────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #f4f6f8;
+      --card:        #ffffff;
+      --border:      #dde3ea;
+      --text:        #1a2533;
+      --text-muted:  #6b7a8d;
+      --hinder-blue: #003a5c;
+      --hinder-teal: #005f87;
+      --sub-bg:      #f0f6fa;
+
+      --c-equity:    #00567a;
+      --c-re:        #2d8a6e;
+      --c-commodity: #8a6a00;
+      --c-bond:      #5a3e9a;
+      --c-cash:      #888;
+
+      --range-bg:    #e2eaf0;
+      --range-fill:  #aac8d8;
+      --range-pos:   #e05c2a;
+
+      --name-w:  265px;
+      --pct-w:    62px;
+    }
+
+    body {
+      background: var(--bg);
+      font-family: "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      padding: 32px 24px 60px;
+    }
+
+    /* ── Header ─────────────────────────────────────────── */
+    .header {
+      max-width: 920px;
+      margin: 0 auto 20px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .header-left h1 {
+      font-size: 26px;
+      font-weight: 300;
+      color: var(--hinder-blue);
+      line-height: 1.15;
+    }
+    .header-left h1 strong { font-weight: 700; }
+    .header-left .subtitle { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .logo a {
+      font-family: 'Nunito', sans-serif;
+      font-size: 32px;
+      font-weight: 600;
+      font-style: normal;
+      color: #E04822;
+      text-decoration: none;
+      line-height: 1;
+      letter-spacing: -.5px;
+    }
+    .logo a i { font-style: italic; }
+    .logo a:hover { opacity: .8; }
+
+    /* ── Controls ───────────────────────────────────────── */
+    .controls {
+      max-width: 920px;
+      margin: 0 auto 12px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .controls label { color: var(--text-muted); font-size: 12px; }
+    .btn {
+      padding: 4px 12px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background: var(--card);
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--text);
+      transition: background .1s;
+    }
+    .btn:hover { background: #e8f0f6; }
+    .btn.active { background: var(--hinder-blue); color: #fff; border-color: var(--hinder-blue); }
+
+    /* ── Card ───────────────────────────────────────────── */
+    .card {
+      max-width: 920px;
+      margin: 0 auto;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,58,92,.06);
+    }
+
+    /* ── Table header ───────────────────────────────────── */
+    .tbl-header {
+      display: flex;
+      align-items: center;
+      padding: 9px 20px;
+      background: var(--hinder-blue);
+      color: #fff;
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    .tbl-header .h-name  { width: var(--name-w); flex-shrink: 0; padding-left: 13px; }
+    .tbl-header .h-bars  { flex: 1; padding: 0 16px; font-size: 10px; opacity: .75; }
+    .tbl-header .h-ytd   { width: var(--pct-w); text-align: right; flex-shrink: 0; }
+    .tbl-header .h-btn   { width: 28px; flex-shrink: 0; }
+
+    /* ── Main rows ──────────────────────────────────────── */
+    .row {
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      height: 34px;
+      border-bottom: 1px solid var(--border);
+      transition: background .12s;
+      position: relative;
+    }
+    .row:last-child { border-bottom: none; }
+    .row:hover { background: #f0f5f9; }
+
+    /* colour stripe */
+    .row::before {
+      content: "";
+      display: block;
+      width: 3px;
+      height: 20px;
+      border-radius: 2px;
+      margin-right: 10px;
+      flex-shrink: 0;
+      background: var(--cat-color, #ccc);
+    }
+
+    .col-name {
+      width: calc(var(--name-w) - 13px);
+      flex-shrink: 0;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .col-bars {
+      flex: 1;
+      padding: 0 16px;
+      overflow: visible;   /* allow range labels to bleed slightly */
+    }
+    .col-ytd {
+      width: var(--pct-w);
+      flex-shrink: 0;
+      text-align: right;
+      font-size: 13px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .col-ytd.pos { color: #006e3e; }
+    .col-ytd.neg { color: #c0392b; }
+    .col-ytd.neu { color: var(--text-muted); }
+
+    /* expand button column */
+    .col-expand { width: 28px; flex-shrink: 0; display: flex; justify-content: center; }
+    .expand-btn {
+      width: 22px; height: 22px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: none;
+      cursor: pointer;
+      font-size: 10px;
+      color: var(--hinder-teal);
+      display: flex; align-items: center; justify-content: center;
+      transition: background .1s, transform .2s;
+      flex-shrink: 0;
+    }
+    .expand-btn:hover { background: #daeaf5; }
+    .expand-btn.open { transform: rotate(180deg); background: var(--hinder-blue); color: #fff; border-color: var(--hinder-blue); }
+
+    /* ── Bar visuals (single bar + overlaid 52W line) ──── */
+    .bar-wrap {
+      position: relative;
+      overflow: visible;
+    }
+
+    /* ── Sub-market section ─────────────────────────────── */
+    .sub-section {
+      display: none;
+      background: var(--sub-bg);
+      border-bottom: 1px solid var(--border);
+    }
+    .sub-section.open { display: block; }
+
+    .sub-header {
+      display: flex;
+      align-items: center;
+      padding: 7px 20px 7px 36px;
+      background: #daeaf5;
+      border-bottom: 1px solid #c8dce9;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      color: var(--hinder-teal);
+      gap: 8px;
+    }
+    .sub-header .fx-note {
+      margin-left: auto;
+      font-size: 9.5px;
+      font-weight: 400;
+      color: var(--text-muted);
+      letter-spacing: 0;
+      text-transform: none;
+    }
+    .sub-header .reload-btn {
+      font-size: 11px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      color: var(--hinder-teal);
+      padding: 0 4px;
+      line-height: 1;
+    }
+    .sub-header .reload-btn:hover { color: var(--hinder-blue); }
+
+    .sub-row {
+      display: flex;
+      align-items: center;
+      padding: 0 20px 0 36px;
+      height: 36px;
+      border-bottom: 1px solid #d8e6ef;
+      transition: background .1s;
+    }
+    .sub-row:last-child { border-bottom: none; }
+    .sub-row:hover { background: #e2eff7; }
+
+    .sub-flag { font-size: 16px; margin-right: 8px; flex-shrink: 0; line-height: 1; }
+
+    .sub-name-wrap {
+      width: 160px;
+      flex-shrink: 0;
+    }
+    .sub-name {
+      font-size: 12.5px;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .sub-ticker {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: monospace;
+    }
+
+    /* Gewicht-Spalte */
+    .sub-weight-wrap {
+      width: 110px;
+      flex-shrink: 0;
+      padding-right: 14px;
+    }
+    .sub-weight-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10.5px;
+      color: var(--hinder-teal);
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+    .sub-weight-bar-bg {
+      height: 5px;
+      background: #d4e8f2;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .sub-weight-bar-fill {
+      height: 100%;
+      background: var(--hinder-teal);
+      border-radius: 3px;
+      transition: width .4s ease;
+    }
+
+    /* Loading / error states */
+    .sub-loading {
+      padding: 16px 36px;
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid var(--range-bg);
+      border-top-color: var(--hinder-teal);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .sub-error {
+      padding: 12px 36px;
+      font-size: 12px;
+      color: #c0392b;
+      background: #fdf0ef;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sub-error button {
+      font-size: 11px;
+      padding: 2px 8px;
+      border: 1px solid #c0392b;
+      border-radius: 4px;
+      background: none;
+      color: #c0392b;
+      cursor: pointer;
+    }
+    .sub-error button:hover { background: #c0392b; color: white; }
+
+    /* ── Legend ─────────────────────────────────────────── */
+    .legend {
+      max-width: 920px;
+      margin: 14px auto 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px 24px;
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .legend-swatch { width: 12px; height: 12px; border-radius: 2px; }
+    .legend-dot {
+      width: 9px; height: 9px; border-radius: 50%;
+      background: var(--range-pos);
+      border: 1.5px solid #fff;
+      box-shadow: 0 0 0 1px var(--range-pos);
+    }
+    .legend-range { width: 28px; height: 8px; border-radius: 4px; background: var(--range-fill); }
+
+    /* ── Footer ─────────────────────────────────────────── */
+    .footer { max-width: 920px; margin: 16px auto 0; font-size: 11px; color: var(--text-muted); line-height: 1.6; }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-left">
+    <h1>Market Returns Year-to-Date<br><strong>in Swiss Francs</strong></h1>
+    <div class="subtitle" id="subtitle-date"></div>
+  </div>
+  <div class="logo"><a href="https://oblique.swiss" target="_blank" rel="noopener"><i>O</i>blique</a></div>
+</div>
+
+<!-- Nav -->
+<div class="nav" style="max-width:920px;margin:0 auto 12px;display:flex;gap:8px;">
+  <a href="index.html"   style="font-size:12px;padding:4px 12px;border:1px solid var(--border);border-radius:5px;text-decoration:none;background:var(--hinder-blue);color:#fff;border-color:var(--hinder-blue);">YTD Dashboard</a>
+  <a href="longterm.html" style="font-size:12px;padding:4px 12px;border:1px solid var(--border);border-radius:5px;text-decoration:none;color:var(--text-muted);background:var(--card);">Long-Term Summary</a>
+</div>
+
+<!-- Sort controls -->
+<div class="controls">
+  <label>Sort:</label>
+  <button class="btn active" data-sort="ytd"   onclick="sortBy(this,'ytd')">YTD</button>
+  <button class="btn"        data-sort="name"  onclick="sortBy(this,'name')">A – Z</button>
+  <button class="btn"        data-sort="range" onclick="sortBy(this,'range')">52W Range</button>
+</div>
+
+<!-- Main card -->
+<div class="card" id="chart-card"></div>
+
+<!-- Legend -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--c-equity)"></div>Equities</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--c-re)"></div>Real Estate</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--c-commodity)"></div>Commodities / Gold</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--c-bond)"></div>Bonds</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--c-cash)"></div>Money Market</div>
+  <div class="legend-item" style="margin-left:12px; border-left:1px solid var(--border); padding-left:12px;">
+    <div style="width:28px;height:1.5px;background:rgba(0,0,0,0.5);border-radius:1px;position:relative;">
+      <div style="position:absolute;left:0;top:-3px;width:1.5px;height:8px;background:rgba(0,0,0,0.5);transform:translateX(-50%);"></div>
+      <div style="position:absolute;right:0;top:-3px;width:1.5px;height:8px;background:rgba(0,0,0,0.5);transform:translateX(50%);"></div>
+    </div>
+    52-Week Range
+  </div>
+  <div class="legend-item"><div class="legend-dot"></div>Current YTD Return</div>
+  <div class="legend-item">▼ Country breakdown (via <code>fetch_data.py</code>, USD→CHF)</div>
+</div>
+
+<!-- Footer -->
+<div class="footer" id="footer-text"></div>
+
+<!-- ── Scripts ────────────────────────────────────────────── -->
+<!-- live_data.js wird von fetch_data.py generiert -->
+<script src="live_data.js" onerror="window.LIVE_DATA=null"></script>
+<script src="data.js"></script>
+<script>
+(function () {
+
+  // ── Constants ─────────────────────────────────────────────
+  const CAT_COLORS = {
+    equity:    "var(--c-equity)",
+    re:        "var(--c-re)",
+    commodity: "var(--c-commodity)",
+    bond:      "var(--c-bond)",
+    cash:      "var(--c-cash)",
+  };
+
+  const YTD_YEAR = 2026;
+
+  // State
+  let currentSort  = "ytd";
+  let expandedSets = new Set();
+
+  // ── Live data from fetch_data.py ──────────────────────────────────────────
+  const LD          = (typeof LIVE_DATA !== "undefined") ? LIVE_DATA : null;
+  const mainLive    = LD?.mainMarkets ?? {};    // name → {ytd, w52Low, w52High, ...}
+  const allSubLive  = LD?.subMarkets  ?? {};    // parentName → { childName → {ytd,...} }
+
+  // Merge live data into MARKETS (overwrite ytd/w52Low/w52High if available)
+  MARKETS.forEach(m => {
+    const live = mainLive[m.name];
+    if (live && live.ytd !== undefined) {
+      m.ytd    = live.ytd;
+      m.w52Low  = live.w52Low;
+      m.w52High = live.w52High;
+      m._live   = true;
+    } else {
+      m._live   = false;   // flag: no real data
+    }
+  });
+
+  // ── Header / footer texts ──────────────────────────────────
+  const feedTime = LD?.fetchedAt ?? null;
+  document.getElementById("subtitle-date").textContent = feedTime
+    ? "Last updated: " + feedTime + " · Source: Yahoo Finance (ETF proxies, USD→CHF)"
+    : "⚠ No live data — run: python3 fetch_data.py";
+  const footerFeed = feedTime
+    ? "Live data: Yahoo Finance ETF proxies, USD→CHF via USDCHF=X · Feed: " + feedTime + " · "
+    : "⚠ No live data — run fetch_data.py · ";
+  document.getElementById("footer-text").innerHTML =
+    "Source: Oblique · " +
+    footerFeed +
+    "52-week range: weekly min/max return in CHF, indexed to 1 Jan " + YTD_YEAR + ".";
+
+  // ── Scale helpers ──────────────────────────────────────────
+  // Nur Märkte mit echten Daten für die Skala verwenden
+  const withData = MARKETS.filter(m => m.ytd != null && m.w52Low != null);
+  let globalMin = withData.length
+    ? Math.min(...withData.map(m => Math.min(m.ytd, m.w52Low)))
+    : -30;
+  let globalMax = withData.length
+    ? Math.max(...withData.map(m => Math.max(m.ytd, m.w52High)))
+    : 40;
+  globalMin = Math.floor(globalMin / 5) * 5 - 5;
+  globalMax = Math.ceil(globalMax  / 5) * 5 + 5;
+  const SPAN = globalMax - globalMin;
+
+  function toPos(val) {
+    return ((val - globalMin) / SPAN) * 100;
+  }
+
+  // ── Bar HTML helper ────────────────────────────────────────
+  // Single colored bar with 52W range overlaid as a line.
+  // Labels (low / high) are placed at the ends of the line.
+  function barsHTML(ytd, w52Low, w52High, color, compact = false) {
+    const zp   = toPos(0);
+    const yp   = toPos(ytd);
+    const ytdL = Math.min(zp, yp);
+    const ytdW = Math.abs(yp - zp);
+    const rL   = toPos(w52Low);
+    const rR   = toPos(w52High);
+    const rW   = rR - rL;
+    const dot  = toPos(ytd);
+    const lbl  = v => (v > 0 ? '+' : '') + v.toFixed(1) + '%';
+
+    const barH  = compact ? 7 : 11;
+    const topPx = compact ? 3 : 4;
+    const H     = compact ? 14 : 20;
+    const dotSz = compact ? 7 : 9;
+    const lineY = topPx + barH / 2;   // vertical centre of bar = line y
+
+    return `
+      <div class="bar-wrap" style="height:${H}px;">
+        <!-- zero line -->
+        <div style="position:absolute;left:${zp}%;top:0;width:1.5px;height:100%;background:#d0d8e0;z-index:0;border-radius:1px;"></div>
+
+        <!-- YTD coloured bar -->
+        <div style="position:absolute;left:${ytdL}%;width:max(${ytdW.toFixed(2)}%,2px);top:${topPx}px;height:${barH}px;background:${color};border-radius:2px;z-index:1;"></div>
+
+        <!-- 52W range line through the bar -->
+        <div style="position:absolute;left:${rL.toFixed(2)}%;width:${rW.toFixed(2)}%;top:${lineY}px;height:1.5px;background:rgba(0,0,0,0.5);transform:translateY(-50%);z-index:2;border-radius:1px;"></div>
+
+        <!-- Left end cap -->
+        <div style="position:absolute;left:${rL.toFixed(2)}%;top:${topPx}px;width:1.5px;height:${barH}px;background:rgba(0,0,0,0.5);transform:translateX(-50%);z-index:2;"></div>
+        <!-- Right end cap -->
+        <div style="position:absolute;left:${rR.toFixed(2)}%;top:${topPx}px;width:1.5px;height:${barH}px;background:rgba(0,0,0,0.5);transform:translateX(-50%);z-index:2;"></div>
+
+        <!-- Current YTD dot -->
+        <div style="position:absolute;left:${dot.toFixed(2)}%;top:${lineY}px;width:${dotSz}px;height:${dotSz}px;background:var(--range-pos);border:1.5px solid #fff;box-shadow:0 0 0 1.5px var(--range-pos);border-radius:50%;transform:translate(-50%,-50%);z-index:3;"></div>
+
+        <!-- Low label (left of line) -->
+        <div style="position:absolute;left:${rL.toFixed(2)}%;top:${lineY}px;font-size:${compact?8:8.5}px;color:var(--text-muted);transform:translate(calc(-100% - 3px),-50%);white-space:nowrap;z-index:4;">${lbl(w52Low)}</div>
+
+        <!-- High label (right of line) -->
+        <div style="position:absolute;left:${rR.toFixed(2)}%;top:${lineY}px;font-size:${compact?8:8.5}px;color:var(--text-muted);transform:translate(3px,-50%);white-space:nowrap;z-index:4;">${lbl(w52High)}</div>
+      </div>`;
+  }
+
+  // ── YTD label helper ───────────────────────────────────────
+  function ytdLabel(ytd) {
+    const cls = ytd > 0.049 ? 'pos' : (ytd < -0.049 ? 'neg' : 'neu');
+    const sgn = ytd > 0.049 ? '+' : '';
+    return `<div class="col-ytd ${cls}">${sgn}${ytd.toFixed(1)}%</div>`;
+  }
+
+  // ── Main render ────────────────────────────────────────────
+  function sortData(mode) {
+    const d = [...MARKETS];
+    if (mode === 'ytd')   d.sort((a, b) => b.ytd - a.ytd);
+    if (mode === 'name')  d.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    if (mode === 'range') d.sort((a, b) => (b.w52High - b.w52Low) - (a.w52High - a.w52Low));
+    return d;
+  }
+
+  function render() {
+    const data  = sortData(currentSort);
+    const color = (cat) => CAT_COLORS[cat] || '#888';
+    const rowId = (name) => 'sub-' + name.replace(/[^a-zA-Z0-9]/g, '_');
+
+    let html = `
+      <div class="tbl-header">
+        <div class="h-name">Asset Class</div>
+        <div class="h-bars">YTD Return &nbsp;·&nbsp; ── 52-Week Range</div>
+        <div class="h-ytd">YTD</div>
+        <div class="h-btn"></div>
+      </div>`;
+
+    data.forEach(m => {
+      const c   = color(m.cat);
+      const id  = rowId(m.name);
+      const hasSub = m.subMarkets && m.subMarkets.length > 0;
+      const isOpen = expandedSets.has(m.name);
+
+      const hasValues = m.ytd != null && m.w52Low != null;
+      const barsCell  = hasValues
+        ? barsHTML(m.ytd, m.w52Low, m.w52High, c)
+        : `<div style="font-size:11px;color:var(--text-muted);padding:0 4px;">— no ETF available</div>`;
+      const ytdCell = hasValues ? ytdLabel(m.ytd) : `<div class="col-ytd neu">—</div>`;
+
+      html += `
+        <div class="row" style="--cat-color:${c}">
+          <div class="col-name" title="${m.name}">${m.name}</div>
+          <div class="col-bars">${barsCell}</div>
+          ${ytdCell}
+          <div class="col-expand">
+            ${hasSub ? `
+              <button class="expand-btn${isOpen ? ' open' : ''}"
+                      onclick="toggleSub('${m.name.replace(/'/g, "\\'")}')"
+                      title="Länder-Aufschlüsselung">▼</button>
+            ` : ''}
+          </div>
+        </div>
+        ${hasSub ? `<div class="sub-section${isOpen ? ' open' : ''}" id="${id}">
+          ${buildSubContent(m)}
+        </div>` : ''}`;
+    });
+
+    document.getElementById('chart-card').innerHTML = html;
+  }
+
+  // ── Sub-section content ────────────────────────────────────
+  function buildSubContent(m) {
+    const hasData   = LD !== null;
+    const fetchedAt = LD?.fetchedAt ?? null;
+    const maxWeight = Math.max(...m.subMarkets.map(s => s.weight ?? 0));
+
+    // Sortiert nach Gewicht (absteigend)
+    const sorted = [...m.subMarkets].sort((a, b) => (b.weight || 0) - (a.weight || 0));
+
+    const note = fetchedAt
+      ? `iShares ETFs · USD→CHF · Feed: ${fetchedAt}`
+      : `⚠ No data — run <code>python3 fetch_data.py</code>`;
+
+    let inner = `
+      <div class="sub-header">
+        🌍 ${m.name} – Country Breakdown
+        <span class="fx-note">
+          Weights: MSCI EM Index (${m.subMarketsWeightDate || "current"}) &nbsp;·&nbsp; ${note}
+        </span>
+      </div>
+      <!-- Column headers -->
+      <div style="display:flex;align-items:center;padding:4px 20px 4px 64px;
+                  background:#e8f3f9;border-bottom:1px solid #c8dce9;
+                  font-size:9.5px;font-weight:700;letter-spacing:.06em;
+                  text-transform:uppercase;color:var(--text-muted);">
+        <div style="width:160px;flex-shrink:0;">Country</div>
+        <div style="width:110px;flex-shrink:0;">Index Weight</div>
+        <div style="flex:1;padding:0 16px;">YTD Return &nbsp;·&nbsp; 52W Range</div>
+        <div style="width:62px;text-align:right;">YTD</div>
+        <div style="width:28px;"></div>
+      </div>`;
+
+    if (!hasData) {
+      inner += `<div class="sub-error" style="background:#fff8e6;color:#7a5500;border-left:3px solid #e6ac00;">
+        ℹ️ &nbsp;File <code>live_data.js</code> not found.
+        <span style="font-size:11px;margin-left:8px;">
+          Run: <code>cd ~/Desktop/market-dashboard &amp;&amp; python3 fetch_data.py</code> then reload.
+        </span>
+      </div>`;
+    }
+
+    const subLive = allSubLive[m.name] ?? {};
+    sorted.forEach(s => {
+      inner += buildSubRow(s, hasData ? subLive[s.name] : null, maxWeight);
+    });
+    return inner;
+  }
+
+  function buildSubRow(s, data, maxWeight) {
+    const color     = CAT_COLORS['equity'];
+    const w         = s.weight;
+    const hasW      = w != null;
+    const barPct    = hasW && maxWeight > 0 ? (w / maxWeight * 100).toFixed(1) : 0;
+
+    const weightHTML = `
+      <div class="sub-weight-wrap">
+        <div class="sub-weight-label">
+          <span>${hasW ? w.toFixed(2) + '%' : '—'}</span>
+        </div>
+        <div class="sub-weight-bar-bg">
+          <div class="sub-weight-bar-fill" style="width:${barPct}%"></div>
+        </div>
+      </div>`;
+
+    const nameHTML = `
+      <span class="sub-flag">${s.flag}</span>
+      <div class="sub-name-wrap">
+        <div class="sub-name">${s.name}</div>
+        <div class="sub-ticker">${s.ticker}</div>
+      </div>
+      ${weightHTML}`;
+
+    if (!data) {
+      return `
+        <div class="sub-row" id="subrow-${s.ticker}">
+          ${nameHTML}
+          <div class="col-bars" style="opacity:.35;font-size:11px;color:var(--text-muted);padding:0 16px;">
+            — data pending —
+          </div>
+          <div class="col-ytd neu" style="width:var(--pct-w)">—</div>
+          <div style="width:28px"></div>
+        </div>`;
+    }
+    if (data.error) {
+      return `
+        <div class="sub-row" id="subrow-${s.ticker}">
+          ${nameHTML}
+          <div style="flex:1;padding:0 16px;font-size:11px;color:#c0392b;">⚠ ${data.error}</div>
+          <div class="col-ytd neg" style="width:var(--pct-w)">—</div>
+          <div style="width:28px"></div>
+        </div>`;
+    }
+    return `
+      <div class="sub-row" id="subrow-${s.ticker}">
+        ${nameHTML}
+        <div class="col-bars" style="padding:0 16px">
+          ${barsHTML(data.ytd, data.w52Low, data.w52High, color, true)}
+        </div>
+        ${ytdLabel(data.ytd)}
+        <div style="width:28px"></div>
+      </div>`;
+  }
+
+  // ── Toggle dropdown ────────────────────────────────────────
+  window.toggleSub = function(name) {
+    const m = MARKETS.find(x => x.name === name);
+    if (!m || !m.subMarkets) return;
+    const id  = 'sub-' + name.replace(/[^a-zA-Z0-9]/g, '_');
+    const sec = document.getElementById(id);
+    const btn = sec ? sec.previousElementSibling.querySelector('.expand-btn') : null;
+    if (expandedSets.has(name)) {
+      expandedSets.delete(name);
+      if (sec) sec.classList.remove('open');
+      if (btn) btn.classList.remove('open');
+    } else {
+      expandedSets.add(name);
+      if (sec) sec.classList.add('open');
+      if (btn) btn.classList.add('open');
+    }
+  };
+
+  // ── Sort ──────────────────────────────────────────────────
+  window.sortBy = function(btn, mode) {
+    currentSort = mode;
+    document.querySelectorAll('.btn[data-sort]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    render();
+  };
+
+  // ── Init ──────────────────────────────────────────────────
+  render();
+
+})();
+</script>
+</body>
+</html>

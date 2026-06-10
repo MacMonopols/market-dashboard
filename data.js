@@ -67,7 +67,7 @@ const MARKETS = [
   { name: "European Real Estate (Equities)", cat: "re",        ticker: "IPRP.AS",  tickerCcy: "EUR" },
   { name: "Asian Real Estate (Equities)",    cat: "re",        ticker: "RWX",      tickerCcy: "USD" },
   // ── Commodities / Gold ───────────────────────────────────────────────────
-  { name: "Commodities CMCI (CHF hedged)",   cat: "commodity", ticker: "PDBC",     tickerCcy: "USD" },
+  { name: "Commodities (Diversified, unhedged)", cat: "commodity", ticker: "ICOM.L", tickerCcy: "USD" },
   { name: "Gold Bullion (unhedged)",          cat: "commodity", ticker: "ZGLD.SW",  tickerCcy: "CHF" },
   // ── Bonds ────────────────────────────────────────────────────────────────
   { name: "CHF Bonds",                       cat: "bond",      ticker: "CHCORP.SW",tickerCcy: "CHF" },

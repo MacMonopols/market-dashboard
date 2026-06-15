@@ -345,7 +345,7 @@
 
 <div class="footer" id="footer"></div>
 
-<script src="live_data.js" onerror="window.LIVE_DATA=null"></script>
+<script>document.write('<script src="live_data.js?' + Date.now() + '" onerror="window.LIVE_DATA=null"><\/script>');</script>
 <script>
 (function () {
   const LD = (typeof LIVE_DATA !== "undefined") ? LIVE_DATA : null;

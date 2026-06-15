@@ -410,7 +410,7 @@
 
 <!-- ── Scripts ────────────────────────────────────────────── -->
 <!-- live_data.js wird von fetch_data.py generiert -->
-<script src="live_data.js" onerror="window.LIVE_DATA=null"></script>
+<script>document.write('<script src="live_data.js?' + Date.now() + '" onerror="window.LIVE_DATA=null"><\/script>');</script>
 <script src="data.js"></script>
 <script>
 (function () {

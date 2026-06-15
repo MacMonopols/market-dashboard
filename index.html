@@ -358,6 +358,11 @@
     /* ── Footer ─────────────────────────────────────────── */
     .footer { max-width: 920px; margin: 16px auto 0; font-size: 11px; color: var(--text-muted); line-height: 1.6; }
   </style>
+<script>
+  window.addEventListener('pageshow', function(e) {
+    if (e.persisted) window.location.reload();
+  });
+</script>
 </head>
 <body>
 

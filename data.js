@@ -38,6 +38,7 @@ const MARKETS = [
     ],
   },
   { name: "Global Equities",                 cat: "equity",    ticker: "ACWI",     tickerCcy: "USD" },
+  { name: "Global Equities Ex-US (MSCI W ex USA)", cat: "equity", ticker: "IWQU.L", tickerCcy: "GBP" },
   { name: "Pacific ex Japan Equities",       cat: "equity",    ticker: "EPP",      tickerCcy: "USD" },
   { name: "Swiss Equities – Small Caps",     cat: "equity",    ticker: "CSSMIM.SW",tickerCcy: "CHF" },
   { name: "UK Equities",                     cat: "equity",    ticker: "EWU",      tickerCcy: "USD" },
@@ -84,7 +85,10 @@ const MARKETS = [
   { name: "Money Market GBP",                cat: "cash",      ticker: "CSH2.L",   tickerCcy: "GBP" },
   { name: "Money Market USD",                cat: "cash",      ticker: "BIL",      tickerCcy: "USD" },
   { name: "Money Market EUR",                cat: "cash",      ticker: "EXVM.DE",  tickerCcy: "EUR" },
-  { name: "Money Market JPY",                cat: "cash",      ticker: null,        tickerCcy: null  },
+  // ── FX vs CHF ────────────────────────────────────────────────────────────
+  { name: "USD / CHF",                       cat: "fx",        ticker: "USDCHF=X", tickerCcy: "CHF" },
+  { name: "EUR / CHF",                       cat: "fx",        ticker: "EURCHF=X", tickerCcy: "CHF" },
+  { name: "JPY / CHF",                       cat: "fx",        ticker: "JPYCHF=X", tickerCcy: "CHF" },
 ];
 
 // Datum der manuell erfassten Hinder AM Daten (Kopfzeile)

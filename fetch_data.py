@@ -32,6 +32,7 @@ MAIN_MARKETS = [
     ("Global Equities – Small Caps",      "VSS",       "USD"),
     ("US Equities (S&P 500)",             "SPY",       "USD"),
     ("Global Equities",                   "ACWI",      "USD"),
+    ("Global Equities Ex-US (MSCI W ex USA)", "IWQU.L", "GBP"),
     ("Pacific ex Japan Equities",         "EPP",       "USD"),
     ("Swiss Equities – Small Caps",       "CSSMIM.SW", "CHF"),
     ("UK Equities",                       "EWU",       "USD"),
@@ -56,7 +57,9 @@ MAIN_MARKETS = [
     ("Money Market GBP",                  "CSH2.L",    "GBP"),
     ("Money Market USD",                  "BIL",       "USD"),
     ("Money Market EUR",                  "EXVM.DE",   "EUR"),
-    ("Money Market JPY",                  None,        None ),
+    ("USD / CHF",                         "USDCHF=X",  "CHF"),
+    ("EUR / CHF",                         "EURCHF=X",  "CHF"),
+    ("JPY / CHF",                         "JPYCHF=X",  "CHF"),
 ]
 
 # ── Sub-market breakdowns (parent market name → list of sub-items) ───────────
@@ -353,12 +356,24 @@ def calc_chf_returns(etf_series, fx_series):
 
     curr_ts, curr_etf = etf_series[-1]
     curr_fx = closest_fx(fx_series, curr_ts) if fx_series else 1.0
-    ytd = round((curr_etf * curr_fx / start_chf - 1) * 100, 2)
+    curr_chf = curr_etf * curr_fx
+    ytd = round((curr_chf / start_chf - 1) * 100, 2)
+
+    # 30-day return: find closest weekly close ~30 days before current
+    thirty_days_ago = curr_ts - 30 * 24 * 3600
+    before_30d = [(t, c) for t, c in etf_series if t <= thirty_days_ago]
+    if before_30d:
+        ts_30d, etf_30d = before_30d[-1]
+        fx_30d = closest_fx(fx_series, ts_30d) if fx_series else 1.0
+        l30d = round((curr_chf / (etf_30d * fx_30d) - 1) * 100, 2)
+    else:
+        l30d = None
 
     return {
         "ytd":     ytd,
         "w52Low":  round(min(chf_returns), 2),
         "w52High": round(max(chf_returns), 2),
+        "l30d":    l30d,
         "etfProxy": True,
     }
 
@@ -564,6 +579,30 @@ def main():
     print(f"  ✓ live_data.js saved  ({ok_count + total_sub + len(lt_results)} data points)")
     print(f"  Reload browser.")
     print(f"{'='*60}\n")
+
+    # Auto-push to GitHub Pages
+    import subprocess
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    label = datetime.now().strftime("%Y-%m-%d %H:%M")
+    result = subprocess.run(
+        ["git", "add", "live_data.js"],
+        cwd=script_dir, capture_output=True
+    )
+    result = subprocess.run(
+        ["git", "commit", "-m", f"data: {label}"],
+        cwd=script_dir, capture_output=True, text=True
+    )
+    if result.returncode == 0:
+        result = subprocess.run(
+            ["git", "push", "origin", "main"],
+            cwd=script_dir, capture_output=True, text=True
+        )
+        if result.returncode == 0:
+            print("  ✓ Pushed to GitHub Pages.")
+        else:
+            print(f"  ⚠ Push failed: {result.stderr.strip()}")
+    else:
+        print(f"  ⚠ Commit failed: {result.stderr.strip()}")
 
     # Kurze Übersicht
     print("Hauptmärkte:")

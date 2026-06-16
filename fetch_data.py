@@ -29,7 +29,7 @@ FX_TICKERS = {
 MAIN_MARKETS = [
     ("Emerging Market Equities",          "EEM",       "USD"),
     ("Japanese Equities",                 "EWJ",       "USD"),
-    ("Global Equities – Small Caps",      "VSS",       "USD"),
+    ("Global Equities – Small Caps",      "IUSN.DE",   "EUR"),
     ("US Equities (S&P 500)",             "SPY",       "USD"),
     ("Global Equities",                   "ACWI",      "USD"),
     ("Global Equities Ex-US (MSCI W ex USA)", "IWQU.L", "GBP"),

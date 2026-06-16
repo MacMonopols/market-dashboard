@@ -29,7 +29,7 @@ const MARKETS = [
     ],
   },
   { name: "Japanese Equities",               cat: "equity",    ticker: "EWJ",      tickerCcy: "USD" },
-  { name: "Global Equities – Small Caps",    cat: "equity",    ticker: "VSS",      tickerCcy: "USD" },
+  { name: "Global Equities – Small Caps",    cat: "equity",    ticker: "IUSN.DE",  tickerCcy: "EUR" },
   {
     name: "US Equities (S&P 500)", cat: "equity", ticker: "SPY", tickerCcy: "USD",
     subMarkets: [

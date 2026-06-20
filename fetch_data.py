@@ -126,8 +126,7 @@ MAG7_BASELINE = [
     {"name": "Meta",      "ticker": "META", "totalT": 1.61,  "freeFloat": 0.860},
     {"name": "Tesla",     "ticker": "TSLA", "totalT": 0.79,  "freeFloat": 0.840},
     # SpaceX: IPO price $185, total valuation $2,419.04B, free float 4.3%
-    # Ticker TBD — tracked as static until ticker confirmed
-    {"name": "SpaceX",    "ticker": None,   "totalT": 2.419, "freeFloat": 0.043, "static": True},
+    {"name": "SpaceX",    "ticker": "SPCX",  "totalT": 2.419, "freeFloat": 0.043},
 ]
 
 # ── Long-Term Market Summary config ─────────────────────────────────────────

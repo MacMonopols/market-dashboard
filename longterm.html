@@ -210,52 +210,33 @@
       gap: 36px;
     }
 
-    /* Donut via conic-gradient */
+    /* Donut via SVG */
     .donut-wrap {
       position: relative;
       flex-shrink: 0;
-      width: 130px;
-      height: 130px;
+      width: 150px;
+      height: 150px;
     }
-    .donut {
-      width: 130px;
-      height: 130px;
-      border-radius: 50%;
-      background: conic-gradient(
-        #003a5c  0%  63%,    /* US */
-        #b8922a 63%  89%,    /* Intl Dev */
-        #5a7a3a 89% 100%     /* EM */
-      );
+    .donut-wrap svg { display: block; }
+    .donut-wrap svg path {
+      transition: opacity .15s;
+      cursor: pointer;
     }
-    /* inner circle to create donut hole */
-    .donut::after {
-      content: '';
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 80px; height: 80px;
-      border-radius: 50%;
-      background: var(--card);
+    .donut-wrap svg path:hover { opacity: .78; }
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--hinder-teal);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 8px;
+      cursor: pointer;
+      margin-bottom: 8px;
     }
-    .donut-center {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      text-align: center;
-      z-index: 1;
-    }
-    .donut-total {
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--text);
-      line-height: 1.1;
-    }
-    .donut-label {
-      font-size: 9.5px;
-      color: var(--text-muted);
-      letter-spacing: .04em;
-      text-transform: uppercase;
-    }
+    .back-btn:hover { background: #daeaf5; }
 
     /* Legend */
     .mktcap-legend {
@@ -334,13 +315,12 @@
 <div class="mktcap-card" id="mktcap-card" style="display:none">
   <div class="mktcap-title">World Market Capitalisation</div>
   <div class="mktcap-date" id="mktcap-date"></div>
+  <div id="mktcap-back-wrap" style="display:none">
+    <button class="back-btn" onclick="renderWorldLevel1()">← Back</button>
+  </div>
   <div class="mktcap-body">
     <div class="donut-wrap">
-      <div class="donut" id="mktcap-donut"></div>
-      <div class="donut-center">
-        <div class="donut-total" id="mktcap-total"></div>
-        <div class="donut-label">Total</div>
-      </div>
+      <svg id="mktcap-svg" width="150" height="150" viewBox="0 0 150 150"></svg>
     </div>
     <div class="mktcap-legend" id="mktcap-legend"></div>
   </div>
@@ -349,11 +329,7 @@
     <div class="mktcap-date" id="mag7-date"></div>
     <div class="mag7-body">
       <div class="donut-wrap">
-        <div class="donut" id="mag7-donut"></div>
-        <div class="donut-center">
-          <div class="donut-total" id="mag7-total"></div>
-          <div class="donut-label">Float cap</div>
-        </div>
+        <svg id="mag7-svg" width="150" height="150" viewBox="0 0 150 150"></svg>
       </div>
       <div class="mktcap-legend" id="mag7-legend"></div>
     </div>
@@ -502,31 +478,32 @@
   };
 
   if (LD?.mag7) {
-    const m = LD.mag7;
+    const m      = LD.mag7;
     const sorted = [...m.stocks].sort((a, b) => b.trillions - a.trillions);
     const total  = m.totalT;
 
     document.getElementById('mag7-block').style.display = '';
-    document.getElementById('mag7-total').textContent   = '$' + total.toFixed(1) + 'T';
-    document.getElementById('mag7-date').textContent    =
+    document.getElementById('mag7-date').textContent =
       `Free float market caps · ${m.worldPct}% of world market · ${m.usPct}% of US market`;
 
-    // Donut
-    let cum = 0;
-    const stops = sorted.map(s => {
-      const pct   = s.trillions / total * 100;
-      const color = MAG7_COLORS[s.name] || '#aaa';
-      const start = cum;
-      cum += pct;
-      return `${color} ${start.toFixed(2)}% ${cum.toFixed(2)}%`;
-    });
-    document.getElementById('mag7-donut').style.background =
-      `conic-gradient(${stops.join(', ')})`;
+    const segs = sorted.map(s => ({
+      name:      s.name,
+      pct:       s.trillions / total * 100,
+      color:     MAG7_COLORS[s.name] || '#aaa',
+      trillions: s.trillions,
+      freeFloat: s.freeFloat,
+      totalT:    s.totalT,
+    }));
 
-    // Legend
-    document.getElementById('mag7-legend').innerHTML = sorted.map(s => {
-      const color  = MAG7_COLORS[s.name] || '#aaa';
-      const pct    = (s.trillions / total * 100).toFixed(1);
+    renderDonut('mag7-svg', 'mag7-legend', segs,
+      [[`$${total.toFixed(1)}T`, 13, 700, '#1a2533'], ['Float cap', 9, 400, '#6b7a8d']],
+      function() {}
+    );
+
+    // Override legend to add free-float note for SpaceX
+    document.getElementById('mag7-legend').innerHTML = segs.map(s => {
+      const color  = s.color;
+      const pct    = (s.pct).toFixed(1);
       const ffNote = s.freeFloat < 20
         ? `<div class="mktcap-val" style="color:#c0392b;">${s.freeFloat}% free float · total $${s.totalT.toFixed(1)}T</div>`
         : '';
@@ -544,35 +521,146 @@
   }
 
   // ── World Market Cap ──────────────────────────────────────
-  if (LD?.worldMktCap) {
-    const wmc = LD.worldMktCap;
-    const card = document.getElementById('mktcap-card');
-    card.style.display = '';
+  const DRILLDOWN = {
+    "US Market": {
+      title: "US Market · S&P 500 Sectors",
+      segments: [
+        { name: "Information Technology", pct: 31.0, color: "#003a5c" },
+        { name: "Financials",             pct: 13.5, color: "#1a5c80" },
+        { name: "Healthcare",             pct: 11.5, color: "#347da3" },
+        { name: "Consumer Discret.",      pct: 10.5, color: "#4e9ec6" },
+        { name: "Comm. Services",         pct:  9.0, color: "#68bfe9" },
+        { name: "Industrials",            pct:  8.5, color: "#82c8dc" },
+        { name: "Consumer Staples",       pct:  5.5, color: "#9cd1cf" },
+        { name: "Energy",                 pct:  3.5, color: "#b6dac2" },
+        { name: "Other",                  pct:  7.0, color: "#c8e3d5" },
+      ],
+    },
+    "International Developed": {
+      title: "International Developed · MSCI EAFE Countries",
+      segments: [
+        { name: "Japan",        flag: "🇯🇵", pct: 22.5, color: "#8a6400" },
+        { name: "UK",           flag: "🇬🇧", pct: 14.2, color: "#a07820" },
+        { name: "France",       flag: "🇫🇷", pct: 11.1, color: "#b68c3a" },
+        { name: "Switzerland",  flag: "🇨🇭", pct:  8.8, color: "#c8a050" },
+        { name: "Germany",      flag: "🇩🇪", pct:  7.2, color: "#d4b468" },
+        { name: "Australia",    flag: "🇦🇺", pct:  7.0, color: "#e0c880" },
+        { name: "Netherlands",  flag: "🇳🇱", pct:  4.9, color: "#ecda98" },
+        { name: "Sweden",       flag: "🇸🇪", pct:  3.2, color: "#f4e8b0" },
+        { name: "Denmark",      flag: "🇩🇰", pct:  2.8, color: "#f8f0c8" },
+        { name: "Others",                    pct: 18.3, color: "#c0a060" },
+      ],
+    },
+    "Emerging Markets": {
+      title: "Emerging Markets · MSCI EM Countries",
+      segments: [
+        { name: "China",        flag: "🇨🇳", pct: 24.7, color: "#2a6010" },
+        { name: "India",        flag: "🇮🇳", pct: 19.6, color: "#3e7424" },
+        { name: "Taiwan",       flag: "🇹🇼", pct: 18.2, color: "#528838" },
+        { name: "South Korea",  flag: "🇰🇷", pct: 11.8, color: "#669c4c" },
+        { name: "Brazil",       flag: "🇧🇷", pct:  5.1, color: "#7ab060" },
+        { name: "Saudi Arabia", flag: "🇸🇦", pct:  3.8, color: "#8ec474" },
+        { name: "South Africa", flag: "🇿🇦", pct:  3.3, color: "#a2d488" },
+        { name: "Mexico",       flag: "🇲🇽", pct:  2.5, color: "#b6e49c" },
+        { name: "Others",                    pct: 11.0, color: "#76a856" },
+      ],
+    },
+  };
 
-    document.getElementById('mktcap-date').textContent =
-      `Baseline: ${wmc.baseline} (Russell / MSCI)  ·  Scaled to ${wmc.updatedTo} via ETF performance`;
-    document.getElementById('mktcap-total').textContent = `$${wmc.totalT}T`;
+  function polarToCart(cx, cy, r, deg) {
+    const rad = (deg - 90) * Math.PI / 180;
+    return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
+  }
 
-    // Build conic-gradient for donut
-    let cum = 0;
-    const stops = wmc.regions.map(r => {
-      const start = cum;
-      cum += r.pct;
-      return `${r.color} ${start}% ${cum}%`;
+  function arcPath(cx, cy, R, ri, a1, a2) {
+    const [x1,y1] = polarToCart(cx, cy, R,  a1);
+    const [x2,y2] = polarToCart(cx, cy, R,  a2);
+    const [x3,y3] = polarToCart(cx, cy, ri, a2);
+    const [x4,y4] = polarToCart(cx, cy, ri, a1);
+    const lg = (a2 - a1) > 180 ? 1 : 0;
+    return `M${x1},${y1} A${R},${R} 0 ${lg} 1 ${x2},${y2} L${x3},${y3} A${ri},${ri} 0 ${lg} 0 ${x4},${y4} Z`;
+  }
+
+  function renderDonut(svgId, legendId, segments, centerLines, onClickFn) {
+    const svg    = document.getElementById(svgId);
+    const legend = document.getElementById(legendId);
+    const cx = 75, cy = 75, R = 70, ri = 44;
+    const total  = segments.reduce((s, x) => s + x.pct, 0);
+    let angle    = 0, paths = '', legendHtml = '';
+
+    segments.forEach((seg, i) => {
+      const sweep = seg.pct / total * 360;
+      const a2    = angle + sweep - 0.4;
+      paths += `<path d="${arcPath(cx,cy,R,ri,angle,a2)}" fill="${seg.color}"
+        onclick="(${onClickFn.toString()})(${i})"
+        title="${(seg.flag||'')+seg.name}: ${(seg.pct/total*100).toFixed(1)}%"></path>`;
+      angle += sweep;
+
+      legendHtml += `
+        <div class="mktcap-item" style="cursor:${onClickFn ? 'pointer' : 'default'}"
+             onclick="(${onClickFn.toString()})(${i})">
+          <div class="mktcap-swatch" style="background:${seg.color}"></div>
+          <div class="mktcap-info">
+            <div class="mktcap-pct" style="color:${seg.color}">${(seg.pct/total*100).toFixed(0)}%</div>
+            <div class="mktcap-name">${(seg.flag||'')} ${seg.name}</div>
+            ${seg.trillions != null ? `<div class="mktcap-val">$${seg.trillions.toFixed(1)}T</div>` : ''}
+          </div>
+        </div>`;
     });
-    document.getElementById('mktcap-donut').style.background =
-      `conic-gradient(${stops.join(', ')})`;
 
-    // Legend
-    document.getElementById('mktcap-legend').innerHTML = wmc.regions.map(r => `
-      <div class="mktcap-item">
-        <div class="mktcap-swatch" style="background:${r.color}"></div>
-        <div class="mktcap-info">
-          <div class="mktcap-pct" style="color:${r.color}">${r.pct}%</div>
-          <div class="mktcap-name">${r.name}</div>
-          <div class="mktcap-val">$${r.trillions.toFixed(1)} trillion</div>
-        </div>
-      </div>`).join('');
+    // Center text
+    centerLines.forEach(([text, size, weight, color], i) => {
+      paths += `<text x="75" y="${66 + i*17}" text-anchor="middle"
+        font-family="Helvetica Neue,Arial,sans-serif"
+        font-size="${size}" font-weight="${weight}" fill="${color}">${text}</text>`;
+    });
+
+    svg.innerHTML = paths;
+    legend.innerHTML = legendHtml;
+  }
+
+  function renderWorldLevel1() {
+    const wmc     = LD.worldMktCap;
+    const backWrap = document.getElementById('mktcap-back-wrap');
+    backWrap.style.display = 'none';
+    document.getElementById('mktcap-date').textContent =
+      `Baseline: ${wmc.baseline} · Scaled to ${wmc.updatedTo} via ETF performance · Click a segment to drill down`;
+
+    const segs = wmc.regions.map(r => ({ ...r, pct: r.pct }));
+    renderDonut('mktcap-svg', 'mktcap-legend', segs,
+      [[`$${wmc.totalT}T`, 13, 700, '#1a2533'], ['Total', 9, 400, '#6b7a8d']],
+      function(i) { renderWorldDrilldown(i); }
+    );
+  }
+  window.renderWorldLevel1 = renderWorldLevel1;
+
+  function renderWorldDrilldown(i) {
+    const wmc      = LD.worldMktCap;
+    const region   = wmc.regions[i];
+    const drill    = DRILLDOWN[region.name];
+    if (!drill) return;
+
+    document.getElementById('mktcap-back-wrap').style.display = '';
+    document.getElementById('mktcap-date').textContent =
+      `${drill.title} · MSCI index weights (static)`;
+
+    const totalT = region.trillions;
+    const segs   = drill.segments.map(s => ({
+      ...s,
+      trillions: +(totalT * s.pct / 100).toFixed(1),
+    }));
+
+    renderDonut('mktcap-svg', 'mktcap-legend', segs,
+      [[`$${totalT.toFixed(1)}T`, 13, 700, '#1a2533'],
+       [region.name.split(' ')[0], 8, 400, '#6b7a8d']],
+      function() {}
+    );
+  }
+  window.renderWorldDrilldown = renderWorldDrilldown;
+
+  if (LD?.worldMktCap) {
+    document.getElementById('mktcap-card').style.display = '';
+    renderWorldLevel1();
   }
 
 })();

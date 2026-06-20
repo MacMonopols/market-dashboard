@@ -292,6 +292,72 @@
       margin-top: 1px;
     }
 
+    /* ── MAG7 ───────────────────────────────────────────────── */
+    .mag7-block {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .mag7-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .mag7-bar-wrap {
+      position: relative;
+      height: 20px;
+      background: #e8eef3;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .mag7-bar-fill {
+      height: 100%;
+      background: #c0392b;
+      border-radius: 4px;
+      transition: width .4s ease;
+    }
+    .mag7-bar-label {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+    .mag7-stats {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .mag7-stat-val {
+      font-size: 18px;
+      font-weight: 700;
+      color: #c0392b;
+      line-height: 1.1;
+    }
+    .mag7-stocks {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .mag7-chip {
+      font-size: 10.5px;
+      background: #fdf0ef;
+      border: 1px solid #e8c8c6;
+      border-radius: 4px;
+      padding: 2px 7px;
+      color: #7a2020;
+      font-weight: 600;
+    }
+
     /* ── Footer ──────────────────────────────────────────────── */
     .footer {
       max-width: 960px;
@@ -331,6 +397,28 @@
       </div>
     </div>
     <div class="mktcap-legend" id="mktcap-legend"></div>
+  </div>
+  <div class="mag7-block" id="mag7-block" style="display:none">
+    <div class="mag7-title">Magnificent 7 — part of world market cap</div>
+    <div class="mag7-bar-wrap">
+      <div class="mag7-bar-fill" id="mag7-bar"></div>
+      <div class="mag7-bar-label" id="mag7-bar-label"></div>
+    </div>
+    <div class="mag7-stats">
+      <div>
+        <div class="mag7-stat-val" id="mag7-world-pct"></div>
+        <div>% of world market</div>
+      </div>
+      <div>
+        <div class="mag7-stat-val" id="mag7-us-pct"></div>
+        <div>% of US market</div>
+      </div>
+      <div>
+        <div class="mag7-stat-val" id="mag7-total"></div>
+        <div>combined market cap</div>
+      </div>
+    </div>
+    <div class="mag7-stocks" id="mag7-stocks"></div>
   </div>
 </div>
 
@@ -463,6 +551,21 @@
     from sources using a Dec 2025 end date.<br>
     ${indexLines}<br>
     Data: Yahoo Finance (UCITS ETFs, Irish/Swiss domicile) · Feed: ${LD.fetchedAt} · Source: Oblique`;
+  // ── MAG7 ──────────────────────────────────────────────────
+  if (LD?.mag7) {
+    const m = LD.mag7;
+    document.getElementById('mag7-block').style.display = '';
+    document.getElementById('mag7-bar').style.width = m.worldPct + '%';
+    document.getElementById('mag7-bar-label').textContent = m.worldPct + '% of world';
+    document.getElementById('mag7-world-pct').textContent = m.worldPct + '%';
+    document.getElementById('mag7-us-pct').textContent = m.usPct + '%';
+    document.getElementById('mag7-total').textContent = '$' + m.totalT.toFixed(1) + 'T';
+    document.getElementById('mag7-stocks').innerHTML = m.stocks
+      .sort((a, b) => b.trillions - a.trillions)
+      .map(s => `<div class="mag7-chip">${s.name} $${s.trillions.toFixed(1)}T</div>`)
+      .join('');
+  }
+
   // ── World Market Cap ──────────────────────────────────────
   if (LD?.worldMktCap) {
     const wmc = LD.worldMktCap;

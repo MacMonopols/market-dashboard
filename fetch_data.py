@@ -111,6 +111,19 @@ WORLD_MKTCAP_BASELINE = {
 }
 MKTCAP_BASELINE_DATE = datetime(2026, 3, 31, tzinfo=timezone.utc)
 
+# ── MAG7 Market Cap ──────────────────────────────────────────────────────────
+# Baseline market caps at Q1 2026 (31 March 2026), in USD trillions.
+# Source: Bloomberg / public filings, rounded to 2 decimal places.
+MAG7_BASELINE = [
+    {"name": "Apple",     "ticker": "AAPL", "trillions": 3.11},
+    {"name": "Microsoft", "ticker": "MSFT", "trillions": 2.83},
+    {"name": "Nvidia",    "ticker": "NVDA", "trillions": 2.52},
+    {"name": "Amazon",    "ticker": "AMZN", "trillions": 2.07},
+    {"name": "Alphabet",  "ticker": "GOOGL","trillions": 1.98},
+    {"name": "Meta",      "ticker": "META", "trillions": 1.61},
+    {"name": "Tesla",     "ticker": "TSLA", "trillions": 0.79},
+]
+
 # ── Long-Term Market Summary config ─────────────────────────────────────────
 # All returns will be calculated in CHF, annualized.
 # ticker = None → no ETF available; show "—"
@@ -257,6 +270,44 @@ def calc_world_mktcap(fx_weekly, cached_series=None):
         "updatedTo":  datetime.now(timezone.utc).strftime("%d.%m.%Y"),
         "totalT":     round(total_updated, 1),
         "regions":    results,
+    }
+
+def calc_mag7(world_total_t, cached_series=None):
+    """
+    Scale each MAG7 stock's baseline market cap by its price performance
+    since the Q1 2026 baseline. Returns combined $ trillions + world/US %.
+    """
+    baseline_ts = int(MKTCAP_BASELINE_DATE.timestamp())
+    now = datetime.now(timezone.utc)
+    cutoff = datetime(now.year, now.month, 1, tzinfo=timezone.utc).timestamp() - 1
+
+    total = 0.0
+    stocks_out = []
+    for stock in MAG7_BASELINE:
+        ticker = stock["ticker"]
+        try:
+            series = (cached_series or {}).get(ticker) or fetch_weekly(ticker)
+            if not series:
+                raise ValueError("no data")
+            base_idx = min(range(len(series)), key=lambda i: abs(series[i][0] - baseline_ts))
+            base_price = series[base_idx][1]
+            completed = [(t, v) for t, v in series if t <= cutoff]
+            curr_price = completed[-1][1] if completed else series[-1][1]
+            updated_t = round(stock["trillions"] * curr_price / base_price, 2)
+        except Exception:
+            updated_t = stock["trillions"]
+        stocks_out.append({"name": stock["name"], "ticker": ticker, "trillions": updated_t})
+        total += updated_t
+
+    total = round(total, 1)
+    us_pct = round(total / (world_total_t * 0.63) * 100) if world_total_t else None
+    world_pct = round(total / world_total_t * 100) if world_total_t else None
+
+    return {
+        "totalT":    total,
+        "worldPct":  world_pct,
+        "usPct":     us_pct,
+        "stocks":    stocks_out,
     }
 
 def fetch_monthly_max(ticker):
@@ -551,11 +602,20 @@ def main():
     # 5) World Market Cap (reuses already-downloaded fx_monthly and ETF data)
     next_step2 = next_step + 1
     print(f"\n[{next_step2}] World Market Capitalisation (dynamic, baseline Q1 2026)")
-    # Pass all already-downloaded monthly series (lt_raw) to avoid re-fetching
     world_mktcap = calc_world_mktcap(fx_monthly, cached_series=lt_raw)
     for r in world_mktcap["regions"]:
         print(f"  {r['name']:28s}  {r['pct']:2d}%  ${r['trillions']:.1f}T")
     print(f"  Total: ${world_mktcap['totalT']:.1f}T  (baseline {world_mktcap['baseline']}, scaled to {world_mktcap['updatedTo']})")
+
+    # 5b) MAG7
+    next_step3 = next_step2 + 1
+    print(f"\n[{next_step3}] MAG7 Market Cap (dynamic, baseline Q1 2026)")
+    mag7_tickers = [(s["ticker"], "USD") for s in MAG7_BASELINE]
+    raw_mag7 = batch_fetch(mag7_tickers)
+    mag7 = calc_mag7(world_mktcap["totalT"], cached_series=raw_mag7)
+    print(f"  MAG7 total: ${mag7['totalT']:.1f}T  ({mag7['worldPct']}% of world / {mag7['usPct']}% of US)")
+    for s in mag7["stocks"]:
+        print(f"    {s['name']:12s}  ${s['trillions']:.2f}T")
 
     # 6) Output
     fetched_at = datetime.now().strftime("%d.%m.%Y %H:%M")
@@ -566,6 +626,7 @@ def main():
         "subMarkets":      sub_results,
         "longTermMarkets": lt_results,
         "worldMktCap":     world_mktcap,
+        "mag7":            mag7,
     }
 
     out_path = os.path.join(os.path.dirname(__file__), "live_data.js")

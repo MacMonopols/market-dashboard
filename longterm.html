@@ -399,7 +399,7 @@
     <div class="mktcap-legend" id="mktcap-legend"></div>
   </div>
   <div class="mag7-block" id="mag7-block" style="display:none">
-    <div class="mag7-title">Magnificent 7 — part of world market cap</div>
+    <div class="mag7-title">Magnificent 7 + SpaceX — free float market cap</div>
     <div class="mag7-bar-wrap">
       <div class="mag7-bar-fill" id="mag7-bar"></div>
       <div class="mag7-bar-label" id="mag7-bar-label"></div>
@@ -562,7 +562,11 @@
     document.getElementById('mag7-total').textContent = '$' + m.totalT.toFixed(1) + 'T';
     document.getElementById('mag7-stocks').innerHTML = m.stocks
       .sort((a, b) => b.trillions - a.trillions)
-      .map(s => `<div class="mag7-chip">${s.name} $${s.trillions.toFixed(1)}T</div>`)
+      .map(s => {
+        const ff = s.freeFloat < 10 ? ` · ${s.freeFloat}% float` : '';
+        const total = s.freeFloat < 50 ? ` (total $${s.totalT.toFixed(1)}T)` : '';
+        return `<div class="mag7-chip" title="Free float: ${s.freeFloat}%${total}">${s.name} $${s.trillions.toFixed(2)}T${ff}</div>`;
+      })
       .join('');
   }
 

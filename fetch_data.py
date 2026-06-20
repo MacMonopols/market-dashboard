@@ -114,14 +114,20 @@ MKTCAP_BASELINE_DATE = datetime(2026, 3, 31, tzinfo=timezone.utc)
 # ── MAG7 Market Cap ──────────────────────────────────────────────────────────
 # Baseline market caps at Q1 2026 (31 March 2026), in USD trillions.
 # Source: Bloomberg / public filings, rounded to 2 decimal places.
+# Free float market caps at Q1 2026 baseline (total market cap × free float %).
+# Free float % source: MSCI / Bloomberg estimates.
+# SpaceX: total valuation $2,419.04B × 4.3% free float = $103.9B free float.
 MAG7_BASELINE = [
-    {"name": "Apple",     "ticker": "AAPL", "trillions": 3.11},
-    {"name": "Microsoft", "ticker": "MSFT", "trillions": 2.83},
-    {"name": "Nvidia",    "ticker": "NVDA", "trillions": 2.52},
-    {"name": "Amazon",    "ticker": "AMZN", "trillions": 2.07},
-    {"name": "Alphabet",  "ticker": "GOOGL","trillions": 1.98},
-    {"name": "Meta",      "ticker": "META", "trillions": 1.61},
-    {"name": "Tesla",     "ticker": "TSLA", "trillions": 0.79},
+    {"name": "Apple",     "ticker": "AAPL", "totalT": 3.11,  "freeFloat": 0.995},
+    {"name": "Microsoft", "ticker": "MSFT", "totalT": 2.83,  "freeFloat": 0.995},
+    {"name": "Nvidia",    "ticker": "NVDA", "totalT": 2.52,  "freeFloat": 0.975},
+    {"name": "Amazon",    "ticker": "AMZN", "totalT": 2.07,  "freeFloat": 0.940},
+    {"name": "Alphabet",  "ticker": "GOOGL","totalT": 1.98,  "freeFloat": 0.930},
+    {"name": "Meta",      "ticker": "META", "totalT": 1.61,  "freeFloat": 0.860},
+    {"name": "Tesla",     "ticker": "TSLA", "totalT": 0.79,  "freeFloat": 0.840},
+    # SpaceX: IPO price $185, total valuation $2,419.04B, free float 4.3%
+    # Ticker TBD — tracked as static until ticker confirmed
+    {"name": "SpaceX",    "ticker": None,   "totalT": 2.419, "freeFloat": 0.043, "static": True},
 ]
 
 # ── Long-Term Market Summary config ─────────────────────────────────────────
@@ -274,37 +280,58 @@ def calc_world_mktcap(fx_weekly, cached_series=None):
 
 def calc_mag7(world_total_t, cached_series=None):
     """
-    Scale each MAG7 stock's baseline market cap by its price performance
-    since the Q1 2026 baseline. Returns combined $ trillions + world/US %.
+    Compute free float market cap for each MAG7+SpaceX company.
+    For listed stocks: baseline free float cap scaled by price performance since Q1 2026.
+    For static entries (SpaceX, no ticker): baseline free float cap kept fixed.
+    Returns combined free float $ trillions + % of world / % of US market.
     """
     baseline_ts = int(MKTCAP_BASELINE_DATE.timestamp())
     now = datetime.now(timezone.utc)
     cutoff = datetime(now.year, now.month, 1, tzinfo=timezone.utc).timestamp() - 1
 
-    total = 0.0
+    total_ff = 0.0
     stocks_out = []
     for stock in MAG7_BASELINE:
-        ticker = stock["ticker"]
-        try:
-            series = (cached_series or {}).get(ticker) or fetch_weekly(ticker)
-            if not series:
-                raise ValueError("no data")
-            base_idx = min(range(len(series)), key=lambda i: abs(series[i][0] - baseline_ts))
-            base_price = series[base_idx][1]
-            completed = [(t, v) for t, v in series if t <= cutoff]
-            curr_price = completed[-1][1] if completed else series[-1][1]
-            updated_t = round(stock["trillions"] * curr_price / base_price, 2)
-        except Exception:
-            updated_t = stock["trillions"]
-        stocks_out.append({"name": stock["name"], "ticker": ticker, "trillions": updated_t})
-        total += updated_t
+        ticker      = stock["ticker"]
+        baseline_ff = round(stock["totalT"] * stock["freeFloat"], 3)  # free float at baseline
 
-    total = round(total, 1)
-    us_pct = round(total / (world_total_t * 0.63) * 100) if world_total_t else None
-    world_pct = round(total / world_total_t * 100) if world_total_t else None
+        if stock.get("static") or not ticker:
+            # Private / no ticker: keep free float cap fixed
+            updated_ff = baseline_ff
+            note = "private"
+        else:
+            try:
+                series = (cached_series or {}).get(ticker) or fetch_weekly(ticker)
+                if not series:
+                    raise ValueError("no data")
+                base_idx = min(range(len(series)), key=lambda i: abs(series[i][0] - baseline_ts))
+                base_price = series[base_idx][1]
+                completed = [(t, v) for t, v in series if t <= cutoff]
+                curr_price = completed[-1][1] if completed else series[-1][1]
+                updated_ff = round(baseline_ff * curr_price / base_price, 3)
+                note = "live"
+            except Exception:
+                updated_ff = baseline_ff
+                note = "fallback"
+
+        stocks_out.append({
+            "name":      stock["name"],
+            "ticker":    ticker or "—",
+            "trillions": updated_ff,
+            "totalT":    stock["totalT"],
+            "freeFloat": round(stock["freeFloat"] * 100, 1),
+            "note":      note,
+        })
+        total_ff += updated_ff
+
+    total_ff = round(total_ff, 1)
+    # US market = ~63% of world total
+    us_market_t  = world_total_t * 0.63 if world_total_t else None
+    us_pct   = round(total_ff / us_market_t  * 100) if us_market_t  else None
+    world_pct = round(total_ff / world_total_t * 100) if world_total_t else None
 
     return {
-        "totalT":    total,
+        "totalT":    total_ff,
         "worldPct":  world_pct,
         "usPct":     us_pct,
         "stocks":    stocks_out,

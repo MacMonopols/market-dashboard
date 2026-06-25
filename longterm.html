@@ -513,7 +513,8 @@
           <div class="mktcap-info">
             <div class="mktcap-pct" style="color:${color};font-size:16px;">${pct}%</div>
             <div class="mktcap-name">${s.name}</div>
-            <div class="mktcap-val">$${s.trillions.toFixed(2)}T float cap${s.name === 'Alphabet' ? ' <span style="opacity:0.6;font-size:11px;">(A + C shares)</span>' : ''}</div>
+            <div class="mktcap-val">$${s.trillions.toFixed(2)}T float cap</div>
+            ${s.name === 'Alphabet' ? `<div class="mktcap-val" style="color:#c0392b;">A + C shares combined</div>` : ''}
             ${ffNote}
           </div>
         </div>`;

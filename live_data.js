@@ -588,7 +588,7 @@ const LIVE_DATA = {
     ]
   },
   "mag7": {
-    "totalT": 17.4,
+    "totalT": 19.1,
     "worldPct": 16,
     "usPct": 26,
     "stocks": [
@@ -626,11 +626,11 @@ const LIVE_DATA = {
       },
       {
         "name": "Alphabet",
-        "ticker": "GOOGL",
-        "trillions": 2.367,
+        "ticker": "GOOGL/GOOG",
+        "trillions": 4.045,
         "totalT": 1.98,
         "freeFloat": 93.0,
-        "note": "live"
+        "note": "MSCI A+C combined"
       },
       {
         "name": "Meta",

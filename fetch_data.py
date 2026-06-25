@@ -123,6 +123,7 @@ MAG7_BASELINE = [
     {"name": "Nvidia",    "ticker": "NVDA", "totalT": 2.52,  "freeFloat": 0.975},
     {"name": "Amazon",    "ticker": "AMZN", "totalT": 2.07,  "freeFloat": 0.940},
     {"name": "Alphabet",  "ticker": "GOOGL","totalT": 1.98,  "freeFloat": 0.930},
+    {"name": "Alphabet",  "ticker": "GOOG", "totalT": 1.64,  "freeFloat": 0.930, "merge_into": "Alphabet"},
     {"name": "Meta",      "ticker": "META", "totalT": 1.61,  "freeFloat": 0.860},
     {"name": "Tesla",     "ticker": "TSLA", "totalT": 0.79,  "freeFloat": 0.840},
     # SpaceX: IPO price $185, total valuation $2,419.04B, free float 4.3%
@@ -320,8 +321,24 @@ def calc_mag7(world_total_t, cached_series=None):
             "totalT":    stock["totalT"],
             "freeFloat": round(stock["freeFloat"] * 100, 1),
             "note":      note,
+            "_merge_into": stock.get("merge_into"),
         })
         total_ff += updated_ff
+
+    # Merge share-class duplicates (e.g. GOOGL A + GOOG C → one Alphabet entry)
+    merged = []
+    for s in stocks_out:
+        if s.get("_merge_into"):
+            target = next((x for x in merged if x["name"] == s["_merge_into"]), None)
+            if target:
+                target["trillions"] = round(target["trillions"] + s["trillions"], 3)
+                target["ticker"] = target["ticker"] + "/" + s["ticker"]
+                target["note"] = "MSCI A+C combined"
+        else:
+            merged.append(dict(s))
+    for s in merged:
+        s.pop("_merge_into", None)
+    stocks_out = merged
 
     total_ff = round(total_ff, 1)
     # US market = ~63% of world total

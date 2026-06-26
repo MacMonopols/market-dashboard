@@ -464,7 +464,9 @@
     <b>Note:</b> Returns measured to ${LD.fetchedAt.split(" ")[0]} include 2026 YTD performance and will differ
     from sources using a Dec 2025 end date.<br>
     ${indexLines}<br>
-    Data: Yahoo Finance (UCITS ETFs, Irish/Swiss domicile) · Feed: ${LD.fetchedAt} · Source: Oblique`;
+    Data: Yahoo Finance (UCITS ETFs, Irish/Swiss domicile) · Feed: ${LD.fetchedAt} · Source: Oblique<br>
+    <b>World Market Cap:</b> US baseline = Russell 3000 total market cap ($${LD.worldMktCap?.regions[0]?.trillions.toFixed(1)}T at ${LD.worldMktCap?.baseline}), scaled forward via SPY ETF performance.
+    International Developed &amp; Emerging Markets scaled via EFA / EEM.`;
   // ── MAG7 ──────────────────────────────────────────────────
   const MAG7_COLORS = {
     Apple:     "#555555",
@@ -592,16 +594,17 @@
     let angle    = 0, paths = '', legendHtml = '';
 
     segments.forEach((seg, i) => {
-      const sweep = seg.pct / total * 360;
-      const a2    = angle + sweep - 0.4;
+      const sweep    = seg.pct / total * 360;
+      const a2       = angle + sweep - 0.4;
+      const clickArg = seg.clickArg !== undefined ? seg.clickArg : i;
       paths += `<path d="${arcPath(cx,cy,R,ri,angle,a2)}" fill="${seg.color}"
-        onclick="(${onClickFn.toString()})(${i})"
+        onclick="(${onClickFn.toString()})(${clickArg})"
         title="${(seg.flag||'')+seg.name}: ${(seg.pct/total*100).toFixed(1)}%"></path>`;
       angle += sweep;
 
       legendHtml += `
         <div class="mktcap-item" style="cursor:${onClickFn ? 'pointer' : 'default'}"
-             onclick="(${onClickFn.toString()})(${i})">
+             onclick="(${onClickFn.toString()})(${clickArg})">
           <div class="mktcap-swatch" style="background:${seg.color}"></div>
           <div class="mktcap-info">
             <div class="mktcap-pct" style="color:${seg.color}">${(seg.pct/total*100).toFixed(0)}%</div>
@@ -634,6 +637,56 @@
       [[`$${wmc.totalT}T`, 13, 700, '#1a2533'], ['Total', 9, 400, '#6b7a8d']],
       function(i) { renderWorldDrilldown(i); }
     );
+
+    // ── Mag7+SpaceX hatch overlay inside US segment ──────────
+    if (LD.mag7) {
+      const svg    = document.getElementById('mktcap-svg');
+      const cx = 75, cy = 75, R = 70, ri = 44;
+      const mag7T  = LD.mag7.totalT;
+      const mag7Sweep = mag7T / wmc.totalT * 360;
+      const hatchPath = arcPath(cx, cy, R, ri, 0, mag7Sweep - 0.4);
+
+      // Use proper SVG DOM API (Safari/iOS requires correct namespacing)
+      const NS = 'http://www.w3.org/2000/svg';
+      const defs    = document.createElementNS(NS, 'defs');
+      const pattern = document.createElementNS(NS, 'pattern');
+      pattern.setAttribute('id', 'mag7-hatch');
+      pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+      pattern.setAttribute('width', '6');
+      pattern.setAttribute('height', '6');
+      pattern.setAttribute('patternTransform', 'rotate(45 75 75)');
+      const line = document.createElementNS(NS, 'line');
+      line.setAttribute('x1', '0'); line.setAttribute('y1', '0');
+      line.setAttribute('x2', '0'); line.setAttribute('y2', '6');
+      line.setAttribute('stroke', 'rgba(255,255,255,0.5)');
+      line.setAttribute('stroke-width', '2.5');
+      pattern.appendChild(line);
+      defs.appendChild(pattern);
+      svg.appendChild(defs);
+
+      const pathEl = document.createElementNS(NS, 'path');
+      pathEl.setAttribute('d', hatchPath);
+      pathEl.setAttribute('fill', 'url(#mag7-hatch)');
+      pathEl.setAttribute('pointer-events', 'none');
+      svg.appendChild(pathEl);
+
+      // Insert Mag7+SpaceX legend entry after US Market
+      const mag7Pct  = Math.round(mag7T / wmc.totalT * 100);
+      const legend   = document.getElementById('mktcap-legend');
+      const usItem   = legend.querySelector('.mktcap-item');
+      usItem.insertAdjacentHTML('afterend', `
+        <div class="mktcap-item" style="cursor:default">
+          <div class="mktcap-swatch" style="background:#003a5c;
+            background-image:repeating-linear-gradient(45deg,
+              rgba(255,255,255,0.5) 0px, rgba(255,255,255,0.5) 2px,
+              transparent 2px, transparent 6px);"></div>
+          <div class="mktcap-info">
+            <div class="mktcap-pct" style="color:#003a5c">${mag7Pct}%</div>
+            <div class="mktcap-name">Mag 7 + SpaceX</div>
+            <div class="mktcap-val">$${mag7T.toFixed(1)}T</div>
+          </div>
+        </div>`);
+    }
   }
   window.renderWorldLevel1 = renderWorldLevel1;
 

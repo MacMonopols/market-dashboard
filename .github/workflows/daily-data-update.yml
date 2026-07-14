@@ -1,0 +1,31 @@
+name: Daily market data update
+
+on:
+  schedule:
+    # 20:00 UTC = 22:00 CEST (summer) / 21:00 CET (winter) — GitHub cron is always UTC
+    - cron: "0 20 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install yfinance
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch data and push
+        run: python3 fetch_data.py

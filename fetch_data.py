@@ -67,7 +67,7 @@ SUB_MARKETS = {
     "Emerging Market Equities": [
         ("Taiwan",       "EWT",  "USD"),
         ("China",        "MCHI", "USD"),
-        ("South Korea",  "EWY",  "USD"),
+        ("Korea",        "EWY",  "USD"),
         ("India",        "INDA", "USD"),
         ("South Africa", "EZA",  "USD"),
         ("Brazil",       "EWZ",  "USD"),
@@ -76,6 +76,7 @@ SUB_MARKETS = {
         ("UAE",          "UAE",  "USD"),
         ("Indonesia",    "EIDO", "USD"),
         ("Thailand",     "THD",  "USD"),
+        ("Malaysia",     "EWM",  "USD"),
     ],
     "US Equities (S&P 500)": [
         ("Nasdaq 100",   "QQQ",      "USD"),

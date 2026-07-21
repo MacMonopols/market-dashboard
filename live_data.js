@@ -233,7 +233,7 @@ const LIVE_DATA = {
       "ticker": "BIL"
     },
     "Money Market EUR": {
-      "ytd": 0.41,
+      "ytd": -0.19,
       "w52Low": -2.79,
       "w52High": 0.88,
       "l30d": 0.39,
@@ -469,8 +469,8 @@ const LIVE_DATA = {
         "1": 21.31,
         "5": 6.77,
         "10": 9.97,
-        "15": 9.04,
-        "20": 6.79
+        "15": null,
+        "20": null
       }
     },
     {

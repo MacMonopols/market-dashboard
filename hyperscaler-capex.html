@@ -170,6 +170,24 @@
   <div class="chart-legend" id="gap-legend" style="justify-content:center"></div>
 </div>
 
+<div style="max-width:960px;margin:24px auto 12px;font-size:12.5px;color:var(--text-muted);line-height:1.6;">
+  The charts above show the capex/depreciation gap exists. The two below show <strong>how it is being financed</strong> — rising leverage relative to EBITDA, and the pace of new debt issuance — not just that a cash gap exists.
+</div>
+
+<div class="card">
+  <div class="card-title">Net Debt / EBITDA — TTM</div>
+  <div class="card-subtitle" id="netdebt-sub">Long-term debt minus cash, over trailing-twelve-month EBITDA — latest quarter</div>
+  <svg id="netdebt-svg" class="chart-svg" viewBox="0 0 900 220"></svg>
+  <div class="chart-legend" id="netdebt-legend" style="justify-content:center"></div>
+</div>
+
+<div class="card">
+  <div class="card-title">Debt Issuance — TTM, $bn</div>
+  <div class="card-subtitle" id="issuance-sub">Long-term debt proceeds, trailing twelve months — acceleration signals a shift from self-funding to borrowing</div>
+  <svg id="issuance-svg" class="chart-svg" viewBox="0 0 900 280"></svg>
+  <div class="chart-legend" id="issuance-legend" style="justify-content:center"></div>
+</div>
+
 <div class="footer" id="footer">
   Loading data… make sure <code>live_data.js</code> exists (run <code>python3 fetch_data.py</code> then reload).
 </div>
@@ -218,6 +236,18 @@
     return `Q${q} ${d.getUTCFullYear()}`;
   }
 
+  // Shared horizontal legend keyed by capex profile rather than by company
+  // (used by the gap chart, the net-debt/EBITDA chart and the debt-issuance
+  // trend chart — all three group companies by *why* they carry capex/debt).
+  function renderProfileLegend(legendId, profiles) {
+    const legend = document.getElementById(legendId);
+    legend.innerHTML = profiles.map(p => `
+      <div class="legend-item">
+        <div class="legend-swatch" style="background:${PROFILE_COLORS[p] || '#999'}"></div>
+        ${p}
+      </div>`).join('');
+  }
+
   // ── Generic line chart ─────────────────────────────────────
   function renderLineChart(svgId, legendId, metricKey, opts) {
     const svg = document.getElementById(svgId);
@@ -227,10 +257,12 @@
 
     const series = companies.map(c => ({
       name: c.name,
-      color: COLORS[c.name],
+      profile: c.profile,
+      color: opts.colorBy === 'profile' ? (PROFILE_COLORS[c.profile] || COLORS[c.name]) : COLORS[c.name],
       points: c.quarters
         .filter(q => q[metricKey] !== null && q[metricKey] !== undefined)
-        .map(q => ({ t: new Date(q.periodEnd + "T00:00:00").getTime(), v: q[metricKey], periodEnd: q.periodEnd })),
+        .map(q => ({ t: new Date(q.periodEnd + "T00:00:00").getTime(),
+          v: opts.transform ? opts.transform(q[metricKey]) : q[metricKey], periodEnd: q.periodEnd })),
     })).filter(s => s.points.length > 0);
 
     const allPoints = series.flatMap(s => s.points);
@@ -304,23 +336,30 @@
 
     svg.innerHTML = svgHtml;
 
-    // Legend
-    const legend = document.getElementById(legendId);
-    legend.innerHTML = series.map(s => `
-      <div class="legend-item">
-        <div class="legend-swatch" style="background:${s.color}"></div>
-        ${s.name}
-      </div>`).join('');
+    // Legend: per-company by default, or a shared profile legend when the
+    // chart colors lines by capex profile (debt-issuance trend chart).
+    if (opts.colorBy === 'profile') {
+      renderProfileLegend(legendId, [...new Set(series.map(s => s.profile))]);
+    } else {
+      const legend = document.getElementById(legendId);
+      legend.innerHTML = series.map(s => `
+        <div class="legend-item">
+          <div class="legend-swatch" style="background:${s.color}"></div>
+          ${s.name}
+        </div>`).join('');
+    }
   }
 
   renderLineChart('capex-svg', 'capex-legend', 'capexPctSalesTTM', { suffix: '%', decimals: 1 });
   renderLineChart('fcf-svg', 'fcf-legend', 'fcfPctSalesTTM', { suffix: '%', decimals: 1, forceZero: true });
 
-  // ── Capex-minus-D&A gap: latest TTM value per company, bar chart ──
-  // Colored by capex profile (not by company): all 5 hyperscalers share one
-  // color since they're building for the same reason, while Apple/Nvidia
-  // stand out as different profiles entirely (low & stable capex / fabless).
-  function renderGapChart(svgId, legendId) {
+  // ── Generic bar chart: latest value per company, colored by capex
+  // profile (not by company) ──────────────────────────────────────────
+  // All 5 hyperscalers share one color since they're building/borrowing for
+  // the same reason, while Apple/Nvidia stand out as different profiles
+  // entirely (low & stable capex / fabless). Shared by the capex-D&A gap
+  // chart and the net-debt/EBITDA chart.
+  function renderBarChart(svgId, legendId, metricKey, opts) {
     const svg = document.getElementById(svgId);
     const W = 900, H = +svg.viewBox.baseVal.height || 220;
     const padL = 20, padR = 20, padT = 16, padB = 34;
@@ -330,14 +369,12 @@
       .filter(c => c.quarters.length)
       .map(c => {
         const last = c.quarters[c.quarters.length - 1];
-        return {
-          name: c.name,
-          profile: c.profile,
+        return { name: c.name, profile: c.profile,
           color: PROFILE_COLORS[c.profile] || COLORS[c.name],
-          value: last.capexMinusDaTTM / 1e9,
-          periodEnd: last.periodEnd,
-        };
-      });
+          value: last[metricKey], periodEnd: last.periodEnd };
+      })
+      .filter(b => b.value !== null && b.value !== undefined)
+      .map(b => ({ ...b, value: opts.transform ? opts.transform(b.value) : b.value }));
 
     const vMax = Math.max(...bars.map(b => b.value), 0);
     const vMin = Math.min(...bars.map(b => b.value), 0);
@@ -353,23 +390,23 @@
       const barY = b.value >= 0 ? y0 - barH : y0;
       svgHtml += `<rect x="${(cx-bw/2).toFixed(1)}" y="${barY.toFixed(1)}" width="${bw.toFixed(1)}" height="${barH.toFixed(1)}" fill="${b.color}" rx="3"></rect>`;
       const labelY = b.value >= 0 ? barY - 8 : barY + barH + 14;
-      svgHtml += `<text class="bar-label" x="${cx}" y="${labelY}" text-anchor="middle">$${b.value.toFixed(0)}bn</text>`;
+      svgHtml += `<text class="bar-label" x="${cx}" y="${labelY}" text-anchor="middle">${opts.labelFmt(b.value)}</text>`;
       svgHtml += `<text class="bar-name" x="${cx}" y="${H-10}" text-anchor="middle">${b.name}</text>`;
     });
 
     svg.innerHTML = svgHtml;
-
-    // Horizontal legend below, by profile (not by company)
-    const profiles = [...new Set(bars.map(b => b.profile))];
-    const legend = document.getElementById(legendId);
-    legend.innerHTML = profiles.map(p => `
-      <div class="legend-item">
-        <div class="legend-swatch" style="background:${PROFILE_COLORS[p] || '#999'}"></div>
-        ${p}
-      </div>`).join('');
+    renderProfileLegend(legendId, [...new Set(bars.map(b => b.profile))]);
   }
 
-  renderGapChart('gap-svg', 'gap-legend');
+  renderBarChart('gap-svg', 'gap-legend', 'capexMinusDaTTM',
+    { transform: v => v / 1e9, labelFmt: v => `$${v.toFixed(0)}bn` });
+
+  renderBarChart('netdebt-svg', 'netdebt-legend', 'netDebtToEbitdaTTM',
+    { labelFmt: v => `${v.toFixed(2)}x` });
+
+  renderLineChart('issuance-svg', 'issuance-legend', 'debtIssuanceTTM',
+    { colorBy: 'profile', decimals: 1, forceZero: true, suffix: 'bn',
+      transform: v => v / 1e9 });
 
   // ── Footer ────────────────────────────────────────────────
   const spans = companies.map(c => {

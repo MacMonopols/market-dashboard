@@ -219,6 +219,23 @@
   };
   const COMPANY_ORDER = ["Microsoft", "Alphabet", "Amazon", "Meta", "Oracle", "Apple", "Nvidia"];
 
+  // Per-company palette used ONLY by the debt-issuance trend chart: unlike
+  // the bar charts (gap, net-debt/EBITDA) where the x-axis already names
+  // each company and color is secondary, this is a multi-line time series
+  // where 5 of the 7 companies share the same CAPEX_PROFILE — coloring by
+  // profile there would collapse them into one indistinguishable line.
+  // Amazon/Oracle in particular are pushed further apart than in COLORS
+  // (orange vs. deep crimson instead of two similar orange-reds).
+  const ISSUANCE_COLORS = {
+    Microsoft: "#003a5c",
+    Alphabet:  "#2e7d4f",
+    Amazon:    "#f0932b",
+    Meta:      "#5a3e9a",
+    Oracle:    "#a3161a",
+    Apple:     "#8e8e93",
+    Nvidia:    "#76b900",
+  };
+
   // Profil de capex (voir CAPEX_PROFILE dans hyperscaler_capex.py) — utilisé
   // pour colorer le gap chart par profil plutôt que par société.
   const PROFILE_COLORS = {
@@ -258,7 +275,9 @@
     const series = companies.map(c => ({
       name: c.name,
       profile: c.profile,
-      color: opts.colorBy === 'profile' ? (PROFILE_COLORS[c.profile] || COLORS[c.name]) : COLORS[c.name],
+      color: opts.colorBy === 'profile'
+        ? (PROFILE_COLORS[c.profile] || COLORS[c.name])
+        : (opts.colorMap ? opts.colorMap[c.name] : COLORS[c.name]),
       points: c.quarters
         .filter(q => q[metricKey] !== null && q[metricKey] !== undefined)
         .map(q => ({ t: new Date(q.periodEnd + "T00:00:00").getTime(),
@@ -336,14 +355,15 @@
 
     svg.innerHTML = svgHtml;
 
-    // Legend: per-company by default, or a shared profile legend when the
-    // chart colors lines by capex profile (debt-issuance trend chart).
+    // Legend: per-company by default (profile shown as a hover tooltip,
+    // since several companies can share one profile), or a shared profile
+    // legend when the chart colors lines by capex profile.
     if (opts.colorBy === 'profile') {
       renderProfileLegend(legendId, [...new Set(series.map(s => s.profile))]);
     } else {
       const legend = document.getElementById(legendId);
       legend.innerHTML = series.map(s => `
-        <div class="legend-item">
+        <div class="legend-item" title="${s.profile || ''}">
           <div class="legend-swatch" style="background:${s.color}"></div>
           ${s.name}
         </div>`).join('');
@@ -405,8 +425,8 @@
     { labelFmt: v => `${v.toFixed(2)}x` });
 
   renderLineChart('issuance-svg', 'issuance-legend', 'debtIssuanceTTM',
-    { colorBy: 'profile', decimals: 1, forceZero: true, suffix: 'bn',
-      transform: v => v / 1e9 });
+    { decimals: 1, forceZero: true, suffix: 'bn', transform: v => v / 1e9,
+      colorMap: ISSUANCE_COLORS });
 
   // ── Footer ────────────────────────────────────────────────
   const spans = companies.map(c => {

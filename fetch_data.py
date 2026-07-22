@@ -11,6 +11,7 @@ import yfinance as yf
 import json
 import os
 from datetime import datetime, timezone, timedelta
+from hyperscaler_capex import fetch_hyperscaler_capex
 
 # ── Konfiguration ────────────────────────────────────────────────────────────
 
@@ -671,6 +672,16 @@ def main():
     for s in mag7["stocks"]:
         print(f"    {s['name']:12s}  ${s['trillions']:.2f}T")
 
+    # 5c) Hyperscaler Capex (SEC EDGAR XBRL, quarterly TTM)
+    next_step4 = next_step3 + 1
+    print(f"\n[{next_step4}] Hyperscaler Capex (SEC EDGAR XBRL)")
+    try:
+        hyperscaler_capex = fetch_hyperscaler_capex()
+        print(f"  → {len(hyperscaler_capex['companies'])}/5 companies computed")
+    except Exception as e:
+        print(f"  ⚠ Hyperscaler Capex fetch failed: {e}")
+        hyperscaler_capex = {"companies": []}
+
     # 6) Output
     fetched_at = datetime.now().strftime("%d.%m.%Y %H:%M")
     out = {
@@ -681,6 +692,7 @@ def main():
         "longTermMarkets": lt_results,
         "worldMktCap":     world_mktcap,
         "mag7":            mag7,
+        "hyperscalerCapex": hyperscaler_capex,
     }
 
     out_path = os.path.join(os.path.dirname(__file__), "live_data.js")

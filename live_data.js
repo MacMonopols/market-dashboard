@@ -6,18 +6,18 @@ const LIVE_DATA = {
   "ytdYear": 2026,
   "mainMarkets": {
     "Emerging Market Equities": {
-      "ytd": 19.65,
+      "ytd": 19.66,
       "w52Low": -14.24,
       "w52High": 28.55,
-      "l30d": -6.92,
+      "l30d": -6.91,
       "etfProxy": true,
       "ticker": "EEM"
     },
     "Japanese Equities": {
-      "ytd": 17.59,
+      "ytd": 17.6,
       "w52Low": -10.9,
       "w52High": 20.9,
-      "l30d": -2.74,
+      "l30d": -2.73,
       "etfProxy": true,
       "ticker": "EWJ"
     },
@@ -33,7 +33,7 @@ const LIVE_DATA = {
       "ytd": 13.42,
       "w52Low": -8.16,
       "w52High": 13.42,
-      "l30d": 1.59,
+      "l30d": 1.6,
       "etfProxy": true,
       "ticker": "SPY"
     },
@@ -46,10 +46,10 @@ const LIVE_DATA = {
       "ticker": "MAGS"
     },
     "Global Equities": {
-      "ytd": 13.71,
+      "ytd": 13.7,
       "w52Low": -9.39,
-      "w52High": 13.71,
-      "l30d": 0.45,
+      "w52High": 13.7,
+      "l30d": 0.44,
       "etfProxy": true,
       "ticker": "ACWI"
     },
@@ -62,10 +62,10 @@ const LIVE_DATA = {
       "ticker": "IWQU.L"
     },
     "Pacific ex Japan Equities": {
-      "ytd": 13.57,
+      "ytd": 13.56,
       "w52Low": -4.41,
-      "w52High": 13.57,
-      "l30d": 4.43,
+      "w52High": 13.56,
+      "l30d": 4.42,
       "etfProxy": true,
       "ticker": "EPP"
     },
@@ -94,10 +94,10 @@ const LIVE_DATA = {
       "ticker": "CHSPI.SW"
     },
     "Eurozone Equities (EURO STOXX 50)": {
-      "ytd": 9.73,
+      "ytd": 9.74,
       "w52Low": -12.06,
-      "w52High": 9.73,
-      "l30d": 0.62,
+      "w52High": 9.74,
+      "l30d": 0.63,
       "etfProxy": true,
       "ticker": "FEZ"
     },
@@ -118,10 +118,10 @@ const LIVE_DATA = {
       "ticker": "SRFCHA.SW"
     },
     "European Real Estate (Equities)": {
-      "ytd": 3.42,
+      "ytd": 3.43,
       "w52Low": -3.71,
       "w52High": 11.62,
-      "l30d": 2.83,
+      "l30d": 2.84,
       "etfProxy": true,
       "ticker": "IPRP.AS"
     },
@@ -129,7 +129,7 @@ const LIVE_DATA = {
       "ytd": 2.64,
       "w52Low": -6.5,
       "w52High": 5.11,
-      "l30d": 5.21,
+      "l30d": 5.2,
       "etfProxy": true,
       "ticker": "RWX"
     },
@@ -204,15 +204,15 @@ const LIVE_DATA = {
       "ytd": -1.29,
       "w52Low": -2.47,
       "w52High": 1.17,
-      "l30d": -1.69,
+      "l30d": -1.68,
       "etfProxy": true,
       "ticker": "IEAC.AS"
     },
     "Inflation Linked": {
-      "ytd": 3.68,
+      "ytd": 3.67,
       "w52Low": -2.09,
       "w52High": 3.79,
-      "l30d": 0.8,
+      "l30d": 0.79,
       "etfProxy": true,
       "ticker": "TIP"
     },
@@ -233,15 +233,15 @@ const LIVE_DATA = {
       "ticker": "CSH2.L"
     },
     "Money Market USD": {
-      "ytd": 4.81,
+      "ytd": 4.8,
       "w52Low": -2.45,
-      "w52High": 4.81,
-      "l30d": 1.52,
+      "w52High": 4.8,
+      "l30d": 1.51,
       "etfProxy": true,
       "ticker": "BIL"
     },
     "Money Market EUR": {
-      "ytd": 0.68,
+      "ytd": 0.69,
       "w52Low": -2.79,
       "w52High": 0.88,
       "l30d": 0.66,
@@ -292,23 +292,23 @@ const LIVE_DATA = {
         "ticker": "MCHI"
       },
       "Korea": {
-        "ytd": 72.28,
+        "ytd": 72.35,
         "w52Low": -31.39,
         "w52High": 117.86,
-        "l30d": -20.92,
+        "l30d": -20.89,
         "etfProxy": true,
         "ticker": "EWY"
       },
       "India": {
-        "ytd": -8.85,
+        "ytd": -8.86,
         "w52Low": -15.69,
         "w52High": 1.65,
-        "l30d": -1.27,
+        "l30d": -1.28,
         "etfProxy": true,
         "ticker": "INDA"
       },
       "South Africa": {
-        "ytd": -4.63,
+        "ytd": -4.64,
         "w52Low": -25.91,
         "w52High": 14.49,
         "l30d": -4.49,
@@ -316,39 +316,39 @@ const LIVE_DATA = {
         "ticker": "EZA"
       },
       "Brazil": {
-        "ytd": 16.97,
+        "ytd": 16.96,
         "w52Low": -19.46,
         "w52High": 27.91,
-        "l30d": 8.87,
+        "l30d": 8.86,
         "etfProxy": true,
         "ticker": "EWZ"
       },
       "Saudi Arabia": {
-        "ytd": 5.36,
+        "ytd": 5.35,
         "w52Low": -1.57,
         "w52High": 10.21,
-        "l30d": -2.7,
+        "l30d": -2.71,
         "etfProxy": true,
         "ticker": "KSA"
       },
       "Mexico": {
-        "ytd": 14.58,
+        "ytd": 14.57,
         "w52Low": -14.8,
-        "w52High": 14.58,
-        "l30d": 0.12,
+        "w52High": 14.57,
+        "l30d": 0.11,
         "etfProxy": true,
         "ticker": "EWW"
       },
       "UAE": {
-        "ytd": 3.63,
+        "ytd": 3.82,
         "w52Low": -9.59,
         "w52High": 11.36,
-        "l30d": -6.94,
+        "l30d": -6.77,
         "etfProxy": true,
         "ticker": "UAE"
       },
       "Indonesia": {
-        "ytd": -29.4,
+        "ytd": -29.41,
         "w52Low": -39.97,
         "w52High": 3.13,
         "l30d": 3.21,
@@ -364,7 +364,7 @@ const LIVE_DATA = {
         "ticker": "THD"
       },
       "Malaysia": {
-        "ytd": 6.73,
+        "ytd": 6.72,
         "w52Low": -13.48,
         "w52High": 8.45,
         "l30d": 2.54,
@@ -374,28 +374,28 @@ const LIVE_DATA = {
     },
     "US Equities (S&P 500)": {
       "Nasdaq 100": {
-        "ytd": 19.07,
+        "ytd": 19.08,
         "w52Low": -8.53,
         "w52High": 22.88,
-        "l30d": -3.1,
+        "l30d": -3.09,
         "etfProxy": true,
         "ticker": "QQQ"
       },
       "Russell 2000": {
-        "ytd": 22.22,
+        "ytd": 22.23,
         "w52Low": -12.86,
         "w52High": 23.72,
-        "l30d": 0.83,
+        "l30d": 0.84,
         "etfProxy": true,
         "ticker": "IWM"
       }
     },
     "Magnificent 7": {
       "Apple": {
-        "ytd": 23.22,
+        "ytd": 23.2,
         "w52Low": -24.36,
         "w52High": 25.87,
-        "l30d": 10.09,
+        "l30d": 10.07,
         "etfProxy": true,
         "ticker": "AAPL"
       },
@@ -416,31 +416,31 @@ const LIVE_DATA = {
         "ticker": "GOOGL"
       },
       "Amazon": {
-        "ytd": 10.72,
+        "ytd": 10.71,
         "w52Low": -14.72,
         "w52High": 18.11,
-        "l30d": 1.01,
+        "l30d": 0.99,
         "etfProxy": true,
         "ticker": "AMZN"
       },
       "Nvidia": {
-        "ytd": 16.55,
+        "ytd": 16.56,
         "w52Low": -10.94,
         "w52High": 18.57,
-        "l30d": 2.7,
+        "l30d": 2.71,
         "etfProxy": true,
         "ticker": "NVDA"
       },
       "Meta": {
-        "ytd": -0.26,
+        "ytd": -0.3,
         "w52Low": -18.79,
         "w52High": 22.78,
-        "l30d": 10.42,
+        "l30d": 10.38,
         "etfProxy": true,
         "ticker": "META"
       },
       "Tesla": {
-        "ytd": -11.5,
+        "ytd": -11.51,
         "w52Low": -29.88,
         "w52High": 11.04,
         "l30d": -4.72,
@@ -468,15 +468,15 @@ const LIVE_DATA = {
     },
     "Eurozone Equities (EURO STOXX 50)": {
       "France": {
-        "ytd": 5.93,
+        "ytd": 5.92,
         "w52Low": -8.42,
-        "w52High": 5.93,
-        "l30d": 0.72,
+        "w52High": 5.92,
+        "l30d": 0.71,
         "etfProxy": true,
         "ticker": "EWQ"
       },
       "Germany": {
-        "ytd": 2.09,
+        "ytd": 2.08,
         "w52Low": -10.64,
         "w52High": 3.21,
         "l30d": 0.97,
@@ -484,7 +484,7 @@ const LIVE_DATA = {
         "ticker": "EWG"
       },
       "Netherlands": {
-        "ytd": 21.18,
+        "ytd": 21.17,
         "w52Low": -15.22,
         "w52High": 23.94,
         "l30d": -2.23,
@@ -495,28 +495,28 @@ const LIVE_DATA = {
         "ytd": 14.98,
         "w52Low": -18.52,
         "w52High": 14.98,
-        "l30d": 3.26,
+        "l30d": 3.25,
         "etfProxy": true,
         "ticker": "EWP"
       },
       "Italy": {
-        "ytd": 16.09,
+        "ytd": 16.08,
         "w52Low": -13.13,
-        "w52High": 16.09,
+        "w52High": 16.08,
         "l30d": 1.99,
         "etfProxy": true,
         "ticker": "EWI"
       },
       "Finland": {
-        "ytd": 11.9,
+        "ytd": 11.89,
         "w52Low": -15.87,
         "w52High": 16.02,
-        "l30d": -1.12,
+        "l30d": -1.13,
         "etfProxy": true,
         "ticker": "EFNL"
       },
       "Belgium": {
-        "ytd": 13.83,
+        "ytd": 13.82,
         "w52Low": -9.89,
         "w52High": 14.05,
         "l30d": 1.71,

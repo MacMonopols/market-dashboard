@@ -460,10 +460,22 @@ def fetch_live_float_cap(ticker):
     zu skalieren. Für sehr frische IPOs (z.B. SPCX), deren 1y/Wochen-Serie noch
     zu wenige Datenpunkte hat (fetch_weekly() verlangt >=10) und die ohnehin
     keinen validen Vor-IPO-Referenzpreis für die Q1-2026-Baseline haben.
-    Marktkapitalisierung wird bewusst aus price × shares berechnet statt aus dem
-    yfinance-Feld 'marketCap' übernommen — bei SPCX weichen beide nachweislich
-    voneinander ab (marketCap inkonsistent bei sehr neuen Tickern).
     Gibt None zurück, wenn eines der benötigten Felder fehlt.
+
+    SPCX-specific cross-check (added 2026-07-22): yfinance's `sharesOutstanding`
+    field undercounts SPCX's real share count (~7.57B vs. the actual ~13.17B
+    confirmed against stockanalysis.com/CNBC on 2026-07-22) — SpaceX has
+    multiple share classes and this field appears to only tally one of them.
+    yfinance's own `marketCap` and `impliedSharesOutstanding` fields are
+    computed from the full share count and do match external sources, so we
+    cross-check price × sharesOutstanding against the reported marketCap and,
+    on a large mismatch, use impliedSharesOutstanding instead — logging a
+    warning rather than silently using a number we know is likely wrong. This
+    check is intentionally SPCX-only (via the `live_float` baseline flag),
+    not applied to the other Mag7 tickers, whose yfinance data has been
+    stable for years. Reminder: a lock-up expiring around SpaceX's
+    2026-08-04 earnings date will move the real float independently of this
+    bug — don't mistake that later, legitimate move for a recurrence of it.
     """
     try:
         info = yf.Ticker(ticker).info
@@ -472,6 +484,19 @@ def fetch_live_float_cap(ticker):
         total_shares = info.get("sharesOutstanding")
         if not price or not float_shares or not total_shares:
             return None
+
+        market_cap_reported = info.get("marketCap")
+        if market_cap_reported:
+            naive_cap = price * total_shares
+            discrepancy = abs(naive_cap - market_cap_reported) / market_cap_reported
+            if discrepancy > 0.15:
+                implied_shares = info.get("impliedSharesOutstanding") or (market_cap_reported / price)
+                print(f"  ⚠ {ticker}: yfinance sharesOutstanding ({total_shares:,}) looks incomplete "
+                      f"(price x shares = ${naive_cap/1e12:.2f}T vs. reported marketCap "
+                      f"${market_cap_reported/1e12:.2f}T) — using impliedSharesOutstanding "
+                      f"({implied_shares:,.0f}) instead.")
+                total_shares = implied_shares
+
         return {
             "float_cap_t":    price * float_shares / 1e12,
             "total_cap_t":    price * total_shares / 1e12,

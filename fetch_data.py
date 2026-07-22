@@ -83,6 +83,15 @@ SUB_MARKETS = {
         ("Nasdaq 100",   "QQQ",      "USD"),
         ("Russell 2000", "IWM",      "USD"),
     ],
+    "Magnificent 7": [
+        ("Apple",     "AAPL",  "USD"),
+        ("Microsoft", "MSFT",  "USD"),
+        ("Alphabet",  "GOOGL", "USD"),
+        ("Amazon",    "AMZN",  "USD"),
+        ("Nvidia",    "NVDA",  "USD"),
+        ("Meta",      "META",  "USD"),
+        ("Tesla",     "TSLA",  "USD"),
+    ],
     "Swiss Equities (SPI)": [
         ("SMI",       "CSSMI.SW",  "CHF"),
         ("SPI Extra", "CSSMIM.SW", "CHF"),

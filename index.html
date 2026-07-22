@@ -619,11 +619,15 @@
       ? `iShares ETFs · USD→CHF · Feed: ${fetchedAt}`
       : `⚠ No data — run <code>python3 fetch_data.py</code>`;
 
+    const icon  = m.subMarketsIcon  || "🌍";
+    const label = m.subMarketsLabel || "Country";
+    const src   = m.subMarketsSource || "MSCI EM Index";
+
     let inner = `
       <div class="sub-header">
-        🌍 ${m.name} – Country Breakdown
+        ${icon} ${m.name} – ${label} Breakdown
         <span class="fx-note">
-          Weights: MSCI EM Index (${m.subMarketsWeightDate || "current"}) &nbsp;·&nbsp; ${note}
+          Weights: ${src} (${m.subMarketsWeightDate || "current"}) &nbsp;·&nbsp; ${note}
         </span>
       </div>
       <!-- Column headers -->
@@ -631,7 +635,7 @@
                   background:#e8f3f9;border-bottom:1px solid #c8dce9;
                   font-size:9.5px;font-weight:700;letter-spacing:.06em;
                   text-transform:uppercase;color:var(--text-muted);">
-        <div style="width:160px;flex-shrink:0;">Country</div>
+        <div style="width:160px;flex-shrink:0;">${label}</div>
         <div style="width:110px;flex-shrink:0;">Index Weight</div>
         <div style="flex:1;padding:0 16px;">YTD Return &nbsp;·&nbsp; 52W Range</div>
         <div style="width:62px;text-align:right;">YTD</div>

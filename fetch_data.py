@@ -123,6 +123,20 @@ WORLD_MKTCAP_BASELINE = {
 }
 MKTCAP_BASELINE_DATE = datetime(2026, 3, 31, tzinfo=timezone.utc)
 
+# SpaceX (SPCX) IPO offering size — source: S-1 filed 2026-05-20, pricing
+# confirmed 2026-06-11 (555,555,555 Class A shares at $135). Used as a stable
+# reference for SPCX's free float instead of yfinance's `floatShares`, which
+# reports ~281M — suspiciously close to exactly half of this — the same
+# share-class undercount bug already found and fixed for `sharesOutstanding`
+# (see fetch_live_float_cap()).
+#
+# TODO — review from 2026-08-05 onward: SpaceX's IPO lock-up expires around
+# its 2026-08-04 earnings date, after which more shares legitimately join the
+# tradable float and this hardcoded anchor will go stale (too low). Re-check
+# yfinance's floatShares against real volume/secondary-sale data at that
+# point and update or remove SPCX_IPO_FLOAT_SHARES accordingly. See CLAUDE.md.
+SPCX_IPO_FLOAT_SHARES = 555_555_555
+
 # ── MAG7 Market Cap ──────────────────────────────────────────────────────────
 # Baseline market caps at Q1 2026 (31 March 2026), in USD trillions.
 # Source: Bloomberg / public filings, rounded to 2 decimal places.
@@ -476,6 +490,13 @@ def fetch_live_float_cap(ticker):
     stable for years. Reminder: a lock-up expiring around SpaceX's
     2026-08-04 earnings date will move the real float independently of this
     bug — don't mistake that later, legitimate move for a recurrence of it.
+
+    Same undercount bug also affects `floatShares` (added 2026-07-22): SPCX's
+    reported floatShares (~281M) is ~half of the 555,555,555 shares actually
+    sold in the IPO (SPCX_IPO_FLOAT_SHARES, see its definition for the TODO
+    on reviewing this after the 2026-08-04 lock-up expiry) — so for SPCX we
+    anchor on the IPO offering size instead when yfinance's figure diverges
+    from it by more than 15%.
     """
     try:
         info = yf.Ticker(ticker).info
@@ -496,6 +517,15 @@ def fetch_live_float_cap(ticker):
                       f"${market_cap_reported/1e12:.2f}T) — using impliedSharesOutstanding "
                       f"({implied_shares:,.0f}) instead.")
                 total_shares = implied_shares
+
+        if ticker == "SPCX":
+            discrepancy = abs(float_shares - SPCX_IPO_FLOAT_SHARES) / SPCX_IPO_FLOAT_SHARES
+            if discrepancy > 0.15:
+                print(f"  ⚠ {ticker}: yfinance floatShares ({float_shares:,}) looks incomplete "
+                      f"(~{float_shares / SPCX_IPO_FLOAT_SHARES * 100:.0f}% of the "
+                      f"{SPCX_IPO_FLOAT_SHARES:,} shares actually sold in the IPO) — using the "
+                      f"IPO offering size instead.")
+                float_shares = SPCX_IPO_FLOAT_SHARES
 
         return {
             "float_cap_t":    price * float_shares / 1e12,

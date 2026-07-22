@@ -21,7 +21,7 @@ const LIVE_DATA = {
       "etfProxy": true,
       "ticker": "EWJ"
     },
-    "Global Equities – Small Caps": {
+    "Global Equities \u2013 Small Caps": {
       "ytd": 17.22,
       "w52Low": -9.46,
       "w52High": 17.58,
@@ -69,7 +69,7 @@ const LIVE_DATA = {
       "etfProxy": true,
       "ticker": "EPP"
     },
-    "Swiss Equities – Small Caps": {
+    "Swiss Equities \u2013 Small Caps": {
       "ytd": 5.86,
       "w52Low": -7.26,
       "w52High": 9.89,
@@ -720,9 +720,9 @@ const LIVE_DATA = {
       {
         "name": "SpaceX",
         "ticker": "SPCX",
-        "trillions": 0.033,
-        "totalT": 1.57,
-        "freeFloat": 2.1,
+        "trillions": 0.066,
+        "totalT": 1.558,
+        "freeFloat": 4.2,
         "note": "live"
       }
     ]
@@ -5039,7 +5039,7 @@ const LIVE_DATA = {
       },
       {
         "name": "Nvidia",
-        "profile": "Fabless — capex physique porté par TSMC",
+        "profile": "Fabless \u2014 capex physique port\u00e9 par TSMC",
         "quarters": [
           {
             "periodEnd": "2020-10-25",

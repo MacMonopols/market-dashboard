@@ -128,7 +128,6 @@ MKTCAP_BASELINE_DATE = datetime(2026, 3, 31, tzinfo=timezone.utc)
 # Source: Bloomberg / public filings, rounded to 2 decimal places.
 # Free float market caps at Q1 2026 baseline (total market cap × free float %).
 # Free float % source: MSCI / Bloomberg estimates.
-# SpaceX: total valuation $2,419.04B × 4.3% free float = $103.9B free float.
 MAG7_BASELINE = [
     {"name": "Apple",     "ticker": "AAPL", "totalT": 3.11,  "freeFloat": 0.995},
     {"name": "Microsoft", "ticker": "MSFT", "totalT": 2.83,  "freeFloat": 0.995},
@@ -138,8 +137,15 @@ MAG7_BASELINE = [
     {"name": "Alphabet",  "ticker": "GOOG", "totalT": 1.64,  "freeFloat": 0.930, "merge_into": "Alphabet"},
     {"name": "Meta",      "ticker": "META", "totalT": 1.61,  "freeFloat": 0.860},
     {"name": "Tesla",     "ticker": "TSLA", "totalT": 0.79,  "freeFloat": 0.840},
-    # SpaceX: IPO price $185, total valuation $2,419.04B, free float 4.3%
-    {"name": "SpaceX",    "ticker": "SPCX",  "totalT": 2.419, "freeFloat": 0.043},
+    # SpaceX (SPCX): Nasdaq IPO 2026-06-12. Too recent for the baseline-scaling
+    # method used below (fetch_weekly's 1y/weekly series has <10 closes so far,
+    # and there is no pre-IPO price to compare against 31 March 2026 anyway).
+    # Instead computed live every run as price × floatShares via
+    # fetch_live_float_cap() — floatShares, not sharesOutstanding, because Musk
+    # retains ~42% equity / ~85% voting power through multi-class shares, so
+    # total shares outstanding materially overstates the public float.
+    # totalT/freeFloat here are only the fallback if the live fetch fails.
+    {"name": "SpaceX",    "ticker": "SPCX",  "totalT": 2.419, "freeFloat": 0.043, "live_float": True},
 ]
 
 # ── Long-Term Market Summary config ─────────────────────────────────────────
@@ -293,8 +299,10 @@ def calc_world_mktcap(fx_weekly, cached_series=None):
 def calc_mag7(world_total_t, cached_series=None):
     """
     Compute free float market cap for each MAG7+SpaceX company.
-    For listed stocks: baseline free float cap scaled by price performance since Q1 2026.
-    For static entries (SpaceX, no ticker): baseline free float cap kept fixed.
+    For established listed stocks: baseline free float cap scaled by price performance since Q1 2026.
+    For live_float entries (SpaceX/SPCX, IPO too recent for the baseline method): computed
+    directly each run as live price × floatShares via fetch_live_float_cap().
+    For static entries (no ticker at all): baseline free float cap kept fixed.
     Returns combined free float $ trillions + % of world / % of US market.
     """
     baseline_ts = int(MKTCAP_BASELINE_DATE.timestamp())
@@ -304,10 +312,24 @@ def calc_mag7(world_total_t, cached_series=None):
     total_ff = 0.0
     stocks_out = []
     for stock in MAG7_BASELINE:
-        ticker      = stock["ticker"]
-        baseline_ff = round(stock["totalT"] * stock["freeFloat"], 3)  # free float at baseline
+        ticker       = stock["ticker"]
+        baseline_ff  = round(stock["totalT"] * stock["freeFloat"], 3)  # free float at baseline
+        display_totalT     = stock["totalT"]
+        display_freeFloat  = round(stock["freeFloat"] * 100, 1)
 
-        if stock.get("static") or not ticker:
+        if stock.get("live_float"):
+            # No valid pre-IPO baseline price exists (e.g. SpaceX/SPCX) — compute
+            # directly from live price × floatShares instead of scaling a baseline.
+            live = fetch_live_float_cap(ticker)
+            if live:
+                updated_ff        = round(live["float_cap_t"], 3)
+                display_totalT    = round(live["total_cap_t"], 3)
+                display_freeFloat = round(live["free_float_pct"], 1)
+                note = "live"
+            else:
+                updated_ff = baseline_ff
+                note = "fallback"
+        elif stock.get("static") or not ticker:
             # Private / no ticker: keep free float cap fixed
             updated_ff = baseline_ff
             note = "private"
@@ -330,8 +352,8 @@ def calc_mag7(world_total_t, cached_series=None):
             "name":      stock["name"],
             "ticker":    ticker or "—",
             "trillions": updated_ff,
-            "totalT":    stock["totalT"],
-            "freeFloat": round(stock["freeFloat"] * 100, 1),
+            "totalT":    display_totalT,
+            "freeFloat": display_freeFloat,
             "note":      note,
             "_merge_into": stock.get("merge_into"),
         })
@@ -429,6 +451,32 @@ def fetch_weekly(ticker):
         closes = df["Close"].dropna()
         result = [(int(ts.timestamp()), float(c)) for ts, c in closes.items()]
         return result if len(result) >= 10 else None
+    except Exception:
+        return None
+
+def fetch_live_float_cap(ticker):
+    """
+    Holt Preis + Aktienzahlen direkt via Ticker.info, statt über die Kurshistorie
+    zu skalieren. Für sehr frische IPOs (z.B. SPCX), deren 1y/Wochen-Serie noch
+    zu wenige Datenpunkte hat (fetch_weekly() verlangt >=10) und die ohnehin
+    keinen validen Vor-IPO-Referenzpreis für die Q1-2026-Baseline haben.
+    Marktkapitalisierung wird bewusst aus price × shares berechnet statt aus dem
+    yfinance-Feld 'marketCap' übernommen — bei SPCX weichen beide nachweislich
+    voneinander ab (marketCap inkonsistent bei sehr neuen Tickern).
+    Gibt None zurück, wenn eines der benötigten Felder fehlt.
+    """
+    try:
+        info = yf.Ticker(ticker).info
+        price = info.get("currentPrice") or info.get("regularMarketPrice")
+        float_shares = info.get("floatShares")
+        total_shares = info.get("sharesOutstanding")
+        if not price or not float_shares or not total_shares:
+            return None
+        return {
+            "float_cap_t":    price * float_shares / 1e12,
+            "total_cap_t":    price * total_shares / 1e12,
+            "free_float_pct": float_shares / total_shares * 100,
+        }
     except Exception:
         return None
 

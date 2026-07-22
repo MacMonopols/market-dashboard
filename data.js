@@ -37,6 +37,7 @@ const MARKETS = [
       { name: "Russell 2000", ticker: "IWM", flag: "📦", weight: null, note: "iShares Russell 2000 ETF"       },
     ],
   },
+  { name: "Magnificent 7",                   cat: "equity",    ticker: "MAGS",     tickerCcy: "USD" },
   { name: "Global Equities",                 cat: "equity",    ticker: "ACWI",     tickerCcy: "USD" },
   { name: "Global Equities Ex-US (MSCI W ex USA)", cat: "equity", ticker: "IWQU.L", tickerCcy: "GBP" },
   { name: "Pacific ex Japan Equities",       cat: "equity",    ticker: "EPP",      tickerCcy: "USD" },

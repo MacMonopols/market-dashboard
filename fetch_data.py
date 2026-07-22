@@ -31,6 +31,7 @@ MAIN_MARKETS = [
     ("Japanese Equities",                 "EWJ",       "USD"),
     ("Global Equities – Small Caps",      "IUSN.DE",   "EUR"),
     ("US Equities (S&P 500)",             "SPY",       "USD"),
+    ("Magnificent 7",                     "MAGS",      "USD"),
     ("Global Equities",                   "ACWI",      "USD"),
     ("Global Equities Ex-US (MSCI W ex USA)", "IWQU.L", "GBP"),
     ("Pacific ex Japan Equities",         "EPP",       "USD"),

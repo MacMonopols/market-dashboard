@@ -147,8 +147,12 @@ MAG7_BASELINE = [
     {"name": "Microsoft", "ticker": "MSFT", "totalT": 2.83,  "freeFloat": 0.995},
     {"name": "Nvidia",    "ticker": "NVDA", "totalT": 2.52,  "freeFloat": 0.975},
     {"name": "Amazon",    "ticker": "AMZN", "totalT": 2.07,  "freeFloat": 0.940},
-    {"name": "Alphabet",  "ticker": "GOOGL","totalT": 1.98,  "freeFloat": 0.930},
-    {"name": "Alphabet",  "ticker": "GOOG", "totalT": 1.64,  "freeFloat": 0.930, "merge_into": "Alphabet"},
+    # Alphabet: yfinance's `marketCap` field is company-wide no matter which
+    # class ticker you query (verified live: GOOGL and GOOG both report
+    # ~$4.17T) — so only GOOGL is fetched (see get_company_market_cap());
+    # a separate GOOG entry would double-count Alphabet. Fallback totalT
+    # below combines the old GOOGL (1.98T) + GOOG (1.64T) baseline values.
+    {"name": "Alphabet",  "ticker": "GOOGL","totalT": 3.62,  "freeFloat": 0.930},
     {"name": "Meta",      "ticker": "META", "totalT": 1.61,  "freeFloat": 0.860},
     {"name": "Tesla",     "ticker": "TSLA", "totalT": 0.79,  "freeFloat": 0.840},
     # SpaceX (SPCX): Nasdaq IPO 2026-06-12. Too recent for the baseline-scaling
@@ -310,19 +314,24 @@ def calc_world_mktcap(fx_weekly, cached_series=None):
         "regions":    results,
     }
 
-def calc_mag7(world_total_t, cached_series=None):
+def calc_mag7(world_total_t):
     """
     Compute free float market cap for each MAG7+SpaceX company.
-    For established listed stocks: baseline free float cap scaled by price performance since Q1 2026.
-    For live_float entries (SpaceX/SPCX, IPO too recent for the baseline method): computed
-    directly each run as live price × floatShares via fetch_live_float_cap().
+    For established listed stocks: live total market cap via
+    get_company_market_cap() — the same source calc_mag7_cap_weighted() uses
+    on the YTD tab — × each company's free-float % (MSCI/Bloomberg estimate,
+    a slow-moving structural figure, not the source of the earlier tab
+    divergence). This section's "trillions" is a free-float cap, unlike the
+    YTD tab's cap-weighted weights which use full market cap, so the two
+    tabs' weights will be close but not bit-identical — that residual gap
+    (≲1pt per company) is the intentional free-float discount, not a bug.
+    For live_float entries (SpaceX/SPCX, IPO too recent for a Q1-2026
+    baseline and whose sharesOutstanding/floatShares both need correction):
+    computed directly each run as live price × floatShares via
+    fetch_live_float_cap().
     For static entries (no ticker at all): baseline free float cap kept fixed.
     Returns combined free float $ trillions + % of world / % of US market.
     """
-    baseline_ts = int(MKTCAP_BASELINE_DATE.timestamp())
-    now = datetime.now(timezone.utc)
-    cutoff = datetime(now.year, now.month, 1, tzinfo=timezone.utc).timestamp() - 1
-
     total_ff = 0.0
     stocks_out = []
     for stock in MAG7_BASELINE:
@@ -348,17 +357,12 @@ def calc_mag7(world_total_t, cached_series=None):
             updated_ff = baseline_ff
             note = "private"
         else:
-            try:
-                series = (cached_series or {}).get(ticker) or fetch_weekly(ticker)
-                if not series:
-                    raise ValueError("no data")
-                base_idx = min(range(len(series)), key=lambda i: abs(series[i][0] - baseline_ts))
-                base_price = series[base_idx][1]
-                completed = [(t, v) for t, v in series if t <= cutoff]
-                curr_price = completed[-1][1] if completed else series[-1][1]
-                updated_ff = round(baseline_ff * curr_price / base_price, 3)
+            live_cap = get_company_market_cap(ticker)
+            if live_cap:
+                display_totalT = round(live_cap / 1e12, 3)
+                updated_ff = round(display_totalT * stock["freeFloat"], 3)
                 note = "live"
-            except Exception:
+            else:
                 updated_ff = baseline_ff
                 note = "fallback"
 
@@ -369,24 +373,8 @@ def calc_mag7(world_total_t, cached_series=None):
             "totalT":    display_totalT,
             "freeFloat": display_freeFloat,
             "note":      note,
-            "_merge_into": stock.get("merge_into"),
         })
         total_ff += updated_ff
-
-    # Merge share-class duplicates (e.g. GOOGL A + GOOG C → one Alphabet entry)
-    merged = []
-    for s in stocks_out:
-        if s.get("_merge_into"):
-            target = next((x for x in merged if x["name"] == s["_merge_into"]), None)
-            if target:
-                target["trillions"] = round(target["trillions"] + s["trillions"], 3)
-                target["ticker"] = target["ticker"] + "/" + s["ticker"]
-                target["note"] = "MSCI A+C combined"
-        else:
-            merged.append(dict(s))
-    for s in merged:
-        s.pop("_merge_into", None)
-    stocks_out = merged
 
     total_ff = round(total_ff, 1)
     # US market = ~63% of world total
@@ -401,12 +389,27 @@ def calc_mag7(world_total_t, cached_series=None):
         "stocks":    stocks_out,
     }
 
-def fetch_market_cap(ticker):
+def get_company_market_cap(ticker):
     """
-    Live total market cap via yfinance's own `marketCap` field. Used only to
-    derive cap weights for calc_mag7_cap_weighted() below. Unlike SPCX (see
-    fetch_live_float_cap), the 7 Mag7 tickers have stable, well-covered
-    yfinance data, so no cross-check against a manual anchor is needed here.
+    Single source of truth for a Mag7 company's live total market cap.
+    Called by BOTH calc_mag7_cap_weighted() (YTD tab) and calc_mag7()
+    (Long Term Summary tab) so the two tabs price each company identically.
+
+    Before this was unified, calc_mag7() priced companies from a static
+    Q1-2026 baseline scaled forward by price only, while
+    calc_mag7_cap_weighted() used live data — the two silently drifted apart
+    (e.g. Nvidia showed ~23% weight on one tab, ~16% on the other, purely
+    from the stale baseline).
+
+    Reads yfinance's own `marketCap` field directly rather than computing
+    price × sharesOutstanding ourselves: `marketCap` is Yahoo's own
+    company-level figure and is already correct across multi-class share
+    structures (verified live: GOOGL and GOOG both report ~$4.17T for
+    Alphabet), whereas the raw `sharesOutstanding` field is exactly what
+    silently undercounted SpaceX/SPCX (see fetch_live_float_cap()). Using
+    `marketCap` directly sidesteps that whole class of bug instead of
+    re-deriving it per caller. The 7 Mag7 tickers have stable, well-covered
+    yfinance data, so no further cross-check is needed here.
     """
     try:
         info = yf.Ticker(ticker).info
@@ -447,7 +450,7 @@ def calc_mag7_cap_weighted(member_series, fx_data):
 
     caps = {}
     for _, ticker, _ in members:
-        cap = fetch_market_cap(ticker)
+        cap = get_company_market_cap(ticker)
         if cap:
             caps[ticker] = cap
     missing_caps = [t for _, t, _ in members if t not in caps]
@@ -905,9 +908,7 @@ def main():
     # 5b) MAG7
     next_step3 = next_step2 + 1
     print(f"\n[{next_step3}] MAG7 Market Cap (dynamic, baseline Q1 2026)")
-    mag7_tickers = [(s["ticker"], "USD") for s in MAG7_BASELINE]
-    raw_mag7 = batch_fetch(mag7_tickers)
-    mag7 = calc_mag7(world_mktcap["totalT"], cached_series=raw_mag7)
+    mag7 = calc_mag7(world_mktcap["totalT"])
     print(f"  MAG7 total: ${mag7['totalT']:.1f}T  ({mag7['worldPct']}% of world / {mag7['usPct']}% of US)")
     for s in mag7["stocks"]:
         print(f"    {s['name']:12s}  ${s['trillions']:.2f}T")

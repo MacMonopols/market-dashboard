@@ -267,7 +267,7 @@ const LIVE_DATA = {
       "ticker": "EXVM.DE"
     },
     "USD / CHF": {
-      "ytd": 2.89,
+      "ytd": 2.87,
       "w52Low": -2.83,
       "w52High": 2.89,
       "l30d": 1.28,
@@ -318,10 +318,10 @@ const LIVE_DATA = {
         "ticker": "EWY"
       },
       "India": {
-        "ytd": -9.06,
+        "ytd": -9.09,
         "w52Low": -15.69,
         "w52High": 1.65,
-        "l30d": -1.5,
+        "l30d": -1.53,
         "etfProxy": true,
         "ticker": "INDA"
       },
@@ -345,7 +345,7 @@ const LIVE_DATA = {
         "ytd": 5.45,
         "w52Low": -1.57,
         "w52High": 10.21,
-        "l30d": -2.62,
+        "l30d": -2.65,
         "etfProxy": true,
         "ticker": "KSA"
       },
@@ -366,18 +366,18 @@ const LIVE_DATA = {
         "ticker": "UAE"
       },
       "Indonesia": {
-        "ytd": -29.39,
+        "ytd": -29.41,
         "w52Low": -39.97,
         "w52High": 3.13,
-        "l30d": 3.23,
+        "l30d": 3.2,
         "etfProxy": true,
         "ticker": "EIDO"
       },
       "Thailand": {
-        "ytd": 28.15,
+        "ytd": 28.12,
         "w52Low": -7.31,
-        "w52High": 28.15,
-        "l30d": 2.1,
+        "w52High": 28.12,
+        "l30d": 2.07,
         "etfProxy": true,
         "ticker": "THD"
       },
@@ -529,7 +529,7 @@ const LIVE_DATA = {
         "ytd": 12.03,
         "w52Low": -15.87,
         "w52High": 16.02,
-        "l30d": -1.01,
+        "l30d": -1.03,
         "etfProxy": true,
         "ticker": "EFNL"
       },
@@ -553,8 +553,8 @@ const LIVE_DATA = {
         "1": 21.31,
         "5": 6.77,
         "10": 9.97,
-        "15": 9.04,
-        "20": 6.79
+        "15": null,
+        "20": null
       }
     },
     {

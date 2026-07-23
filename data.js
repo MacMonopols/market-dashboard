@@ -39,10 +39,12 @@ const MARKETS = [
   },
   {
     name: "Magnificent 7", cat: "equity", ticker: "MAGS", tickerCcy: "USD",
-    subMarketsWeightDate: "quarterly rebalance",
+    subMarketsWeightDate: "live, recalculated each run",
     subMarketsLabel: "Company",
     subMarketsIcon: "🏢",
-    subMarketsSource: "Equal-weighted (Roundhill MAGS ETF)",
+    subMarketsSource: "Market-cap weighted",
+    // weight: fallback equal split (1/7); overwritten with live cap weights
+    // in index.html when live_data.js provides them (see mainLive[...].weights).
     subMarkets: [
       { name: "Apple",     ticker: "AAPL",  flag: "🍎", weight: 14.29, note: "Apple Inc." },
       { name: "Microsoft", ticker: "MSFT",  flag: "🪟", weight: 14.29, note: "Microsoft Corp." },

@@ -463,8 +463,20 @@
       m.w52Low  = live.w52Low;
       m.w52High = live.w52High;
       m._live   = true;
+      // Secondary metric, currently only populated for "Magnificent 7":
+      // the equal-weight (MAGS) numbers this metric used to show, kept as
+      // a breadth indicator now that ytd/w52Low/w52High above are cap-weighted.
+      m._equalWeight = live.equalWeight || null;
     } else {
       m._live   = false;   // flag: no real data
+    }
+    // Override static sub-market weights (data.js fallback) with live
+    // weights when provided — currently only "Magnificent 7" (cap weights,
+    // recalculated every run instead of the fixed 1/7 equal split).
+    if (live && live.weights && m.subMarkets) {
+      m.subMarkets.forEach(s => {
+        if (live.weights[s.ticker] != null) s.weight = live.weights[s.ticker];
+      });
     }
   });
 
@@ -545,11 +557,26 @@
       </div>`;
   }
 
+  // Secondary bar: thin, muted, same scale — used for Mag7's equal-weight
+  // (MAGS) reading now that the primary bar above it is cap-weighted.
+  function secondaryBarHTML(eq) {
+    return `
+      <div style="margin-top:5px;display:flex;align-items:center;gap:6px;opacity:.6;">
+        <span style="font-size:8.5px;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Equal-weight (breadth, MAGS)</span>
+        <div style="flex:1;">${barsHTML(eq.ytd, eq.w52Low, eq.w52High, '#8a97a8', true)}</div>
+      </div>`;
+  }
+
   // ── YTD label helper ───────────────────────────────────────
-  function ytdLabel(ytd) {
+  // secondaryYtd (optional): renders a smaller muted line below the main
+  // value, e.g. Mag7's equal-weight (MAGS) reading vs. the cap-weighted primary.
+  function ytdLabel(ytd, secondaryYtd = null) {
     const cls = ytd > 0.049 ? 'pos' : (ytd < -0.049 ? 'neg' : 'neu');
     const sgn = ytd > 0.049 ? '+' : '';
-    return `<div class="col-ytd ${cls}">${sgn}${ytd.toFixed(1)}%</div>`;
+    const secondary = secondaryYtd != null
+      ? `<div style="font-size:9px;font-weight:500;color:var(--text-muted);margin-top:2px;">eq ${secondaryYtd > 0.049 ? '+' : ''}${secondaryYtd.toFixed(1)}%</div>`
+      : '';
+    return `<div class="col-ytd ${cls}">${sgn}${ytd.toFixed(1)}%${secondary}</div>`;
   }
 
   // ── Main render ────────────────────────────────────────────
@@ -581,14 +608,20 @@
       const isOpen = expandedSets.has(m.name);
 
       const hasValues = m.ytd != null && m.w52Low != null;
+      const eq      = m._equalWeight;
+      const hasEq   = hasValues && eq && eq.ytd != null && eq.w52Low != null;
+
       const barsCell  = hasValues
-        ? barsHTML(m.ytd, m.w52Low, m.w52High, c)
+        ? barsHTML(m.ytd, m.w52Low, m.w52High, c) + (hasEq ? secondaryBarHTML(eq) : '')
         : `<div style="font-size:11px;color:var(--text-muted);padding:0 4px;">— no ETF available</div>`;
-      const ytdCell = hasValues ? ytdLabel(m.ytd) : `<div class="col-ytd neu">—</div>`;
+      const ytdCell = hasValues ? ytdLabel(m.ytd, hasEq ? eq.ytd : null) : `<div class="col-ytd neu">—</div>`;
+      const nameCell = hasEq
+        ? `${m.name} <span style="font-size:9.5px;font-weight:400;color:var(--text-muted);">(cap-wtd)</span>`
+        : m.name;
 
       html += `
-        <div class="row" style="--cat-color:${c}">
-          <div class="col-name" title="${m.name}">${m.name}</div>
+        <div class="row" style="--cat-color:${c};${hasEq ? 'height:50px;' : ''}">
+          <div class="col-name" title="${m.name}${hasEq ? ' — primary line is cap-weighted; secondary line is equal-weight (MAGS), a breadth indicator' : ''}">${nameCell}</div>
           <div class="col-bars">${barsCell}</div>
           ${ytdCell}
           <div class="col-expand">

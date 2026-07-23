@@ -401,6 +401,116 @@ def calc_mag7(world_total_t, cached_series=None):
         "stocks":    stocks_out,
     }
 
+def fetch_market_cap(ticker):
+    """
+    Live total market cap via yfinance's own `marketCap` field. Used only to
+    derive cap weights for calc_mag7_cap_weighted() below. Unlike SPCX (see
+    fetch_live_float_cap), the 7 Mag7 tickers have stable, well-covered
+    yfinance data, so no cross-check against a manual anchor is needed here.
+    """
+    try:
+        info = yf.Ticker(ticker).info
+        cap = info.get("marketCap")
+        return float(cap) if cap else None
+    except Exception:
+        return None
+
+def calc_mag7_cap_weighted(member_series, fx_data):
+    """
+    Cap-weighted Mag7 YTD/52W performance, replacing the MAGS ETF's
+    equal-weighting for the primary dashboard metric.
+
+    - Weights = live market cap per member / sum(live market caps), fetched
+      fresh every run (not a fixed baseline).
+    - Each member's CHF return series is built the same way as
+      calc_chf_returns() (return vs. last close before YTD_START, converted
+      via the same FX series used elsewhere on the dashboard).
+    - The weighted index return at each week = sum(weight_i * return_i).
+      Weights are held constant across the lookback window — yfinance
+      doesn't expose historical share counts, so this is the standard
+      "current-weight" approximation, not a true historically-reconstituted
+      cap-weighted index.
+    - Does NOT include SpaceX: SpaceX is not a historical Magnificent 7
+      constituent (the traditional 7 are Apple, Microsoft, Alphabet, Amazon,
+      Nvidia, Meta, Tesla). It stays only in the separate MAG7_BASELINE /
+      calc_mag7() world-market-cap section, which is unrelated to this
+      YTD-tab metric.
+
+    member_series: dict {ticker: [(ts, price), ...]} in USD, weekly — the
+                    same series already fetched for SUB_MARKETS["Magnificent 7"].
+    fx_data:       dict {ccy: [(ts, fx), ...] or None} — same as used by
+                    calc_chf_returns() elsewhere in this file.
+    Returns None if too few members have both price data and a live market cap.
+    """
+    members = SUB_MARKETS["Magnificent 7"]  # [(name, ticker, ccy), ...]
+    cutoff = int(YTD_START.timestamp())
+
+    caps = {}
+    for _, ticker, _ in members:
+        cap = fetch_market_cap(ticker)
+        if cap:
+            caps[ticker] = cap
+    missing_caps = [t for _, t, _ in members if t not in caps]
+    if missing_caps:
+        print(f"  ⚠ Mag7 cap-weighted: no live market cap for {missing_caps}, excluding from weights")
+
+    member_returns = []  # (weight, [(ts, ret_pct), ...])
+    for _, ticker, ccy in members:
+        series = member_series.get(ticker)
+        cap = caps.get(ticker)
+        if not series or not cap:
+            continue
+        fx_series = fx_data.get(ccy) if ccy != "CHF" else None
+        before = [(t, c) for t, c in series if t < cutoff]
+        start_ts, start_px = before[-1] if before else series[0]
+        start_fx = closest_fx(fx_series, start_ts) if fx_series else 1.0
+        start_chf = start_px * start_fx
+        if not start_chf:
+            continue
+        rets = []
+        for ts, px in series:
+            fx = closest_fx(fx_series, ts) if fx_series else 1.0
+            rets.append((ts, (px * fx / start_chf - 1) * 100))
+        member_returns.append((ticker, cap, rets))
+
+    if not member_returns:
+        return None
+
+    total_cap = sum(cap for _, cap, _ in member_returns)
+    weighted = [(ticker, cap / total_cap, rets) for ticker, cap, rets in member_returns]
+
+    # Combine into one weighted series. All members were batch-downloaded
+    # together (single yf.download call per SUB_MARKETS group), so their
+    # weekly timestamps line up positionally; align on the shortest series
+    # as a safety margin.
+    length = min(len(rets) for _, _, rets in weighted)
+    combined = []
+    for i in range(length):
+        ts = weighted[0][2][i][0]
+        val = sum(w * rets[i][1] for _, w, rets in weighted)
+        combined.append((ts, val))
+
+    ytd     = combined[-1][1]
+    w52Low  = min(v for _, v in combined)
+    w52High = max(v for _, v in combined)
+
+    curr_ts = combined[-1][0]
+    thirty_days_ago = curr_ts - 30 * 24 * 3600
+    before_30d = [(t, v) for t, v in combined if t <= thirty_days_ago]
+    if before_30d:
+        v_30d = before_30d[-1][1]
+        l30d = round(((1 + ytd / 100) / (1 + v_30d / 100) - 1) * 100, 2)
+    else:
+        l30d = None
+
+    return {
+        "ytd":     round(ytd, 2),
+        "w52Low":  round(w52Low, 2),
+        "w52High": round(w52High, 2),
+        "l30d":    l30d,
+        "weights": {ticker: round(w * 100, 1) for ticker, w, _ in weighted},
+    }
+
 def fetch_monthly_max(ticker):
     """Download full available monthly history for long-term return calculations."""
     try:
@@ -678,10 +788,12 @@ def main():
 
     # 3) Sub-market breakdowns
     sub_results = {}   # { "Emerging Market Equities": {"Taiwan": {...}, ...}, ... }
+    sub_raw = {}        # { parent: {ticker: [(ts, price), ...]} } — kept for reuse below (Mag7 cap-weighting)
     for i, (parent, items) in enumerate(SUB_MARKETS.items(), start=3):
         print(f"\n[{i}] {parent} – sub-markets (Batch-Download)")
         tickers_ccys = [(t, c) for _, t, c in items if t]
         raw = batch_fetch(tickers_ccys)
+        sub_raw[parent] = raw
         group = {}
         for name, ticker, ccy in items:
             series = raw.get(ticker)
@@ -696,6 +808,31 @@ def main():
         ok = sum(1 for v in group.values() if "ytd" in v)
         print(f"  → {ok}/{len(items)} computed")
         sub_results[parent] = group
+
+    # 3b) Magnificent 7 – switch the main YTD-tab metric from MAGS' equal
+    # weighting to cap-weighted (live weights), keeping equal-weight as a
+    # secondary breadth indicator. Reuses the per-member series just fetched
+    # above for the "Magnificent 7" sub-market breakdown.
+    print(f"\n[3b] Magnificent 7 – cap-weighted YTD (live market-cap weights)")
+    mag7_capw = calc_mag7_cap_weighted(sub_raw.get("Magnificent 7", {}), fx_data)
+    if mag7_capw and "ytd" in main_results.get("Magnificent 7", {}):
+        equal_weight = {k: main_results["Magnificent 7"][k] for k in ("ytd", "w52Low", "w52High", "l30d", "ticker")}
+        equal_weight["etfProxy"] = True
+        main_results["Magnificent 7"].update({
+            "ytd":         mag7_capw["ytd"],
+            "w52Low":      mag7_capw["w52Low"],
+            "w52High":     mag7_capw["w52High"],
+            "l30d":        mag7_capw["l30d"],
+            "weights":     mag7_capw["weights"],
+            "weightMethod":"cap-weighted",
+            "ticker":      "MAG7-CAPW",
+            "etfProxy":    False,
+            "equalWeight": equal_weight,
+        })
+        print(f"  → cap-weighted YTD {mag7_capw['ytd']:+.2f}%  (equal-weight/MAGS was {equal_weight['ytd']:+.2f}%)")
+        print("  weights: " + "  ".join(f"{t}:{w:.1f}%" for t, w in mag7_capw["weights"].items()))
+    else:
+        print("  ⚠ Cap-weighted Mag7 calc failed — keeping MAGS equal-weight as the primary metric")
 
     # 4) Long-term Market Summary (monthly, max history)
     next_step = 3 + len(SUB_MARKETS) + 1

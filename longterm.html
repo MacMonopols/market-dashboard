@@ -348,22 +348,23 @@
       <div class="mktcap-legend" id="mag7-legend"></div>
     </div>
   </div>
-</div>
-
-<!-- ── S&P 500 Top 10 Holdings (rendered by JS from live_data.js) ──────── -->
-<div class="mktcap-card" id="spy-top10-card" style="display:none">
-  <div class="mktcap-title">S&amp;P 500 — Top 10 Holdings</div>
-  <div class="mktcap-date" id="spy-top10-date"></div>
-  <div class="mktcap-body">
-    <div class="donut-wrap">
-      <svg id="spy-top10-svg" width="150" height="150" viewBox="0 0 150 150"></svg>
+  <!-- S&P 500 Top 10 — only shown as part of the "US Market" drilldown,
+       since the US Market total itself is Russell-3000-based (see
+       WORLD_MKTCAP_BASELINE), not S&P 500 -->
+  <div class="mag7-block" id="spy-top10-block" style="display:none">
+    <div class="mktcap-title">S&amp;P 500 — Top 10 Holdings</div>
+    <div class="mktcap-date" id="spy-top10-date"></div>
+    <div class="mktcap-body">
+      <div class="donut-wrap">
+        <svg id="spy-top10-svg" width="150" height="150" viewBox="0 0 150 150"></svg>
+      </div>
+      <div class="mktcap-legend" id="spy-top10-legend"></div>
     </div>
-    <div class="mktcap-legend" id="spy-top10-legend"></div>
-  </div>
-  <div class="spy-history-wrap">
-    <div class="mktcap-title" style="font-size:11px;">Weight evolution over time</div>
-    <svg id="spy-top10-history-svg" width="900" height="200" viewBox="0 0 900 200"></svg>
-    <div class="spy-history-legend" id="spy-top10-history-legend"></div>
+    <div class="spy-history-wrap">
+      <div class="mktcap-title" style="font-size:11px;">Weight evolution over time</div>
+      <svg id="spy-top10-history-svg" width="900" height="200" viewBox="0 0 900 200"></svg>
+      <div class="spy-history-legend" id="spy-top10-history-legend"></div>
+    </div>
   </div>
 </div>
 
@@ -687,6 +688,7 @@
     backWrap.style.display = 'none';
     document.getElementById('mktcap-date').textContent =
       `Baseline: ${wmc.baseline} · Scaled to ${wmc.updatedTo} via ETF performance · Click a segment to drill down`;
+    document.getElementById('spy-top10-block').style.display = 'none';
 
     const segs = wmc.regions.map(r => ({ ...r, pct: r.pct }));
     renderDonut('mktcap-svg', 'mktcap-legend', segs,
@@ -755,7 +757,7 @@
       const drill = DRILLDOWN[region.name];
       if (!drill) return;
       segments  = drill.segments;
-      dateLabel = `${drill.title} · S&P sector weights (static)`;
+      dateLabel = `${drill.title} · S&P sector weights (static) — total is Russell 3000`;
     } else {
       segments = acwiRegionSegments(region.name);
       if (!segments) return;
@@ -768,6 +770,14 @@
 
     document.getElementById('mktcap-back-wrap').style.display = '';
     document.getElementById('mktcap-date').textContent = dateLabel;
+
+    const spyBlock = document.getElementById('spy-top10-block');
+    if (region.name === "US Market" && LD.spyTop10 && LD.spyTop10.top10 && LD.spyTop10.top10.length) {
+      spyBlock.style.display = '';
+      renderSpyTop10();
+    } else {
+      spyBlock.style.display = 'none';
+    }
 
     const totalT = region.trillions;
     const segs   = segments.map(s => ({
@@ -792,12 +802,12 @@
   function renderSpyTop10() {
     const spy = LD.spyTop10;
     if (!spy || !spy.top10 || !spy.top10.length) return;
-    document.getElementById('spy-top10-card').style.display = '';
 
     const srcLabel = spy.source === 'ssga' ? 'ssga.com (State Street, official)'
                     : spy.source === 'stockanalysis' ? 'stockanalysis.com (fallback)'
                     : '—';
-    document.getElementById('spy-top10-date').textContent = `As of ${spy.asOf} · Source: ${srcLabel}`;
+    document.getElementById('spy-top10-date').textContent =
+      `As of ${spy.asOf} · Source: ${srcLabel} · S&P 500 is a subset of the Russell 3000 US Market total above`;
 
     const palette = ["#003a5c", "#1a5c80", "#347da3", "#4e9ec6", "#68bfe9",
                       "#82c8dc", "#9cd1cf", "#b6dac2", "#c8e3d5", "#dcefe0"];
@@ -858,8 +868,6 @@
         <span style="width:10px;height:10px;border-radius:2px;background:${palette[si % palette.length]};display:inline-block;"></span>${sym}
       </span>`).join('');
   }
-
-  if (LD?.spyTop10) renderSpyTop10();
 
 })();
 </script>

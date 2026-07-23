@@ -285,6 +285,19 @@
       gap: 36px;
     }
 
+    /* ── S&P 500 Top 10 ─────────────────────────────────────── */
+    .spy-history-wrap {
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+    .spy-history-wrap svg { display: block; width: 100%; height: auto; }
+    .spy-history-legend {
+      display: flex;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
     /* ── Footer ──────────────────────────────────────────────── */
     .footer {
       max-width: 960px;
@@ -334,6 +347,23 @@
       </div>
       <div class="mktcap-legend" id="mag7-legend"></div>
     </div>
+  </div>
+</div>
+
+<!-- ── S&P 500 Top 10 Holdings (rendered by JS from live_data.js) ──────── -->
+<div class="mktcap-card" id="spy-top10-card" style="display:none">
+  <div class="mktcap-title">S&amp;P 500 — Top 10 Holdings</div>
+  <div class="mktcap-date" id="spy-top10-date"></div>
+  <div class="mktcap-body">
+    <div class="donut-wrap">
+      <svg id="spy-top10-svg" width="150" height="150" viewBox="0 0 150 150"></svg>
+    </div>
+    <div class="mktcap-legend" id="spy-top10-legend"></div>
+  </div>
+  <div class="spy-history-wrap">
+    <div class="mktcap-title" style="font-size:11px;">Weight evolution over time</div>
+    <svg id="spy-top10-history-svg" width="900" height="200" viewBox="0 0 900 200"></svg>
+    <div class="spy-history-legend" id="spy-top10-history-legend"></div>
   </div>
 </div>
 
@@ -539,38 +569,64 @@
         { name: "Other",                  pct:  7.0, color: "#c8e3d5" },
       ],
     },
-    "International Developed": {
-      title: "International Developed · MSCI EAFE Countries",
-      segments: [
-        { name: "Japan",        flag: "🇯🇵", pct: 22.5, color: "#8a6400" },
-        { name: "UK",           flag: "🇬🇧", pct: 14.2, color: "#a07820" },
-        { name: "France",       flag: "🇫🇷", pct: 11.1, color: "#b68c3a" },
-        { name: "Switzerland",  flag: "🇨🇭", pct:  8.8, color: "#c8a050" },
-        { name: "Germany",      flag: "🇩🇪", pct:  7.2, color: "#d4b468" },
-        { name: "Australia",    flag: "🇦🇺", pct:  7.0, color: "#e0c880" },
-        { name: "Netherlands",  flag: "🇳🇱", pct:  4.9, color: "#ecda98" },
-        { name: "Sweden",       flag: "🇸🇪", pct:  3.2, color: "#f4e8b0" },
-        { name: "Denmark",      flag: "🇩🇰", pct:  2.8, color: "#f8f0c8" },
-        { name: "Others",                    pct: 18.3, color: "#c0a060" },
-      ],
-    },
-    "Emerging Markets": {
-      title: "Emerging Markets · BGF EM Fund, May 2026",
-      segments: [
-        { name: "Taiwan",       flag: "🇹🇼", pct: 26.52, color: "#2a6010" },
-        { name: "Korea",        flag: "🇰🇷", pct: 23.17, color: "#3e7424" },
-        { name: "China",        flag: "🇨🇳", pct: 20.16, color: "#528838" },
-        { name: "India",        flag: "🇮🇳", pct: 10.73, color: "#669c4c" },
-        { name: "Others",                    pct:  7.97, color: "#76a856" },
-        { name: "South Africa", flag: "🇿🇦", pct:  3.05, color: "#8ec474" },
-        { name: "Brazil",       flag: "🇧🇷", pct:  2.43, color: "#a2d488" },
-        { name: "Saudi Arabia", flag: "🇸🇦", pct:  1.84, color: "#b6e49c" },
-        { name: "Mexico",       flag: "🇲🇽", pct:  1.67, color: "#c6f0ac" },
-        { name: "Germany",      flag: "🇩🇪", pct:  1.41, color: "#d0f4bc" },
-        { name: "UAE",          flag: "🇦🇪", pct:  1.07, color: "#e0f8cc" },
-      ],
-    },
+    // "International Developed" and "Emerging Markets" no longer have
+    // static segment lists here — they're derived live from
+    // LD.acwiCountryWeights (see acwiRegionSegments()) at click time,
+    // sourced from the iShares MSCI ACWI ETF's daily holdings file
+    // instead of a hardcoded snapshot.
   };
+
+  // MSCI Developed Markets ex-US country set, used to split
+  // LD.acwiCountryWeights (all countries in one flat list) into the
+  // "International Developed" vs "Emerging Markets" drilldowns below.
+  // "US Market" keeps its own static S&P sector breakdown (unrelated —
+  // sectors, not countries).
+  const DM_EX_US_COUNTRIES = new Set([
+    "Japan", "United Kingdom", "Canada", "France", "Switzerland", "Germany",
+    "Australia", "Netherlands", "Spain", "Hong Kong", "Italy", "Sweden",
+    "Denmark", "Singapore", "Belgium", "Finland", "Norway", "Israel",
+    "New Zealand", "Ireland", "Austria", "Portugal",
+  ]);
+
+  const COUNTRY_FLAGS = {
+    "United States": "🇺🇸", "Japan": "🇯🇵", "United Kingdom": "🇬🇧", "Canada": "🇨🇦",
+    "France": "🇫🇷", "Switzerland": "🇨🇭", "Germany": "🇩🇪", "Australia": "🇦🇺",
+    "Netherlands": "🇳🇱", "Spain": "🇪🇸", "Hong Kong": "🇭🇰", "Italy": "🇮🇹",
+    "Sweden": "🇸🇪", "Denmark": "🇩🇰", "Singapore": "🇸🇬", "Belgium": "🇧🇪",
+    "Finland": "🇫🇮", "Norway": "🇳🇴", "Israel": "🇮🇱", "New Zealand": "🇳🇿",
+    "Ireland": "🇮🇪", "Austria": "🇦🇹", "Portugal": "🇵🇹",
+    "China": "🇨🇳", "Taiwan": "🇹🇼", "India": "🇮🇳", "South Korea": "🇰🇷",
+    "Korea": "🇰🇷", "Brazil": "🇧🇷", "South Africa": "🇿🇦", "Saudi Arabia": "🇸🇦",
+    "Mexico": "🇲🇽", "Indonesia": "🇮🇩", "Thailand": "🇹🇭", "Malaysia": "🇲🇾",
+    "United Arab Emirates": "🇦🇪", "UAE": "🇦🇪", "Poland": "🇵🇱", "Turkey": "🇹🇷",
+  };
+
+  const REGION_PALETTE = ["#8a6400", "#a07820", "#b68c3a", "#c8a050", "#d4b468",
+                           "#e0c880", "#ecda98", "#f4e8b0", "#f8f0c8", "#c0a060"];
+
+  function acwiRegionSegments(regionName) {
+    const acwi = LD.acwiCountryWeights;
+    if (!acwi || !acwi.countries || !acwi.countries.length) return null;
+
+    const inDM = c => c !== "United States" && DM_EX_US_COUNTRIES.has(c);
+    const rows = acwi.countries.filter(c => {
+      if (c.name === "Other" || c.name === "Other / unclassified") return false;
+      if (regionName === "International Developed") return inDM(c.name);
+      if (regionName === "Emerging Markets")         return c.name !== "United States" && !inDM(c.name);
+      return false;
+    });
+    if (!rows.length) return null;
+
+    const total = rows.reduce((s, c) => s + c.pct, 0) || 1;
+    const top = rows.slice(0, 9);
+    const othersPct = total - top.reduce((s, c) => s + c.pct, 0);
+    const segs = top.map((c, i) => ({
+      name: c.name, flag: COUNTRY_FLAGS[c.name] || '',
+      pct: c.pct / total * 100, color: REGION_PALETTE[i % REGION_PALETTE.length],
+    }));
+    if (othersPct > 0.05) segs.push({ name: "Others", pct: othersPct / total * 100, color: "#c0a060" });
+    return segs;
+  }
 
   function polarToCart(cx, cy, r, deg) {
     const rad = (deg - 90) * Math.PI / 180;
@@ -693,15 +749,28 @@
   function renderWorldDrilldown(i) {
     const wmc      = LD.worldMktCap;
     const region   = wmc.regions[i];
-    const drill    = DRILLDOWN[region.name];
-    if (!drill) return;
+
+    let segments, dateLabel;
+    if (region.name === "US Market") {
+      const drill = DRILLDOWN[region.name];
+      if (!drill) return;
+      segments  = drill.segments;
+      dateLabel = `${drill.title} · S&P sector weights (static)`;
+    } else {
+      segments = acwiRegionSegments(region.name);
+      if (!segments) return;
+      const acwi = LD.acwiCountryWeights;
+      const srcNote = acwi.source === 'ishares' ? 'live iShares ACWI holdings'
+                    : acwi.source ? 'stockanalysis.com fallback, approx.'
+                    : 'unavailable';
+      dateLabel = `${region.name} · Country weights from MSCI ACWI holdings (${srcNote}, ${acwi.asOf || '—'})`;
+    }
 
     document.getElementById('mktcap-back-wrap').style.display = '';
-    document.getElementById('mktcap-date').textContent =
-      `${drill.title} · MSCI index weights (static)`;
+    document.getElementById('mktcap-date').textContent = dateLabel;
 
     const totalT = region.trillions;
-    const segs   = drill.segments.map(s => ({
+    const segs   = segments.map(s => ({
       ...s,
       trillions: +(totalT * s.pct / 100).toFixed(1),
     }));
@@ -718,6 +787,79 @@
     document.getElementById('mktcap-card').style.display = '';
     renderWorldLevel1();
   }
+
+  // ── S&P 500 Top 10 (live SPY holdings, see fetch_etf_holdings) ────────
+  function renderSpyTop10() {
+    const spy = LD.spyTop10;
+    if (!spy || !spy.top10 || !spy.top10.length) return;
+    document.getElementById('spy-top10-card').style.display = '';
+
+    const srcLabel = spy.source === 'ssga' ? 'ssga.com (State Street, official)'
+                    : spy.source === 'stockanalysis' ? 'stockanalysis.com (fallback)'
+                    : '—';
+    document.getElementById('spy-top10-date').textContent = `As of ${spy.asOf} · Source: ${srcLabel}`;
+
+    const palette = ["#003a5c", "#1a5c80", "#347da3", "#4e9ec6", "#68bfe9",
+                      "#82c8dc", "#9cd1cf", "#b6dac2", "#c8e3d5", "#dcefe0"];
+    const total = spy.top10.reduce((s, e) => s + e.weight_pct, 0);
+    const segs  = spy.top10.map((e, i) => ({ name: e.symbol, pct: e.weight_pct, color: palette[i % palette.length] }));
+
+    renderDonut('spy-top10-svg', 'spy-top10-legend', segs,
+      [[`${total.toFixed(1)}%`, 13, 700, '#1a2533'], ['of S&P 500', 9, 400, '#6b7a8d']],
+      function() {}
+    );
+
+    renderSpyTop10History(spy, palette);
+  }
+
+  function renderSpyTop10History(spy, palette) {
+    const svg      = document.getElementById('spy-top10-history-svg');
+    const legendEl = document.getElementById('spy-top10-history-legend');
+    const history   = spy.history || [];
+    const dates     = [...new Set(history.map(r => r.date))].sort();
+
+    if (dates.length < 2) {
+      svg.innerHTML = `<text x="450" y="105" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif"
+        font-size="12" fill="#6b7a8d">History builds up as fetch_data.py runs over time (${dates.length} day${dates.length === 1 ? '' : 's'} recorded so far).</text>`;
+      legendEl.innerHTML = '';
+      return;
+    }
+
+    const bySymbol = {};
+    history.forEach(r => { (bySymbol[r.symbol] = bySymbol[r.symbol] || []).push(r); });
+
+    const W = 900, H = 200, padL = 42, padR = 16, padT = 12, padB = 26;
+    const maxW = Math.max(...history.map(r => r.weight_pct)) * 1.15;
+    const x = i => padL + (W - padL - padR) * (dates.length === 1 ? 0 : i / (dates.length - 1));
+    const y = v => H - padB - (H - padT - padB) * (v / maxW);
+
+    let svgHtml = '';
+    svgHtml += `<line x1="${padL}" y1="${H - padB}" x2="${W - padR}" y2="${H - padB}" stroke="#dde3ea"/>`;
+    svgHtml += `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H - padB}" stroke="#dde3ea"/>`;
+
+    const symbols = spy.top10.map(e => e.symbol);
+    symbols.forEach((sym, si) => {
+      const rowByDate = Object.fromEntries((bySymbol[sym] || []).map(r => [r.date, r.weight_pct]));
+      const pts = dates.map((d, i) => rowByDate[d] !== undefined ? [x(i), y(rowByDate[d])] : null).filter(Boolean);
+      if (!pts.length) return;
+      const path = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+      svgHtml += `<path d="${path}" fill="none" stroke="${palette[si % palette.length]}" stroke-width="2"/>`;
+      pts.forEach(p => {
+        svgHtml += `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2.5" fill="${palette[si % palette.length]}"/>`;
+      });
+    });
+
+    svgHtml += `<text x="${padL}" y="${H - 8}" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="#6b7a8d">${dates[0]}</text>`;
+    svgHtml += `<text x="${W - padR}" y="${H - 8}" text-anchor="end" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="#6b7a8d">${dates[dates.length - 1]}</text>`;
+
+    svg.innerHTML = svgHtml;
+    legendEl.innerHTML = symbols.map((sym, si) => `
+      <span style="display:inline-flex;align-items:center;gap:4px;margin:2px 12px 2px 0;font-size:11px;color:var(--text-muted);">
+        <span style="width:10px;height:10px;border-radius:2px;background:${palette[si % palette.length]};display:inline-block;"></span>${sym}
+      </span>`).join('');
+  }
+
+  if (LD?.spyTop10) renderSpyTop10();
 
 })();
 </script>

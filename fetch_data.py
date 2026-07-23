@@ -10,6 +10,9 @@ Bedarf:  pip install yfinance
 import yfinance as yf
 import json
 import os
+import csv
+import io
+import requests
 from datetime import datetime, timezone, timedelta
 from hyperscaler_capex import fetch_hyperscaler_capex
 
@@ -190,6 +193,42 @@ SPI_SIX_CSV = os.path.expanduser(
 )
 
 LONGTERM_PERIODS = [1, 5, 10, 15, 20]   # years
+
+# ── ETF holdings (MSCI ACWI country weights, S&P 500 top 10) ────────────────
+# Set up 2026-07-23. Replaces the static country-weight tables previously
+# hardcoded in longterm.html with a daily fetch of each ETF's own holdings
+# file, aggregated fresh every run — see fetch_etf_holdings() below.
+ETF_HOLDINGS_SOURCES = {
+    "ACWI": {
+        "primary": "ishares",
+        "ishares_url": "https://www.ishares.com/us/products/239600/ishares-msci-acwi-etf/1467271812596.ajax",
+        "ishares_params": {"fileType": "csv", "fileName": "ACWI_holdings", "dataType": "fund"},
+    },
+    "SPY": {
+        "primary": "ssga",
+        "ssga_url": "https://www.ssga.com/us/en/individual/library-content/products/fund-data/etfs/us/holdings-daily-us-en-spy.xlsx",
+    },
+}
+
+# MSCI ACWI country weights measure free-float-adjusted weight per the
+# official MSCI (index provider, licensed to iShares for the ACWI ETF)
+# methodology — not an in-house approximation — when fetched from the
+# primary ishares.com source. See calc_acwi_country_weights().
+ACWI_METHODOLOGY_NOTE = (
+    "Free-float-adjusted country weight per the official MSCI ACWI index "
+    "methodology (as implemented by the iShares MSCI ACWI ETF, ticker "
+    "ACWI), recomputed every run from ACWI's live daily holdings file — "
+    "not a static approximation, when sourced from ishares.com."
+)
+
+# How many top-by-weight holdings to classify by country when the primary
+# ishares.com source (which has a per-holding Location field) is down and
+# we fall back to stockanalysis.com (which doesn't). Keeps the degraded
+# path's runtime bounded — see calc_acwi_country_weights().
+ACWI_FALLBACK_COUNTRY_TOP_N = 100
+
+SPY_TOP10_HISTORY_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "spy_top10_history.csv")
+SPY_TOP10_N = 10
 
 # ── Hilfsfunktionen ──────────────────────────────────────────────────────────
 
@@ -417,6 +456,324 @@ def get_company_market_cap(ticker):
         return float(cap) if cap else None
     except Exception:
         return None
+
+def _parse_ishares_csv(raw_text):
+    """
+    Parse an iShares 'Data Download' holdings CSV. Layout: several
+    disclaimer/metadata lines, then a header row starting with 'Ticker,',
+    then one row per holding, then a disclaimer footer. The 'Location'
+    column is the per-holding country, which is what makes this format
+    suitable for MSCI-style country aggregation (stockanalysis.com's
+    holdings table, used as fallback below, has no such column).
+    """
+    lines = raw_text.splitlines()
+    header_idx = next((i for i, l in enumerate(lines) if l.startswith("Ticker,")), None)
+    if header_idx is None:
+        return None
+    reader = csv.DictReader(lines[header_idx:])
+    holdings = []
+    for row in reader:
+        ticker = (row.get("Ticker") or "").strip()
+        weight_raw = (row.get("Weight (%)") or "").strip()
+        if not ticker or not weight_raw:
+            continue
+        try:
+            weight = float(weight_raw)
+        except ValueError:
+            continue
+        holdings.append({
+            "symbol":     ticker,
+            "name":       (row.get("Name") or "").strip(),
+            "weight_pct": weight,
+            "country":    (row.get("Location") or "").strip() or None,
+        })
+    return holdings or None
+
+def _parse_ssga_xlsx(raw_bytes):
+    """
+    Parse an SSGA 'holdings-daily-us-en-<ticker>' xlsx file. Layout: 3
+    metadata rows, a blank row, a header row (Name/Ticker/.../Weight/...),
+    then one row per holding, then blank padding rows. No per-holding
+    country/location field is included (SPY doesn't need one — S&P 500
+    top 10 is ranked by weight only).
+    """
+    import openpyxl
+    wb = openpyxl.load_workbook(io.BytesIO(raw_bytes), data_only=True)
+    ws = wb.active
+    rows = list(ws.iter_rows(values_only=True))
+    header_idx = next(
+        (i for i, r in enumerate(rows) if r and r[0] == "Name" and "Ticker" in r), None
+    )
+    if header_idx is None:
+        return None
+    header = [str(h).strip() if h else "" for h in rows[header_idx]]
+    col = {name: idx for idx, name in enumerate(header) if name}
+    holdings = []
+    for r in rows[header_idx + 1:]:
+        if not r or col.get("Ticker") is None or not r[col["Ticker"]]:
+            continue
+        weight = r[col["Weight"]] if col.get("Weight") is not None else None
+        if weight is None:
+            continue
+        holdings.append({
+            "symbol":     str(r[col["Ticker"]]).strip(),
+            "name":       str(r[col.get("Name", 0)] or "").strip(),
+            "weight_pct": float(weight),
+            "country":    None,
+        })
+    return holdings or None
+
+def _fetch_stockanalysis_holdings(ticker):
+    """
+    Fallback holdings source: stockanalysis.com's server-rendered holdings
+    table (same site already used for the SPCX free-float cross-check).
+    Only symbol/name/weight are available here — no per-holding country.
+    """
+    import pandas as pd
+    url = f"https://stockanalysis.com/etf/{ticker.lower()}/holdings/"
+    resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=20)
+    resp.raise_for_status()
+    tables = pd.read_html(io.StringIO(resp.text))
+    if not tables:
+        return None
+    df = tables[0]
+    holdings = []
+    for _, row in df.iterrows():
+        symbol = str(row.get("Symbol", "")).strip()
+        weight_col = "% Weight" if "% Weight" in df.columns else "Weight"
+        try:
+            weight = float(str(row.get(weight_col, "")).rstrip("%"))
+        except ValueError:
+            continue
+        if not symbol or symbol.lower() == "nan":
+            continue
+        holdings.append({
+            "symbol":     symbol,
+            "name":       str(row.get("Name", "")).strip(),
+            "weight_pct": weight,
+            "country":    None,
+        })
+    return holdings or None
+
+def fetch_etf_holdings(ticker):
+    """
+    Single source of truth for an ETF's current holdings (symbol, name,
+    weight %, and — when available — per-holding country/location).
+    Called by BOTH calc_acwi_country_weights() and calc_spy_top10() so a
+    format change or outage in one data source can't silently diverge the
+    two features — same principle as get_company_market_cap() for Mag7.
+
+    Primary: the fund provider's own official daily "Data Download" file
+    (iShares CSV for ACWI, State Street/SSGA xlsx for SPY). Fallback:
+    stockanalysis.com's holdings table if the primary source is
+    unreachable or its format changes — logged as a clear warning rather
+    than failing silently, since the fallback lacks per-holding country
+    data (see calc_acwi_country_weights for how that gap is handled).
+    """
+    cfg = ETF_HOLDINGS_SOURCES.get(ticker)
+    if not cfg:
+        raise ValueError(f"No holdings source configured for {ticker}")
+
+    browser_ua = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+                  "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+    try:
+        if cfg["primary"] == "ishares":
+            resp = requests.get(cfg["ishares_url"], params=cfg["ishares_params"],
+                                 headers={"User-Agent": browser_ua}, timeout=20)
+            resp.raise_for_status()
+            stripped = resp.text.lstrip()
+            if stripped.startswith("<!DOCTYPE") or stripped.startswith("<html"):
+                raise ValueError("ishares.com returned an HTML page instead of the holdings "
+                                  "CSV (likely bot-protection or a changed download URL)")
+            holdings = _parse_ishares_csv(resp.text)
+            if not holdings:
+                raise ValueError("ishares.com CSV did not parse into any holdings rows "
+                                  "(format may have changed)")
+            print(f"  ✓ {ticker} holdings from ishares.com ({len(holdings)} rows)")
+            return {"holdings": holdings, "source": "ishares"}
+
+        elif cfg["primary"] == "ssga":
+            resp = requests.get(cfg["ssga_url"], headers={"User-Agent": browser_ua}, timeout=20)
+            resp.raise_for_status()
+            if not resp.content.startswith(b"PK"):
+                raise ValueError("ssga.com did not return a valid xlsx file "
+                                  "(format may have changed)")
+            holdings = _parse_ssga_xlsx(resp.content)
+            if not holdings:
+                raise ValueError("ssga.com xlsx did not parse into any holdings rows "
+                                  "(format may have changed)")
+            print(f"  ✓ {ticker} holdings from ssga.com ({len(holdings)} rows)")
+            return {"holdings": holdings, "source": "ssga"}
+    except Exception as e:
+        print(f"  ⚠ {ticker} holdings: official source failed ({e}) — falling back to stockanalysis.com")
+
+    try:
+        holdings = _fetch_stockanalysis_holdings(ticker)
+        if not holdings:
+            raise ValueError("no rows parsed")
+        print(f"  ✓ {ticker} holdings from stockanalysis.com fallback ({len(holdings)} rows, no country data)")
+        return {"holdings": holdings, "source": "stockanalysis"}
+    except Exception as e:
+        print(f"  ✗ {ticker} holdings: fallback also failed ({e})")
+        return {"holdings": [], "source": None}
+
+_country_lookup_cache = {}
+
+# stockanalysis.com prefixes foreign holdings as "EXCHANGE: LOCALSYMBOL"
+# (e.g. "TPE: 2330", "KRX: 005930") instead of a plain Yahoo Finance ticker.
+# Without translating these, yfinance can't resolve the symbol at all, so
+# every non-US large-cap in the fallback's top holdings (Taiwan Semi,
+# Samsung, ASML, ...) would silently fail lookup and get dumped into
+# "Other / unclassified" despite the country being obvious from the prefix.
+_STOCKANALYSIS_EXCHANGE_TO_YF_SUFFIX = {
+    "TPE": ".TW", "KRX": ".KS", "HKG": ".HK", "TYO": ".T", "LON": ".L",
+    "PAR": ".PA", "AMS": ".AS", "ETR": ".DE", "FRA": ".F", "SWX": ".SW",
+    "ASX": ".AX", "TSE": ".TO", "BSE": ".BO", "NSE": ".NS", "SHA": ".SS",
+    "SHE": ".SZ", "SGX": ".SI", "BME": ".MC", "MIL": ".MI", "STO": ".ST",
+    "CPH": ".CO", "OSL": ".OL", "HEL": ".HE", "BRU": ".BR", "LIS": ".LS",
+    "JSE": ".JO", "MEX": ".MX", "SAO": ".SA", "IDX": ".JK", "SET": ".BK",
+    "KLS": ".KL",
+}
+
+def _normalize_yf_symbol(symbol):
+    """Translate a "EXCHANGE: LOCALSYMBOL" fallback symbol into a plain
+    Yahoo Finance ticker (e.g. "TPE: 2330" -> "2330.TW"). Returns the
+    symbol unchanged if it doesn't use that format or the exchange isn't
+    in the map."""
+    if ":" not in symbol:
+        return symbol
+    exch, _, local = symbol.partition(":")
+    suffix = _STOCKANALYSIS_EXCHANGE_TO_YF_SUFFIX.get(exch.strip())
+    return f"{local.strip()}{suffix}" if suffix else symbol
+
+def _lookup_country(symbol):
+    """Best-effort per-ticker country lookup via yfinance, used only in
+    calc_acwi_country_weights()'s degraded fallback path (see there)."""
+    if symbol in _country_lookup_cache:
+        return _country_lookup_cache[symbol]
+    try:
+        country = yf.Ticker(_normalize_yf_symbol(symbol)).info.get("country")
+    except Exception:
+        country = None
+    _country_lookup_cache[symbol] = country
+    return country
+
+def calc_acwi_country_weights():
+    """
+    MSCI ACWI country weights, recomputed every run from the iShares ACWI
+    ETF's live daily holdings file (fetch_etf_holdings) instead of a
+    static table. The file lists individual securities, not countries
+    directly, so weights are aggregated here by each holding's Location
+    field. See ACWI_METHODOLOGY_NOTE for why this is the real MSCI
+    free-float methodology, not an approximation, in the primary
+    (ishares.com) path.
+
+    Degraded fallback: if ishares.com is unreachable and fetch_etf_holdings
+    falls back to stockanalysis.com, that source has no per-holding
+    country field, so country is instead inferred per-ticker via
+    yfinance's `country` field for the top ACWI_FALLBACK_COUNTRY_TOP_N
+    holdings by weight (covers the large-cap bulk of the index); the
+    remaining tail — plus any ticker whose country can't be resolved — is
+    bucketed into "Other / unclassified". This is clearly flagged via the
+    returned "source" field so callers/UI can label it as an approximation.
+    """
+    data = fetch_etf_holdings("ACWI")
+    holdings = data["holdings"]
+    if not holdings:
+        return {"asOf": None, "source": None, "countries": [], "note": ACWI_METHODOLOGY_NOTE}
+
+    totals = {}
+    if data["source"] == "ishares":
+        for h in holdings:
+            country = h.get("country") or "Other"
+            totals[country] = totals.get(country, 0.0) + h["weight_pct"]
+    else:
+        ranked = sorted(holdings, key=lambda h: h["weight_pct"], reverse=True)
+        top = ranked[:ACWI_FALLBACK_COUNTRY_TOP_N]
+        classified_weight = 0.0
+        for h in top:
+            country = _lookup_country(h["symbol"])
+            key = country or "Other / unclassified"
+            totals[key] = totals.get(key, 0.0) + h["weight_pct"]
+            if country:
+                classified_weight += h["weight_pct"]
+        tail_weight = sum(h["weight_pct"] for h in ranked[ACWI_FALLBACK_COUNTRY_TOP_N:])
+        if tail_weight:
+            totals["Other / unclassified"] = totals.get("Other / unclassified", 0.0) + tail_weight
+        print(f"  ⚠ ACWI country weights: fallback mode classified {classified_weight:.1f}pt "
+              f"across {len(top)} top holdings by weight; rest bucketed as unclassified")
+
+    total_pct = sum(totals.values()) or 1.0
+    countries = sorted(
+        ({"name": name, "pct": round(w / total_pct * 100, 2)} for name, w in totals.items()),
+        key=lambda c: c["pct"], reverse=True,
+    )
+    return {
+        "asOf":      datetime.now().strftime("%Y-%m-%d"),
+        "source":    data["source"],
+        "countries": countries,
+        "note":      ACWI_METHODOLOGY_NOTE,
+    }
+
+def _append_spy_top10_history(date_str, top10):
+    """
+    Reads spy_top10_history.csv (long format: date,rank,symbol,name,
+    weight_pct — one row per rank per date, checked into the repo so the
+    series persists across runs), removes any existing rows for today (so
+    re-running fetch_data.py the same day updates rather than duplicates
+    today's snapshot), appends today's top10, writes back, and returns the
+    full history for embedding in live_data.js.
+    """
+    rows = []
+    if os.path.exists(SPY_TOP10_HISTORY_CSV):
+        with open(SPY_TOP10_HISTORY_CSV, newline="", encoding="utf-8") as f:
+            rows = [row for row in csv.DictReader(f) if row["date"] != date_str]
+
+    for entry in top10:
+        rows.append({
+            "date":       date_str,
+            "rank":       str(entry["rank"]),
+            "symbol":     entry["symbol"],
+            "name":       entry["name"],
+            "weight_pct": str(entry["weight_pct"]),
+        })
+    rows.sort(key=lambda r: (r["date"], int(r["rank"])))
+
+    with open(SPY_TOP10_HISTORY_CSV, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=["date", "rank", "symbol", "name", "weight_pct"])
+        writer.writeheader()
+        writer.writerows(rows)
+
+    return [
+        {"date": r["date"], "rank": int(r["rank"]), "symbol": r["symbol"],
+         "name": r["name"], "weight_pct": float(r["weight_pct"])}
+        for r in rows
+    ]
+
+def calc_spy_top10():
+    """
+    S&P 500 top 10 holdings by weight, from SPY's live daily holdings file
+    (fetch_etf_holdings) instead of a static list. Appends today's
+    snapshot to spy_top10_history.csv so the Long Term Summary tab can
+    chart how the top 10 composition/weights evolve over time, not just
+    show a single instant (same time-series-CSV pattern as the rest of
+    this dashboard).
+    """
+    data = fetch_etf_holdings("SPY")
+    holdings = data["holdings"]
+    if not holdings:
+        return {"asOf": None, "source": None, "top10": [], "history": []}
+
+    ranked = sorted(holdings, key=lambda h: h["weight_pct"], reverse=True)[:SPY_TOP10_N]
+    top10 = [
+        {"rank": i + 1, "symbol": h["symbol"], "name": h["name"], "weight_pct": round(h["weight_pct"], 2)}
+        for i, h in enumerate(ranked)
+    ]
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    history = _append_spy_top10_history(today, top10)
+
+    return {"asOf": today, "source": data["source"], "top10": top10, "history": history}
 
 def calc_mag7_cap_weighted(member_series, fx_data):
     """
@@ -923,6 +1280,26 @@ def main():
         print(f"  ⚠ Hyperscaler Capex fetch failed: {e}")
         hyperscaler_capex = {"companies": []}
 
+    # 5d) MSCI ACWI Country Weights (live ETF holdings, see fetch_etf_holdings)
+    next_step5 = next_step4 + 1
+    print(f"\n[{next_step5}] MSCI ACWI Country Weights (live ETF holdings)")
+    try:
+        acwi_country_weights = calc_acwi_country_weights()
+        print(f"  → {len(acwi_country_weights['countries'])} countries, source={acwi_country_weights['source']}")
+    except Exception as e:
+        print(f"  ⚠ ACWI country weights failed: {e}")
+        acwi_country_weights = {"asOf": None, "source": None, "countries": [], "note": ACWI_METHODOLOGY_NOTE}
+
+    # 5e) S&P 500 Top 10 (live ETF holdings, see fetch_etf_holdings)
+    next_step6 = next_step5 + 1
+    print(f"\n[{next_step6}] S&P 500 Top 10 (live ETF holdings)")
+    try:
+        spy_top10 = calc_spy_top10()
+        print("  → " + ", ".join(f"{e['symbol']}:{e['weight_pct']:.1f}%" for e in spy_top10["top10"]))
+    except Exception as e:
+        print(f"  ⚠ SPY top10 failed: {e}")
+        spy_top10 = {"asOf": None, "source": None, "top10": [], "history": []}
+
     # 6) Output
     fetched_at = datetime.now().strftime("%d.%m.%Y %H:%M")
     out = {
@@ -934,6 +1311,8 @@ def main():
         "worldMktCap":     world_mktcap,
         "mag7":            mag7,
         "hyperscalerCapex": hyperscaler_capex,
+        "acwiCountryWeights": acwi_country_weights,
+        "spyTop10":        spy_top10,
     }
 
     out_path = os.path.join(os.path.dirname(__file__), "live_data.js")
@@ -953,7 +1332,7 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     label = datetime.now().strftime("%Y-%m-%d %H:%M")
     result = subprocess.run(
-        ["git", "add", "live_data.js"],
+        ["git", "add", "live_data.js", "spy_top10_history.csv"],
         cwd=script_dir, capture_output=True
     )
     result = subprocess.run(

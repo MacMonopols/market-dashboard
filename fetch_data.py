@@ -227,8 +227,30 @@ ACWI_METHODOLOGY_NOTE = (
 # path's runtime bounded — see calc_acwi_country_weights().
 ACWI_FALLBACK_COUNTRY_TOP_N = 100
 
-SPY_TOP10_HISTORY_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "spy_top10_history.csv")
 SPY_TOP10_N = 10
+SPY_TOP10_HISTORY_YEARS = 5
+
+# The S&P 500's actual top-10 membership changed over time (e.g. NVDA wasn't
+# always there), and yfinance doesn't expose historical index-divisor or
+# per-company share-count history, so a genuine historical "top-10 combined
+# weight" series can't be reconstructed exactly. Instead we approximate: take
+# TODAY's top-10 constituents and TODAY's known-exact weights, then project
+# each backward using that company's own price vs. the S&P 500 index (^GSPC)
+# level, self-calibrated so the series is exact at t=today. See
+# calc_spy_top10_history_approx() for the formula and calibration proof.
+SPY_TOP10_HISTORY_METHODOLOGY_NOTE = (
+    "Approximation, not a true historical reconstruction: projects TODAY's "
+    "top-10 constituents and their exact current weights backward using each "
+    "company's own share-price performance relative to the S&P 500 index "
+    "(^GSPC), self-calibrated to match today's real combined weight exactly. "
+    "Two simplifying assumptions bias older points: (1) today's top-10 names "
+    "are held fixed across the whole window, even though real constituents "
+    "changed over time (e.g. NVDA's actual weight was ~0% a decade ago, not "
+    "backfilled here); (2) each company's share count and the S&P 500 index "
+    "divisor are assumed roughly constant, ignoring buybacks, issuance, and "
+    "index reconstitutions — this tends to understate historical weight for "
+    "buyback-heavy names (AAPL, META, GOOGL, ...)."
+)
 
 # ── Hilfsfunktionen ──────────────────────────────────────────────────────────
 
@@ -715,54 +737,82 @@ def calc_acwi_country_weights():
         "note":      ACWI_METHODOLOGY_NOTE,
     }
 
-def _append_spy_top10_history(date_str, top10):
+def calc_spy_top10_history_approx(top10, years=SPY_TOP10_HISTORY_YEARS):
     """
-    Reads spy_top10_history.csv (long format: date,rank,symbol,name,
-    weight_pct — one row per rank per date, checked into the repo so the
-    series persists across runs), removes any existing rows for today (so
-    re-running fetch_data.py the same day updates rather than duplicates
-    today's snapshot), appends today's top10, writes back, and returns the
-    full history for embedding in live_data.js.
-    """
-    rows = []
-    if os.path.exists(SPY_TOP10_HISTORY_CSV):
-        with open(SPY_TOP10_HISTORY_CSV, newline="", encoding="utf-8") as f:
-            rows = [row for row in csv.DictReader(f) if row["date"] != date_str]
+    Reconstructs ~`years` years of "combined top-10 weight" history as a
+    single approximated series (see SPY_TOP10_HISTORY_METHODOLOGY_NOTE for
+    the assumptions/caveats this simplifies away).
 
-    for entry in top10:
-        rows.append({
-            "date":       date_str,
-            "rank":       str(entry["rank"]),
-            "symbol":     entry["symbol"],
-            "name":       entry["name"],
-            "weight_pct": str(entry["weight_pct"]),
+    Self-calibrating formula, derived so the unknown S&P 500 divisor and
+    absolute total market cap both cancel out algebraically:
+
+        combined_weight_pct(t) = (GSPC(today) / GSPC(t))
+                                  * Σ_i weight_i(today) * Close_i(t) / Close_i(today)
+
+    where i ranges over today's top-10 tickers, weight_i(today) is that
+    ticker's known-exact current SPY weight, and GSPC is the S&P 500 index
+    level. Proof this is exact at t=today: Close_i(t)/Close_i(today) = 1 and
+    GSPC(today)/GSPC(t) = 1 for every i at t=today, so the sum collapses to
+    Σ_i weight_i(today), i.e. today's true combined weight.
+
+    Returns [{"date": "YYYY-MM-DD", "weight_pct": float}, ...] monthly points,
+    oldest first, or [] if the fetch fails.
+    """
+    import pandas as pd
+
+    if not top10:
+        return []
+    tickers = [e["symbol"] for e in top10]
+    all_tickers = tickers + ["^GSPC"]
+    try:
+        df = yf.download(all_tickers, period=f"{years}y", interval="1mo",
+                         progress=False, auto_adjust=True, group_by="ticker")
+        closes = pd.DataFrame({
+            t: df[t]["Close"] for t in all_tickers if t in df.columns.get_level_values(0)
         })
-    rows.sort(key=lambda r: (r["date"], int(r["rank"])))
+    except Exception as e:
+        print(f"  ⚠ SPY top10 history fetch failed: {e}")
+        return []
 
-    with open(SPY_TOP10_HISTORY_CSV, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=["date", "rank", "symbol", "name", "weight_pct"])
-        writer.writeheader()
-        writer.writerows(rows)
+    closes = closes.dropna(how="all").ffill().dropna()
+    available = [t for t in tickers if t in closes.columns]
+    if "^GSPC" not in closes.columns or closes.empty or not available:
+        return []
 
-    return [
-        {"date": r["date"], "rank": int(r["rank"]), "symbol": r["symbol"],
-         "name": r["name"], "weight_pct": float(r["weight_pct"])}
-        for r in rows
-    ]
+    weight_today = {e["symbol"]: e["weight_pct"] for e in top10}
+    today_row = closes.iloc[-1]
+    gspc_today = float(today_row["^GSPC"])
+    if gspc_today == 0:
+        return []
+
+    points = []
+    for ts, row in closes.iterrows():
+        gspc_t = float(row["^GSPC"])
+        if gspc_t == 0:
+            continue
+        total = sum(
+            weight_today[t] * (float(row[t]) / float(today_row[t]))
+            for t in available if today_row[t]
+        )
+        combined = (gspc_today / gspc_t) * total
+        points.append({"date": ts.strftime("%Y-%m-%d"), "weight_pct": round(float(combined), 2)})
+    return points
 
 def calc_spy_top10():
     """
     S&P 500 top 10 holdings by weight, from SPY's live daily holdings file
-    (fetch_etf_holdings) instead of a static list. Appends today's
-    snapshot to spy_top10_history.csv so the Long Term Summary tab can
-    chart how the top 10 composition/weights evolve over time, not just
-    show a single instant (same time-series-CSV pattern as the rest of
-    this dashboard).
+    (fetch_etf_holdings) instead of a static list. Also attaches a several-
+    years-long "combined weight over time" series so the Long Term Summary
+    tab can chart the trend, not just a single instant — see
+    calc_spy_top10_history_approx() for how that series is (approximately)
+    reconstructed, since the true historical top-10 composition isn't a
+    freely available dataset.
     """
     data = fetch_etf_holdings("SPY")
     holdings = data["holdings"]
     if not holdings:
-        return {"asOf": None, "source": None, "top10": [], "history": []}
+        return {"asOf": None, "source": None, "top10": [], "history": [],
+                "historyNote": SPY_TOP10_HISTORY_METHODOLOGY_NOTE}
 
     ranked = sorted(holdings, key=lambda h: h["weight_pct"], reverse=True)[:SPY_TOP10_N]
     top10 = [
@@ -771,9 +821,12 @@ def calc_spy_top10():
     ]
 
     today = datetime.now().strftime("%Y-%m-%d")
-    history = _append_spy_top10_history(today, top10)
+    history = calc_spy_top10_history_approx(top10)
 
-    return {"asOf": today, "source": data["source"], "top10": top10, "history": history}
+    return {
+        "asOf": today, "source": data["source"], "top10": top10,
+        "history": history, "historyNote": SPY_TOP10_HISTORY_METHODOLOGY_NOTE,
+    }
 
 def calc_mag7_cap_weighted(member_series, fx_data):
     """
@@ -1298,7 +1351,8 @@ def main():
         print("  → " + ", ".join(f"{e['symbol']}:{e['weight_pct']:.1f}%" for e in spy_top10["top10"]))
     except Exception as e:
         print(f"  ⚠ SPY top10 failed: {e}")
-        spy_top10 = {"asOf": None, "source": None, "top10": [], "history": []}
+        spy_top10 = {"asOf": None, "source": None, "top10": [], "history": [],
+                     "historyNote": SPY_TOP10_HISTORY_METHODOLOGY_NOTE}
 
     # 6) Output
     fetched_at = datetime.now().strftime("%d.%m.%Y %H:%M")
@@ -1332,7 +1386,7 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     label = datetime.now().strftime("%Y-%m-%d %H:%M")
     result = subprocess.run(
-        ["git", "add", "live_data.js", "spy_top10_history.csv"],
+        ["git", "add", "live_data.js"],
         cwd=script_dir, capture_output=True
     )
     result = subprocess.run(

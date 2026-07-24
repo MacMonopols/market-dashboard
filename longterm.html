@@ -822,51 +822,56 @@
     renderSpyTop10History(spy, palette);
   }
 
+  // Single aggregate line: combined weight of TODAY's top 10 holdings,
+  // projected backward across several years — an approximation, not the
+  // true historical top-10 composition (see spy.historyNote, sourced from
+  // SPY_TOP10_HISTORY_METHODOLOGY_NOTE in fetch_data.py). Replaces the
+  // earlier per-symbol multi-line chart, which only showed the ~2 days of
+  // history accumulated so far and wasn't useful over a longer horizon.
   function renderSpyTop10History(spy, palette) {
     const svg      = document.getElementById('spy-top10-history-svg');
     const legendEl = document.getElementById('spy-top10-history-legend');
-    const history   = spy.history || [];
-    const dates     = [...new Set(history.map(r => r.date))].sort();
+    const history   = (spy.history || []).slice().sort((a, b) => a.date.localeCompare(b.date));
 
-    if (dates.length < 2) {
+    if (history.length < 2) {
       svg.innerHTML = `<text x="450" y="105" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif"
-        font-size="12" fill="#6b7a8d">History builds up as fetch_data.py runs over time (${dates.length} day${dates.length === 1 ? '' : 's'} recorded so far).</text>`;
+        font-size="12" fill="#6b7a8d">Historical series unavailable.</text>`;
       legendEl.innerHTML = '';
       return;
     }
 
-    const bySymbol = {};
-    history.forEach(r => { (bySymbol[r.symbol] = bySymbol[r.symbol] || []).push(r); });
-
     const W = 900, H = 200, padL = 42, padR = 16, padT = 12, padB = 26;
-    const maxW = Math.max(...history.map(r => r.weight_pct)) * 1.15;
-    const x = i => padL + (W - padL - padR) * (dates.length === 1 ? 0 : i / (dates.length - 1));
-    const y = v => H - padB - (H - padT - padB) * (v / maxW);
+    const values = history.map(r => r.weight_pct);
+    const minW = Math.min(...values) * 0.95;
+    const maxW = Math.max(...values) * 1.05;
+    const x = i => padL + (W - padL - padR) * (i / (history.length - 1));
+    const y = v => H - padB - (H - padT - padB) * ((v - minW) / ((maxW - minW) || 1));
+
+    const color = palette[0];
+    const pts  = history.map((r, i) => [x(i), y(r.weight_pct)]);
+    const line = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+    const area = line
+      + ` L${pts[pts.length - 1][0].toFixed(1)},${(H - padB).toFixed(1)}`
+      + ` L${pts[0][0].toFixed(1)},${(H - padB).toFixed(1)} Z`;
 
     let svgHtml = '';
+    svgHtml += `<path d="${area}" fill="${color}" opacity="0.08"/>`;
     svgHtml += `<line x1="${padL}" y1="${H - padB}" x2="${W - padR}" y2="${H - padB}" stroke="#dde3ea"/>`;
     svgHtml += `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H - padB}" stroke="#dde3ea"/>`;
+    svgHtml += `<path d="${line}" fill="none" stroke="${color}" stroke-width="2"/>`;
 
-    const symbols = spy.top10.map(e => e.symbol);
-    symbols.forEach((sym, si) => {
-      const rowByDate = Object.fromEntries((bySymbol[sym] || []).map(r => [r.date, r.weight_pct]));
-      const pts = dates.map((d, i) => rowByDate[d] !== undefined ? [x(i), y(rowByDate[d])] : null).filter(Boolean);
-      if (!pts.length) return;
-      const path = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
-      svgHtml += `<path d="${path}" fill="none" stroke="${palette[si % palette.length]}" stroke-width="2"/>`;
-      pts.forEach(p => {
-        svgHtml += `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2.5" fill="${palette[si % palette.length]}"/>`;
-      });
-    });
-
-    svgHtml += `<text x="${padL}" y="${H - 8}" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="#6b7a8d">${dates[0]}</text>`;
-    svgHtml += `<text x="${W - padR}" y="${H - 8}" text-anchor="end" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="#6b7a8d">${dates[dates.length - 1]}</text>`;
+    svgHtml += `<text x="${padL - 6}" y="${y(maxW).toFixed(1)}" text-anchor="end" dominant-baseline="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="#6b7a8d">${maxW.toFixed(1)}%</text>`;
+    svgHtml += `<text x="${padL - 6}" y="${y(minW).toFixed(1)}" text-anchor="end" dominant-baseline="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="#6b7a8d">${minW.toFixed(1)}%</text>`;
+    svgHtml += `<text x="${padL}" y="${H - 8}" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="#6b7a8d">${history[0].date}</text>`;
+    svgHtml += `<text x="${W - padR}" y="${H - 8}" text-anchor="end" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="#6b7a8d">${history[history.length - 1].date}</text>`;
 
     svg.innerHTML = svgHtml;
-    legendEl.innerHTML = symbols.map((sym, si) => `
-      <span style="display:inline-flex;align-items:center;gap:4px;margin:2px 12px 2px 0;font-size:11px;color:var(--text-muted);">
-        <span style="width:10px;height:10px;border-radius:2px;background:${palette[si % palette.length]};display:inline-block;"></span>${sym}
-      </span>`).join('');
+    legendEl.innerHTML = `
+      <span style="display:block;font-size:10.5px;color:var(--text-muted);line-height:1.5;max-width:820px;">
+        <strong>Combined weight of today's top 10</strong> (${spy.top10.map(e => e.symbol).join(', ')}),
+        projected backward using each company's price vs. the S&amp;P 500 index — approximation, not the
+        true historical top-10 composition. ${spy.historyNote || ''}
+      </span>`;
   }
 
 })();

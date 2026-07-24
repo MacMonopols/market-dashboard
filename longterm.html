@@ -822,12 +822,13 @@
     renderSpyTop10History(spy, palette);
   }
 
-  // Single aggregate line: combined weight of TODAY's top 10 holdings,
-  // projected backward across several years — an approximation, not the
-  // true historical top-10 composition (see spy.historyNote, sourced from
-  // SPY_TOP10_HISTORY_METHODOLOGY_NOTE in fetch_data.py). Replaces the
-  // earlier per-symbol multi-line chart, which only showed the ~2 days of
-  // history accumulated so far and wasn't useful over a longer horizon.
+  // Single aggregate line: combined weight of whichever 10 constituents
+  // were actually largest at each past date (not fixed to today's top 10)
+  // — an approximation, not an exact historical reconstruction (see
+  // spy.historyNote, sourced from SPY_TOP10_HISTORY_METHODOLOGY_NOTE in
+  // fetch_data.py). Replaces an earlier per-symbol multi-line chart, which
+  // only showed the ~2 days of history accumulated so far and wasn't
+  // useful over a longer horizon.
   function renderSpyTop10History(spy, palette) {
     const svg      = document.getElementById('spy-top10-history-svg');
     const legendEl = document.getElementById('spy-top10-history-legend');
@@ -868,9 +869,9 @@
     svg.innerHTML = svgHtml;
     legendEl.innerHTML = `
       <span style="display:block;font-size:10.5px;color:var(--text-muted);line-height:1.5;max-width:820px;">
-        <strong>Combined weight of today's top 10</strong> (${spy.top10.map(e => e.symbol).join(', ')}),
-        projected backward using each company's price vs. the S&amp;P 500 index — approximation, not the
-        true historical top-10 composition. ${spy.historyNote || ''}
+        <strong>Combined weight of the top 10 largest S&amp;P 500 constituents at each date</strong> —
+        not fixed to today's top 10 (currently ${spy.top10.map(e => e.symbol).join(', ')}), reconstructed
+        from today's ~500 constituents' known weights and their own price history. ${spy.historyNote || ''}
       </span>`;
   }
 

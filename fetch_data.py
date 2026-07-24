@@ -231,25 +231,25 @@ SPY_TOP10_N = 10
 SPY_TOP10_HISTORY_YEARS = 10
 
 # The S&P 500's actual top-10 membership changed over time (e.g. NVDA wasn't
-# always there), and yfinance doesn't expose historical index-divisor or
-# per-company share-count history, so a genuine historical "top-10 combined
-# weight" series can't be reconstructed exactly. Instead we approximate: take
-# TODAY's top-10 constituents and TODAY's known-exact weights, then project
-# each backward using that company's own price vs. the S&P 500 index (^GSPC)
-# level, self-calibrated so the series is exact at t=today. See
-# calc_spy_top10_history_approx() for the formula and calibration proof.
+# always there), and there's no free dataset of historical index composition,
+# so a genuine historical "top-10 combined weight" series can't be
+# reconstructed exactly. Instead we approximate: rank TODAY's ~500 SPY
+# constituents by an approximate market cap at each past date (each
+# company's today-known weight scaled by its own price move since), and sum
+# whichever 10 come out largest AT THAT DATE — not fixed to today's top 10.
+# See calc_spy_top10_history_approx() for the full derivation.
 SPY_TOP10_HISTORY_METHODOLOGY_NOTE = (
-    "Approximation, not a true historical reconstruction: projects TODAY's "
-    "top-10 constituents and their exact current weights backward using each "
-    "company's own share-price performance relative to the S&P 500 index "
-    "(^GSPC), self-calibrated to match today's real combined weight exactly. "
-    "Two simplifying assumptions bias older points: (1) today's top-10 names "
-    "are held fixed across the whole window, even though real constituents "
-    "changed over time (e.g. NVDA's actual weight was ~0% a decade ago, not "
-    "backfilled here); (2) each company's share count and the S&P 500 index "
-    "divisor are assumed roughly constant, ignoring buybacks, issuance, and "
-    "index reconstitutions — this tends to understate historical weight for "
-    "buyback-heavy names (AAPL, META, GOOGL, ...)."
+    "Approximation, not an exact historical reconstruction: ranks TODAY's "
+    "~500 S&P 500 constituents by an approximate market cap at each past "
+    "date (today's known weight scaled by that company's own share-price "
+    "move since), and sums whichever 10 were largest at that date — so the "
+    "named top 10 can and does change across the chart, it isn't fixed to "
+    "today's top 10. Two caveats remain: (1) the universe is limited to "
+    "today's constituents, so a company since removed from the index "
+    "(bankruptcy, M&A, relegation) isn't counted even if it was genuinely "
+    "top-10 at some past date; (2) each company's share count is assumed "
+    "roughly constant, ignoring buybacks/issuance, which tends to understate "
+    "historical weight for buyback-heavy names (AAPL, META, GOOGL, ...)."
 )
 
 # ── Hilfsfunktionen ──────────────────────────────────────────────────────────
@@ -737,65 +737,85 @@ def calc_acwi_country_weights():
         "note":      ACWI_METHODOLOGY_NOTE,
     }
 
-def calc_spy_top10_history_approx(top10, years=SPY_TOP10_HISTORY_YEARS):
+def _normalize_spy_yf_symbol(symbol):
+    """SSGA's SPY holdings file uses dots for dual-class tickers (e.g.
+    "BRK.B", "BF.B") where Yahoo Finance expects a dash ("BRK-B", "BF-B")."""
+    return symbol.replace(".", "-")
+
+def calc_spy_top10_history_approx(all_holdings, years=SPY_TOP10_HISTORY_YEARS, top_n=SPY_TOP10_N):
     """
-    Reconstructs ~`years` years of "combined top-10 weight" history as a
-    single approximated series (see SPY_TOP10_HISTORY_METHODOLOGY_NOTE for
-    the assumptions/caveats this simplifies away).
+    Reconstructs ~`years` years of "top-N by market cap, as a share of the
+    total" history — using whichever names were ACTUALLY the largest at each
+    past date, not today's top 10 held fixed (see
+    SPY_TOP10_HISTORY_METHODOLOGY_NOTE for the caveats this still involves).
 
-    Self-calibrating formula, derived so the unknown S&P 500 divisor and
-    absolute total market cap both cancel out algebraically:
+    Universe: TODAY's ~500 SPY constituents (all of `all_holdings`, not just
+    the top 10) — the best available proxy for the S&P 500's historical
+    membership, since a free historical index-composition dataset doesn't
+    exist. This means a company that has since been removed from the index
+    (bankruptcy, M&A, relegation) isn't counted, even if it was genuinely
+    top-10 at some past date — a survivorship-bias caveat, disclosed
+    alongside the others in SPY_TOP10_HISTORY_METHODOLOGY_NOTE.
 
-        combined_weight_pct(t) = (GSPC(today) / GSPC(t))
-                                  * Σ_i weight_i(today) * Close_i(t) / Close_i(today)
-
-    where i ranges over today's top-10 tickers, weight_i(today) is that
-    ticker's known-exact current SPY weight, and GSPC is the S&P 500 index
-    level. Proof this is exact at t=today: Close_i(t)/Close_i(today) = 1 and
-    GSPC(today)/GSPC(t) = 1 for every i at t=today, so the sum collapses to
-    Σ_i weight_i(today), i.e. today's true combined weight.
+    Per-company market cap at date t is approximated as proportional to
+    weight_i(today) * Close_i(t) / Close_i(today) — i.e. today's known
+    weight (a proxy for today's market cap) scaled by that company's own
+    price move since — which assumes a roughly-constant share count
+    (ignores buybacks/issuance). The unknown absolute scale (today's total
+    S&P 500 market cap) cancels out entirely since we only ever use it as
+    top-N-sum / all-sum, so it's never needed. A company with no price data
+    at t (e.g. it IPO'd after t) is simply excluded from that date's ranking
+    and total — the correct treatment, since it wasn't investable then.
 
     Returns [{"date": "YYYY-MM-DD", "weight_pct": float}, ...] monthly points,
     oldest first, or [] if the fetch fails.
     """
     import pandas as pd
 
-    if not top10:
+    if not all_holdings:
         return []
-    tickers = [e["symbol"] for e in top10]
-    all_tickers = tickers + ["^GSPC"]
+    # "-" is SSGA's placeholder row for the fund's cash/USD position, not a
+    # stock; drop it before it reaches yfinance.
+    entries = [h for h in all_holdings if h["symbol"] and h["symbol"] != "-"]
+    weight_today = {h["symbol"]: h["weight_pct"] for h in entries}
+    yf_symbols = {h["symbol"]: _normalize_spy_yf_symbol(h["symbol"]) for h in entries}
+    tickers = sorted(set(yf_symbols.values()))
+
     try:
-        df = yf.download(all_tickers, period=f"{years}y", interval="1mo",
+        df = yf.download(tickers, period=f"{years}y", interval="1mo",
                          progress=False, auto_adjust=True, group_by="ticker")
         closes = pd.DataFrame({
-            t: df[t]["Close"] for t in all_tickers if t in df.columns.get_level_values(0)
+            t: df[t]["Close"] for t in tickers if t in df.columns.get_level_values(0)
         })
     except Exception as e:
         print(f"  ⚠ SPY top10 history fetch failed: {e}")
         return []
 
-    closes = closes.dropna(how="all").ffill().dropna()
-    available = [t for t in tickers if t in closes.columns]
-    if "^GSPC" not in closes.columns or closes.empty or not available:
+    closes = closes.dropna(how="all").ffill()
+    if closes.empty:
         return []
-
-    weight_today = {e["symbol"]: e["weight_pct"] for e in top10}
     today_row = closes.iloc[-1]
-    gspc_today = float(today_row["^GSPC"])
-    if gspc_today == 0:
+
+    symbols = [s for s in weight_today if yf_symbols[s] in closes.columns]
+    if len(symbols) < top_n:
         return []
 
     points = []
     for ts, row in closes.iterrows():
-        gspc_t = float(row["^GSPC"])
-        if gspc_t == 0:
+        caps = {}
+        for s in symbols:
+            yfs = yf_symbols[s]
+            p_today, p_t = today_row[yfs], row[yfs]
+            if pd.isna(p_today) or pd.isna(p_t) or p_today == 0:
+                continue
+            caps[s] = weight_today[s] * (float(p_t) / float(p_today))
+        if len(caps) < top_n:
             continue
-        total = sum(
-            weight_today[t] * (float(row[t]) / float(today_row[t]))
-            for t in available if today_row[t]
-        )
-        combined = (gspc_today / gspc_t) * total
-        points.append({"date": ts.strftime("%Y-%m-%d"), "weight_pct": round(float(combined), 2)})
+        total_cap = sum(caps.values())
+        if total_cap == 0:
+            continue
+        top_cap = sum(sorted(caps.values(), reverse=True)[:top_n])
+        points.append({"date": ts.strftime("%Y-%m-%d"), "weight_pct": round(top_cap / total_cap * 100, 2)})
     return points
 
 def calc_spy_top10():
@@ -821,7 +841,7 @@ def calc_spy_top10():
     ]
 
     today = datetime.now().strftime("%Y-%m-%d")
-    history = calc_spy_top10_history_approx(top10)
+    history = calc_spy_top10_history_approx(holdings)
 
     return {
         "asOf": today, "source": data["source"], "top10": top10,

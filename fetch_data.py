@@ -228,7 +228,7 @@ ACWI_METHODOLOGY_NOTE = (
 ACWI_FALLBACK_COUNTRY_TOP_N = 100
 
 SPY_TOP10_N = 10
-SPY_TOP10_HISTORY_YEARS = 5
+SPY_TOP10_HISTORY_YEARS = 10
 
 # The S&P 500's actual top-10 membership changed over time (e.g. NVDA wasn't
 # always there), and yfinance doesn't expose historical index-divisor or

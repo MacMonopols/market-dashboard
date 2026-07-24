@@ -60,7 +60,7 @@ snapshots to accumulate) or silently faking it, `fetch_data.py`'s
 it takes TODAY's top-10 constituents and their known-exact current weights
 (from `calc_spy_top10()`) and projects each one backward using that
 company's own share price vs. the S&P 500 index (`^GSPC`) over the last
-`SPY_TOP10_HISTORY_YEARS` (5) years, monthly, via
+`SPY_TOP10_HISTORY_YEARS` (10) years, monthly, via
 
 ```
 combined_weight_pct(t) = (GSPC(today)/GSPC(t)) × Σ_i weight_i(today) × Close_i(t)/Close_i(today)

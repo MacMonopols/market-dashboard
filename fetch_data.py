@@ -201,8 +201,13 @@ LONGTERM_PERIODS = [1, 5, 10, 15, 20]   # years
 ETF_HOLDINGS_SOURCES = {
     "ACWI": {
         "primary": "ishares",
-        "ishares_url": "https://www.ishares.com/us/products/239600/ishares-msci-acwi-etf/1467271812596.ajax",
-        "ishares_params": {"fileType": "csv", "fileName": "ACWI_holdings", "dataType": "fund"},
+        # iShares redesigned their site (~2026-07); the old numeric-id
+        # ".ajax?fileType=csv&..." endpoint now just 302s into the HTML
+        # product page. This static "latest-holdings.csv" path (found by
+        # inspecting the product page's hidden "Download Holdings CSV"
+        # link) is the current one and needs no query params.
+        "ishares_url": "https://www.ishares.com/us/products/239600/ishares-msci-acwi-etf/latest-holdings.csv",
+        "ishares_params": {},
     },
     "SPY": {
         "primary": "ssga",
@@ -657,6 +662,25 @@ _STOCKANALYSIS_EXCHANGE_TO_YF_SUFFIX = {
     "KLS": ".KL",
 }
 
+# Same exchange codes as above, mapped straight to country instead of a
+# yfinance suffix. Checked first in _lookup_country() because it's
+# deterministic and free — the exchange itself already tells us the
+# country, so there's no need to burn a network round-trip (and risk
+# yfinance's per-symbol rate limiting) on the ~100 foreign large-caps that
+# make up most of the fallback's top holdings by weight. yfinance is only
+# consulted for symbols with no "EXCHANGE:" prefix (plain US-listed
+# tickers and ADRs of foreign companies).
+_STOCKANALYSIS_EXCHANGE_TO_COUNTRY = {
+    "TPE": "Taiwan", "KRX": "South Korea", "HKG": "Hong Kong", "TYO": "Japan",
+    "LON": "United Kingdom", "PAR": "France", "AMS": "Netherlands",
+    "ETR": "Germany", "FRA": "Germany", "SWX": "Switzerland", "ASX": "Australia",
+    "TSE": "Canada", "BSE": "India", "NSE": "India", "SHA": "China",
+    "SHE": "China", "SGX": "Singapore", "BME": "Spain", "MIL": "Italy",
+    "STO": "Sweden", "CPH": "Denmark", "OSL": "Norway", "HEL": "Finland",
+    "BRU": "Belgium", "LIS": "Portugal", "JSE": "South Africa", "MEX": "Mexico",
+    "SAO": "Brazil", "IDX": "Indonesia", "SET": "Thailand", "KLS": "Malaysia",
+}
+
 def _normalize_yf_symbol(symbol):
     """Translate a "EXCHANGE: LOCALSYMBOL" fallback symbol into a plain
     Yahoo Finance ticker (e.g. "TPE: 2330" -> "2330.TW"). Returns the
@@ -669,10 +693,19 @@ def _normalize_yf_symbol(symbol):
     return f"{local.strip()}{suffix}" if suffix else symbol
 
 def _lookup_country(symbol):
-    """Best-effort per-ticker country lookup via yfinance, used only in
-    calc_acwi_country_weights()'s degraded fallback path (see there)."""
+    """Country lookup for one fallback-mode holding, used only in
+    calc_acwi_country_weights()'s degraded fallback path (see there).
+    Tries the deterministic "EXCHANGE:" prefix map first, falling back to
+    a best-effort yfinance lookup for plain-ticker symbols (US-listed
+    stocks and ADRs of foreign companies)."""
     if symbol in _country_lookup_cache:
         return _country_lookup_cache[symbol]
+    if ":" in symbol:
+        exch, _, _ = symbol.partition(":")
+        mapped = _STOCKANALYSIS_EXCHANGE_TO_COUNTRY.get(exch.strip())
+        if mapped:
+            _country_lookup_cache[symbol] = mapped
+            return mapped
     try:
         country = yf.Ticker(_normalize_yf_symbol(symbol)).info.get("country")
     except Exception:
@@ -708,6 +741,11 @@ def calc_acwi_country_weights():
     if data["source"] == "ishares":
         for h in holdings:
             country = h.get("country") or "Other"
+            # iShares' Location field spells this "Korea (South)"; the
+            # dashboard's country flag/region tables elsewhere use "South
+            # Korea", so normalize to keep the two in sync.
+            if country == "Korea (South)":
+                country = "South Korea"
             totals[country] = totals.get(country, 0.0) + h["weight_pct"]
     else:
         ranked = sorted(holdings, key=lambda h: h["weight_pct"], reverse=True)

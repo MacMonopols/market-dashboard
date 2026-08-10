@@ -6,10 +6,10 @@ const LIVE_DATA = {
   "ytdYear": 2026,
   "mainMarkets": {
     "Emerging Market Equities": {
-      "ytd": 19.28,
+      "ytd": 19.27,
       "w52Low": -10.87,
       "w52High": 28.55,
-      "l30d": -2.27,
+      "l30d": -2.28,
       "etfProxy": true,
       "ticker": "EEM"
     },
@@ -30,9 +30,9 @@ const LIVE_DATA = {
       "ticker": "IUSN.DE"
     },
     "US Equities (S&P 500)": {
-      "ytd": 16.42,
+      "ytd": 16.41,
       "w52Low": -6.57,
-      "w52High": 16.42,
+      "w52High": 16.41,
       "l30d": 2.66,
       "etfProxy": true,
       "ticker": "SPY"
@@ -120,10 +120,10 @@ const LIVE_DATA = {
       "ticker": "FEZ"
     },
     "US Real Estate (Equities)": {
-      "ytd": 14.22,
+      "ytd": 14.2,
       "w52Low": -0.4,
       "w52High": 20.02,
-      "l30d": -0.18,
+      "l30d": -0.19,
       "etfProxy": true,
       "ticker": "VNQ"
     },
@@ -230,7 +230,7 @@ const LIVE_DATA = {
       "ytd": 2.9,
       "w52Low": -1.89,
       "w52High": 3.84,
-      "l30d": -0.24,
+      "l30d": -0.23,
       "etfProxy": true,
       "ticker": "TIP"
     },
@@ -294,18 +294,18 @@ const LIVE_DATA = {
   "subMarkets": {
     "Emerging Market Equities": {
       "Taiwan": {
-        "ytd": 61.54,
+        "ytd": 61.48,
         "w52Low": -10.77,
         "w52High": 72.53,
-        "l30d": -3.47,
+        "l30d": -3.5,
         "etfProxy": true,
         "ticker": "EWT"
       },
       "China": {
-        "ytd": -6.15,
+        "ytd": -6.16,
         "w52Low": -16.72,
         "w52High": 5.4,
-        "l30d": 7.0,
+        "l30d": 6.99,
         "etfProxy": true,
         "ticker": "MCHI"
       },
@@ -313,15 +313,15 @@ const LIVE_DATA = {
         "ytd": 64.06,
         "w52Low": -29.0,
         "w52High": 117.86,
-        "l30d": -10.47,
+        "l30d": -10.48,
         "etfProxy": true,
         "ticker": "EWY"
       },
       "India": {
-        "ytd": -5.99,
+        "ytd": -5.98,
         "w52Low": -15.69,
         "w52High": 1.65,
-        "l30d": 1.93,
+        "l30d": 1.94,
         "etfProxy": true,
         "ticker": "INDA"
       },
@@ -392,15 +392,15 @@ const LIVE_DATA = {
     },
     "US Equities (S&P 500)": {
       "Nasdaq 100": {
-        "ytd": 20.77,
+        "ytd": 20.75,
         "w52Low": -7.77,
         "w52High": 22.88,
-        "l30d": -0.24,
+        "l30d": -0.26,
         "etfProxy": true,
         "ticker": "QQQ"
       },
       "Russell 2000": {
-        "ytd": 23.83,
+        "ytd": 23.82,
         "w52Low": -7.58,
         "w52High": 24.42,
         "l30d": 1.54,
@@ -410,10 +410,10 @@ const LIVE_DATA = {
     },
     "Magnificent 7": {
       "Apple": {
-        "ytd": 15.89,
+        "ytd": 15.9,
         "w52Low": -14.32,
         "w52High": 27.25,
-        "l30d": -2.6,
+        "l30d": -2.59,
         "etfProxy": true,
         "ticker": "AAPL"
       },
@@ -421,7 +421,7 @@ const LIVE_DATA = {
         "ytd": 10.75,
         "w52Low": -24.1,
         "w52High": 11.63,
-        "l30d": 32.66,
+        "l30d": 32.65,
         "etfProxy": true,
         "ticker": "MSFT"
       },
@@ -434,10 +434,10 @@ const LIVE_DATA = {
         "ticker": "GOOGL"
       },
       "Amazon": {
-        "ytd": 26.09,
+        "ytd": 26.07,
         "w52Low": -14.72,
-        "w52High": 26.09,
-        "l30d": 14.04,
+        "w52High": 26.07,
+        "l30d": 14.02,
         "etfProxy": true,
         "ticker": "AMZN"
       },
@@ -450,7 +450,7 @@ const LIVE_DATA = {
         "ticker": "NVDA"
       },
       "Meta": {
-        "ytd": -5.55,
+        "ytd": -5.56,
         "w52Low": -18.79,
         "w52High": 22.78,
         "l30d": -10.23,
@@ -518,10 +518,10 @@ const LIVE_DATA = {
         "ticker": "EWP"
       },
       "Italy": {
-        "ytd": 19.57,
+        "ytd": 19.52,
         "w52Low": -9.11,
         "w52High": 19.71,
-        "l30d": 4.58,
+        "l30d": 4.54,
         "etfProxy": true,
         "ticker": "EWI"
       },
@@ -730,8 +730,8 @@ const LIVE_DATA = {
       {
         "name": "Tesla",
         "ticker": "TSLA",
-        "trillions": 1.096,
-        "totalT": 1.305,
+        "trillions": 1.095,
+        "totalT": 1.304,
         "freeFloat": 84.0,
         "note": "live"
       },
@@ -5830,7 +5830,7 @@ const LIVE_DATA = {
       },
       {
         "date": "2018-12-01",
-        "weight_pct": 23.03
+        "weight_pct": 23.04
       },
       {
         "date": "2019-01-01",

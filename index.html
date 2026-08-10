@@ -803,14 +803,25 @@
     const span = gMax - gMin;
     const toP = v => ((v - gMin) / span * 100);
 
-    function bar30(val, color) {
+    function bar30(val, color, compact = false) {
       const zp = toP(0), vp = toP(val);
       const left = Math.min(zp, vp), w = Math.abs(vp - zp);
-      return `<div class="bar-wrap" style="height:20px;">
+      const barH = compact ? 7 : 11, topPx = compact ? 3 : 4, H = compact ? 14 : 20, dotSz = compact ? 7 : 9;
+      return `<div class="bar-wrap" style="height:${H}px;">
         <div style="position:absolute;left:${zp}%;top:0;width:1.5px;height:100%;background:#d0d8e0;z-index:0;border-radius:1px;"></div>
-        <div style="position:absolute;left:${left}%;width:max(${w.toFixed(2)}%,2px);top:4px;height:11px;background:${color};border-radius:2px;z-index:1;"></div>
-        <div style="position:absolute;left:${vp.toFixed(2)}%;top:50%;width:9px;height:9px;background:var(--range-pos);border:1.5px solid #fff;box-shadow:0 0 0 1.5px var(--range-pos);border-radius:50%;transform:translate(-50%,-50%);z-index:3;"></div>
+        <div style="position:absolute;left:${left}%;width:max(${w.toFixed(2)}%,2px);top:${topPx}px;height:${barH}px;background:${color};border-radius:2px;z-index:1;"></div>
+        <div style="position:absolute;left:${vp.toFixed(2)}%;top:50%;width:${dotSz}px;height:${dotSz}px;background:var(--range-pos);border:1.5px solid #fff;box-shadow:0 0 0 1.5px var(--range-pos);border-radius:50%;transform:translate(-50%,-50%);z-index:3;"></div>
       </div>`;
+    }
+
+    // Secondary muted bar for Mag7's equal-weight (MAGS) 30D reading —
+    // mirrors secondaryBarHTML() above the YTD table for the same reason.
+    function secondaryBar30(eqL30d) {
+      return `
+        <div style="margin-top:5px;display:flex;align-items:center;gap:6px;opacity:.6;">
+          <span style="font-size:8.5px;color:var(--text-muted);white-space:nowrap;flex-shrink:0;">Equal-weight (breadth, MAGS)</span>
+          <div style="flex:1;">${bar30(eqL30d, '#8a97a8', true)}</div>
+        </div>`;
     }
 
     let html = `<div class="tbl-header">
@@ -824,10 +835,18 @@
       const c = CAT_COLORS[m.cat] || '#888';
       const cls = m.l30d > 0.049 ? 'pos' : (m.l30d < -0.049 ? 'neg' : 'neu');
       const sgn = m.l30d > 0.049 ? '+' : '';
-      html += `<div class="row" style="--cat-color:${c}">
-        <div class="col-name" title="${m.name}">${m.name}</div>
-        <div class="col-bars">${bar30(m.l30d, c)}</div>
-        <div class="col-ytd ${cls}">${sgn}${m.l30d.toFixed(1)}%</div>
+      const eq = m._equalWeight;
+      const hasEq = eq && eq.l30d != null;
+      const nameCell = hasEq
+        ? `${m.name} <span style="font-size:9.5px;font-weight:400;color:var(--text-muted);">(cap-wtd)</span>`
+        : m.name;
+      const secondary = hasEq
+        ? `<div style="font-size:9px;font-weight:500;color:var(--text-muted);margin-top:2px;">eq ${eq.l30d > 0.049 ? '+' : ''}${eq.l30d.toFixed(1)}%</div>`
+        : '';
+      html += `<div class="row" style="--cat-color:${c};${hasEq ? 'height:50px;' : ''}">
+        <div class="col-name" title="${m.name}${hasEq ? ' — primary line is cap-weighted; secondary line is equal-weight (MAGS), a breadth indicator' : ''}">${nameCell}</div>
+        <div class="col-bars">${bar30(m.l30d, c)}${hasEq ? secondaryBar30(eq.l30d) : ''}</div>
+        <div class="col-ytd ${cls}">${sgn}${m.l30d.toFixed(1)}%${secondary}</div>
         <div class="col-expand"></div>
       </div>`;
     });

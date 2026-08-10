@@ -534,13 +534,16 @@
       function() {}
     );
 
-    // Override legend to add free-float note for SpaceX
+    // Legend: always show total market cap next to the free-float cap, so
+    // it's clear the float figure is intentionally a haircut (freeFloat%)
+    // off a total that's live and current — not a stale number. SpaceX
+    // (freeFloat < 20%) gets an extra red highlight since its float is such
+    // a small sliver of its total that it's easy to misread.
     document.getElementById('mag7-legend').innerHTML = segs.map(s => {
-      const color  = s.color;
-      const pct    = (s.pct).toFixed(1);
-      const ffNote = s.freeFloat < 20
-        ? `<div class="mktcap-val" style="color:#c0392b;">${s.freeFloat}% free float · total $${s.totalT.toFixed(1)}T</div>`
-        : '';
+      const color   = s.color;
+      const pct     = (s.pct).toFixed(1);
+      const lowFloat = s.freeFloat < 20;
+      const ffNote  = `<div class="mktcap-val"${lowFloat ? ' style="color:#c0392b;"' : ''}>${s.freeFloat}% free float · total $${s.totalT.toFixed(2)}T</div>`;
       return `
         <div class="mktcap-item">
           <div class="mktcap-swatch" style="background:${color}"></div>

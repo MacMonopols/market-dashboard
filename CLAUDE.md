@@ -1,20 +1,38 @@
 # market-dashboard
 
-## SPCX (SpaceX) free float — manual review needed after 2026-08-04
+## Vol & Options nav link — external app, set up 2026-08-25
 
-`fetch_data.py`'s `SPCX_IPO_FLOAT_SHARES` constant (555,555,555) anchors
-SpaceX's free float calculation on the actual IPO offering size (S-1 filed
-2026-05-20, pricing confirmed 2026-06-11 at $135/share), because yfinance's
-`floatShares` field for SPCX reports roughly half the real number — the same
-kind of share-class undercount bug already found and fixed for
-`sharesOutstanding` (see `fetch_live_float_cap()` in `fetch_data.py`).
+The "Vol & Options" nav entry on every page links out to
+`https://market-vol-dashboard.streamlit.app`, a Streamlit app that lives in
+its own separate repo. It is embedded here only as an external link — no
+data, charts, or assets from that repo are pulled into this site.
 
-**TODO — review from 2026-08-05 onward**: SpaceX's IPO lock-up expires
-around its 2026-08-04 earnings date. After that, more shares legitimately
-join the tradable float and the hardcoded 555,555,555 anchor will go stale
-(too low). Check yfinance's `floatShares` against real trading volume /
-secondary-sale disclosures at that point, and update or remove
-`SPCX_IPO_FLOAT_SHARES` in `fetch_data.py` accordingly.
+## SPCX (SpaceX) free float — now modeled via unlock schedule, set up 2026-08-10
+
+`fetch_data.py`'s `SPCX_UNLOCK_SCHEDULE` anchors SpaceX's free float
+calculation on a reconstructed IPO lock-up unlock schedule (free float % of
+shares outstanding at a series of milestone dates, linearly interpolated by
+`spcx_scheduled_float_pct()`), because yfinance's `floatShares` field for
+SPCX reports roughly half the real number — the same kind of share-class
+undercount bug already found and fixed for `sharesOutstanding` (see
+`fetch_live_float_cap()` in `fetch_data.py`).
+
+This replaces the earlier fixed `SPCX_IPO_FLOAT_SHARES` constant
+(555,555,555 shares, the IPO offering size), which was always going to go
+stale once the 2026-08-04 lock-up expiry started legitimately releasing
+more shares into the float — the schedule now models that release over
+time instead of freezing free float at the IPO number.
+
+**Caveat**: the schedule's dates/percentages were reconstructed from a
+third-party infographic (Boyan Girginov, sourced to SpaceX's SEC prospectus
+filed 17 June 2026), not read directly from a primary filing — the source
+chart itself calls the figures approximate. Treat it the same way as the
+ACWI stockanalysis.com fallback or the SPY top-10 history chart: a
+clearly-flagged approximation, not ground truth. If a more authoritative
+source (real trading volume, secondary-sale disclosures, an actual SEC
+Form 4/144) becomes available, update `SPCX_UNLOCK_SCHEDULE` in
+`fetch_data.py` accordingly — especially around Musk's Day-366 stake
+unlock (~2027-06-12), the single biggest jump in the schedule.
 
 ## ETF holdings-derived weights (MSCI ACWI country weights, S&P 500 top 10) — set up 2026-07-23
 

@@ -126,19 +126,68 @@ WORLD_MKTCAP_BASELINE = {
 }
 MKTCAP_BASELINE_DATE = datetime(2026, 3, 31, tzinfo=timezone.utc)
 
-# SpaceX (SPCX) IPO offering size — source: S-1 filed 2026-05-20, pricing
-# confirmed 2026-06-11 (555,555,555 Class A shares at $135). Used as a stable
-# reference for SPCX's free float instead of yfinance's `floatShares`, which
-# reports ~281M — suspiciously close to exactly half of this — the same
-# share-class undercount bug already found and fixed for `sharesOutstanding`
-# (see fetch_live_float_cap()).
+# SpaceX (SPCX) IPO lock-up unlock schedule — free float as % of total
+# shares outstanding over time, used as a stable reference for SPCX's free
+# float instead of yfinance's `floatShares`, which has been shown to
+# undercount by ~half (the same share-class bug already found and fixed for
+# `sharesOutstanding` — see fetch_live_float_cap()).
 #
-# TODO — review from 2026-08-05 onward: SpaceX's IPO lock-up expires around
-# its 2026-08-04 earnings date, after which more shares legitimately join the
-# tradable float and this hardcoded anchor will go stale (too low). Re-check
-# yfinance's floatShares against real volume/secondary-sale data at that
-# point and update or remove SPCX_IPO_FLOAT_SHARES accordingly. See CLAUDE.md.
-SPCX_IPO_FLOAT_SHARES = 555_555_555
+# Replaces the earlier fixed SPCX_IPO_FLOAT_SHARES anchor (555,555,555
+# shares ≈ 4.9% at IPO pricing), which CLAUDE.md flagged as going stale once
+# the 2026-08-04 lock-up expiry started legitimately releasing more shares
+# into the float. This schedule models that release over time instead of
+# freezing it at the IPO number.
+#
+# Reconstructed from a third-party infographic (Boyan Girginov, sourced to
+# SpaceX's SEC prospectus filed 17 June 2026) rather than a primary filing
+# read directly — dates/percentages are therefore APPROXIMATE (the source
+# chart itself notes "figures approximate... eligibility to sell ≠ actual
+# selling"). Flagged the same way the ACWI stockanalysis.com fallback and
+# the SPY top-10 history chart are flagged elsewhere in this file — not
+# presented as ground truth. Revisit if a more authoritative source turns up.
+#
+# Two early tranches ("accelerated early unlock" and the "normal" schedule)
+# converge by ~2027-01; a slower cadence then runs until Musk's 46.1% stake
+# unlocks in a single day around Day 366 of the Jun-11-2026 prospectus clock
+# (~2027-06-12), followed by a short tail to 100% by ~2027-09.
+SPCX_UNLOCK_SCHEDULE = [
+    (datetime(2026, 6, 11, tzinfo=timezone.utc),   4.9),   # IPO pricing (ex-greenshoe ≈4.2%)
+    (datetime(2026, 8,  8, tzinfo=timezone.utc),  11.8),
+    (datetime(2026, 8, 20, tzinfo=timezone.utc),  15.2),
+    (datetime(2026, 9,  9, tzinfo=timezone.utc),  17.7),
+    (datetime(2026, 9, 24, tzinfo=timezone.utc),  20.1),
+    (datetime(2026, 10, 9, tzinfo=timezone.utc),  22.6),
+    (datetime(2026, 10, 24, tzinfo=timezone.utc), 25.1),
+    (datetime(2026, 12, 8, tzinfo=timezone.utc),  27.6),
+    (datetime(2027, 1, 1,  tzinfo=timezone.utc),  40.0),   # accelerated + normal tranches converge
+    (datetime(2027, 2, 1,  tzinfo=timezone.utc),  42.7),
+    (datetime(2027, 3, 1,  tzinfo=timezone.utc),  44.1),
+    (datetime(2027, 4, 1,  tzinfo=timezone.utc),  46.7),
+    (datetime(2027, 5, 1,  tzinfo=timezone.utc),  48.1),
+    (datetime(2027, 6, 1,  tzinfo=timezone.utc),  50.8),
+    (datetime(2027, 6, 12, tzinfo=timezone.utc),  96.9),   # Musk's 46.1% stake unlocks (Day 366)
+    (datetime(2027, 8, 1,  tzinfo=timezone.utc),  99.5),
+    (datetime(2027, 9, 1,  tzinfo=timezone.utc), 100.0),   # full unlock
+]
+
+def spcx_scheduled_float_pct(as_of=None):
+    """
+    Free float % implied by SPCX_UNLOCK_SCHEDULE for `as_of` (default: now),
+    linearly interpolated between the schedule's milestone dates. Flat at
+    the first milestone's % before the schedule starts, flat at 100% once
+    it's past the last milestone.
+    """
+    as_of = as_of or datetime.now(timezone.utc)
+    pts = SPCX_UNLOCK_SCHEDULE
+    if as_of <= pts[0][0]:
+        return pts[0][1]
+    if as_of >= pts[-1][0]:
+        return pts[-1][1]
+    for (d0, p0), (d1, p1) in zip(pts, pts[1:]):
+        if d0 <= as_of <= d1:
+            frac = (as_of - d0).total_seconds() / (d1 - d0).total_seconds()
+            return p0 + frac * (p1 - p0)
+    return pts[-1][1]
 
 # ── MAG7 Market Cap ──────────────────────────────────────────────────────────
 # Baseline market caps at Q1 2026 (31 March 2026), in USD trillions.
@@ -1068,16 +1117,17 @@ def fetch_live_float_cap(ticker):
     warning rather than silently using a number we know is likely wrong. This
     check is intentionally SPCX-only (via the `live_float` baseline flag),
     not applied to the other Mag7 tickers, whose yfinance data has been
-    stable for years. Reminder: a lock-up expiring around SpaceX's
-    2026-08-04 earnings date will move the real float independently of this
-    bug — don't mistake that later, legitimate move for a recurrence of it.
+    stable for years.
 
     Same undercount bug also affects `floatShares` (added 2026-07-22): SPCX's
-    reported floatShares (~281M) is ~half of the 555,555,555 shares actually
-    sold in the IPO (SPCX_IPO_FLOAT_SHARES, see its definition for the TODO
-    on reviewing this after the 2026-08-04 lock-up expiry) — so for SPCX we
-    anchor on the IPO offering size instead when yfinance's figure diverges
-    from it by more than 15%.
+    reported floatShares is roughly half of what the lock-up unlock schedule
+    implies should be free-floating by now (SPCX_UNLOCK_SCHEDULE, see its
+    definition) — so for SPCX we anchor on the schedule-derived share count
+    instead when yfinance's figure diverges from it by more than 15%. The
+    schedule itself grows over time as lock-up tranches release, which is
+    the correct behaviour going forward (unlike the old fixed IPO-size
+    anchor this replaced, which went stale once the 2026-08-04 lock-up
+    expiry started legitimately releasing more shares).
     """
     try:
         info = yf.Ticker(ticker).info
@@ -1100,13 +1150,15 @@ def fetch_live_float_cap(ticker):
                 total_shares = implied_shares
 
         if ticker == "SPCX":
-            discrepancy = abs(float_shares - SPCX_IPO_FLOAT_SHARES) / SPCX_IPO_FLOAT_SHARES
+            scheduled_pct    = spcx_scheduled_float_pct()
+            scheduled_shares = total_shares * scheduled_pct / 100
+            discrepancy = abs(float_shares - scheduled_shares) / scheduled_shares
             if discrepancy > 0.15:
                 print(f"  ⚠ {ticker}: yfinance floatShares ({float_shares:,}) looks incomplete "
-                      f"(~{float_shares / SPCX_IPO_FLOAT_SHARES * 100:.0f}% of the "
-                      f"{SPCX_IPO_FLOAT_SHARES:,} shares actually sold in the IPO) — using the "
-                      f"IPO offering size instead.")
-                float_shares = SPCX_IPO_FLOAT_SHARES
+                      f"(~{float_shares / scheduled_shares * 100:.0f}% of the {scheduled_pct:.1f}% "
+                      f"free float ({scheduled_shares:,.0f} shares) implied by the IPO lock-up "
+                      f"unlock schedule as of today) — using the schedule-derived figure instead.")
+                float_shares = scheduled_shares
 
         return {
             "float_cap_t":    price * float_shares / 1e12,

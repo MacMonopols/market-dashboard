@@ -6,10 +6,10 @@ const LIVE_DATA = {
   "ytdYear": 2026,
   "mainMarkets": {
     "Emerging Market Equities": {
-      "ytd": 22.3,
+      "ytd": 22.31,
       "w52Low": -10.87,
       "w52High": 28.55,
-      "l30d": 4.53,
+      "l30d": 4.54,
       "etfProxy": true,
       "ticker": "EEM"
     },
@@ -17,7 +17,7 @@ const LIVE_DATA = {
       "ytd": 19.96,
       "w52Low": -6.24,
       "w52High": 24.72,
-      "l30d": 2.92,
+      "l30d": 2.93,
       "etfProxy": true,
       "ticker": "EWJ"
     },
@@ -30,18 +30,18 @@ const LIVE_DATA = {
       "ticker": "IUSN.DE"
     },
     "US Equities (S&P 500)": {
-      "ytd": 14.88,
+      "ytd": 14.9,
       "w52Low": -6.57,
       "w52High": 17.36,
-      "l30d": 2.21,
+      "l30d": 2.23,
       "etfProxy": true,
       "ticker": "SPY"
     },
     "Magnificent 7": {
-      "ytd": 11.43,
+      "ytd": 11.48,
       "w52Low": -13.64,
       "w52High": 13.53,
-      "l30d": 5.63,
+      "l30d": 5.68,
       "etfProxy": false,
       "ticker": "MAG7-CAPW",
       "weights": {
@@ -58,13 +58,13 @@ const LIVE_DATA = {
         "ytd": 6.37,
         "w52Low": -14.82,
         "w52High": 8.15,
-        "l30d": 6.49,
+        "l30d": 6.5,
         "ticker": "MAGS",
         "etfProxy": true
       }
     },
     "Global Equities": {
-      "ytd": 15.56,
+      "ytd": 15.57,
       "w52Low": -6.0,
       "w52High": 17.76,
       "l30d": 2.58,
@@ -80,7 +80,7 @@ const LIVE_DATA = {
       "ticker": "IWQU.L"
     },
     "Pacific ex Japan Equities": {
-      "ytd": 16.11,
+      "ytd": 16.12,
       "w52Low": -3.06,
       "w52High": 17.7,
       "l30d": 2.14,
@@ -104,10 +104,10 @@ const LIVE_DATA = {
       "ticker": "EWU"
     },
     "Swiss Equities (SPI)": {
-      "ytd": 10.99,
+      "ytd": 11.05,
       "w52Low": -9.29,
       "w52High": 12.52,
-      "l30d": 0.81,
+      "l30d": 0.86,
       "etfProxy": true,
       "ticker": "CHSPI.SW"
     },
@@ -115,7 +115,7 @@ const LIVE_DATA = {
       "ytd": 12.45,
       "w52Low": -8.94,
       "w52High": 15.31,
-      "l30d": 3.23,
+      "l30d": 3.24,
       "etfProxy": true,
       "ticker": "FEZ"
     },
@@ -179,7 +179,7 @@ const LIVE_DATA = {
       "ytd": 4.95,
       "w52Low": -3.38,
       "w52High": 5.54,
-      "l30d": 1.02,
+      "l30d": 1.03,
       "etfProxy": true,
       "ticker": "EMLC"
     },
@@ -294,15 +294,15 @@ const LIVE_DATA = {
   "subMarkets": {
     "Emerging Market Equities": {
       "Taiwan": {
-        "ytd": 69.12,
+        "ytd": 69.11,
         "w52Low": -10.77,
         "w52High": 72.53,
-        "l30d": 8.13,
+        "l30d": 8.12,
         "etfProxy": true,
         "ticker": "EWT"
       },
       "China": {
-        "ytd": -9.9,
+        "ytd": -9.89,
         "w52Low": -16.72,
         "w52High": 5.4,
         "l30d": 1.07,
@@ -310,10 +310,10 @@ const LIVE_DATA = {
         "ticker": "MCHI"
       },
       "Korea": {
-        "ytd": 79.76,
+        "ytd": 79.85,
         "w52Low": -29.0,
         "w52High": 117.86,
-        "l30d": 9.09,
+        "l30d": 9.14,
         "etfProxy": true,
         "ticker": "EWY"
       },
@@ -326,7 +326,7 @@ const LIVE_DATA = {
         "ticker": "INDA"
       },
       "South Africa": {
-        "ytd": 6.99,
+        "ytd": 7.0,
         "w52Low": -20.25,
         "w52High": 14.49,
         "l30d": 15.11,
@@ -334,7 +334,7 @@ const LIVE_DATA = {
         "ticker": "EZA"
       },
       "Brazil": {
-        "ytd": 13.04,
+        "ytd": 13.05,
         "w52Low": -12.79,
         "w52High": 27.91,
         "l30d": -2.37,
@@ -342,15 +342,15 @@ const LIVE_DATA = {
         "ticker": "EWZ"
       },
       "Saudi Arabia": {
-        "ytd": 10.29,
+        "ytd": 10.3,
         "w52Low": -1.57,
-        "w52High": 10.29,
+        "w52High": 10.3,
         "l30d": 4.25,
         "etfProxy": true,
         "ticker": "KSA"
       },
       "Mexico": {
-        "ytd": 14.25,
+        "ytd": 14.26,
         "w52Low": -10.34,
         "w52High": 15.42,
         "l30d": 0.57,
@@ -361,15 +361,15 @@ const LIVE_DATA = {
         "ytd": 6.45,
         "w52Low": -9.59,
         "w52High": 11.36,
-        "l30d": 1.37,
+        "l30d": 1.38,
         "etfProxy": true,
         "ticker": "UAE"
       },
       "Indonesia": {
-        "ytd": -30.45,
+        "ytd": -30.44,
         "w52Low": -39.97,
         "w52High": 3.13,
-        "l30d": 1.33,
+        "l30d": 1.34,
         "etfProxy": true,
         "ticker": "EIDO"
       },
@@ -385,35 +385,35 @@ const LIVE_DATA = {
         "ytd": 8.84,
         "w52Low": -9.45,
         "w52High": 8.84,
-        "l30d": 2.37,
+        "l30d": 2.38,
         "etfProxy": true,
         "ticker": "EWM"
       }
     },
     "US Equities (S&P 500)": {
       "Nasdaq 100": {
-        "ytd": 19.19,
+        "ytd": 19.21,
         "w52Low": -7.77,
         "w52High": 22.88,
-        "l30d": 3.09,
+        "l30d": 3.1,
         "etfProxy": true,
         "ticker": "QQQ"
       },
       "Russell 2000": {
-        "ytd": 22.28,
+        "ytd": 22.33,
         "w52Low": -4.45,
         "w52High": 26.5,
-        "l30d": 0.66,
+        "l30d": 0.7,
         "etfProxy": true,
         "ticker": "IWM"
       }
     },
     "Magnificent 7": {
       "Apple": {
-        "ytd": 16.84,
+        "ytd": 16.82,
         "w52Low": -13.19,
         "w52High": 27.25,
-        "l30d": -8.18,
+        "l30d": -8.19,
         "etfProxy": true,
         "ticker": "AAPL"
       },
@@ -421,47 +421,47 @@ const LIVE_DATA = {
         "ytd": 8.54,
         "w52Low": -24.1,
         "w52High": 11.11,
-        "l30d": 29.53,
+        "l30d": 29.54,
         "etfProxy": true,
         "ticker": "MSFT"
       },
       "Alphabet": {
-        "ytd": 9.86,
+        "ytd": 9.9,
         "w52Low": -30.68,
         "w52High": 25.2,
-        "l30d": 4.63,
+        "l30d": 4.66,
         "etfProxy": true,
         "ticker": "GOOGL"
       },
       "Amazon": {
-        "ytd": 15.42,
+        "ytd": 15.46,
         "w52Low": -14.72,
         "w52High": 23.87,
-        "l30d": 8.97,
+        "l30d": 9.0,
         "etfProxy": true,
         "ticker": "AMZN"
       },
       "Nvidia": {
-        "ytd": 21.2,
+        "ytd": 21.36,
         "w52Low": -10.94,
         "w52High": 22.63,
-        "l30d": 6.93,
+        "l30d": 7.07,
         "etfProxy": true,
         "ticker": "NVDA"
       },
       "Meta": {
-        "ytd": -8.62,
+        "ytd": -8.57,
         "w52Low": -18.79,
         "w52High": 19.62,
-        "l30d": -3.56,
+        "l30d": -3.51,
         "etfProxy": true,
         "ticker": "META"
       },
       "Tesla": {
-        "ytd": -18.65,
+        "ytd": -18.61,
         "w52Low": -27.54,
         "w52High": 11.04,
-        "l30d": 10.15,
+        "l30d": 10.2,
         "etfProxy": true,
         "ticker": "TSLA"
       }
@@ -486,10 +486,10 @@ const LIVE_DATA = {
     },
     "Eurozone Equities (EURO STOXX 50)": {
       "France": {
-        "ytd": 5.58,
+        "ytd": 5.59,
         "w52Low": -8.42,
         "w52High": 10.64,
-        "l30d": 0.56,
+        "l30d": 0.57,
         "etfProxy": true,
         "ticker": "EWQ"
       },
@@ -513,7 +513,7 @@ const LIVE_DATA = {
         "ytd": 17.54,
         "w52Low": -13.5,
         "w52High": 19.92,
-        "l30d": 2.53,
+        "l30d": 2.54,
         "etfProxy": true,
         "ticker": "EWP"
       },
@@ -526,9 +526,9 @@ const LIVE_DATA = {
         "ticker": "EWI"
       },
       "Finland": {
-        "ytd": 17.14,
+        "ytd": 17.15,
         "w52Low": -12.47,
-        "w52High": 17.14,
+        "w52High": 17.15,
         "l30d": 7.36,
         "etfProxy": true,
         "ticker": "EFNL"
@@ -682,16 +682,16 @@ const LIVE_DATA = {
       {
         "name": "Apple",
         "ticker": "AAPL",
-        "trillions": 4.514,
-        "totalT": 4.537,
+        "trillions": 4.515,
+        "totalT": 4.538,
         "freeFloat": 99.5,
         "note": "live"
       },
       {
         "name": "Microsoft",
         "ticker": "MSFT",
-        "trillions": 3.71,
-        "totalT": 3.729,
+        "trillions": 3.711,
+        "totalT": 3.73,
         "freeFloat": 99.5,
         "note": "live"
       },
@@ -714,16 +714,16 @@ const LIVE_DATA = {
       {
         "name": "Alphabet",
         "ticker": "GOOGL",
-        "trillions": 3.872,
-        "totalT": 4.163,
+        "trillions": 3.873,
+        "totalT": 4.164,
         "freeFloat": 93.0,
         "note": "live"
       },
       {
         "name": "Meta",
         "ticker": "META",
-        "trillions": 1.277,
-        "totalT": 1.485,
+        "trillions": 1.28,
+        "totalT": 1.488,
         "freeFloat": 86.0,
         "note": "live"
       },
@@ -739,7 +739,7 @@ const LIVE_DATA = {
         "name": "SpaceX",
         "ticker": "SPCX",
         "trillions": 0.296,
-        "totalT": 1.831,
+        "totalT": 1.834,
         "freeFloat": 16.1,
         "note": "live"
       }
@@ -5754,7 +5754,7 @@ const LIVE_DATA = {
     "history": [
       {
         "date": "2016-09-01",
-        "weight_pct": 20.68
+        "weight_pct": 20.67
       },
       {
         "date": "2016-10-01",
@@ -5958,7 +5958,7 @@ const LIVE_DATA = {
       },
       {
         "date": "2020-12-01",
-        "weight_pct": 29.64
+        "weight_pct": 29.63
       },
       {
         "date": "2021-01-01",
@@ -6026,7 +6026,7 @@ const LIVE_DATA = {
       },
       {
         "date": "2022-05-01",
-        "weight_pct": 28.58
+        "weight_pct": 28.57
       },
       {
         "date": "2022-06-01",
@@ -6050,7 +6050,7 @@ const LIVE_DATA = {
       },
       {
         "date": "2022-11-01",
-        "weight_pct": 26.72
+        "weight_pct": 26.71
       },
       {
         "date": "2022-12-01",
@@ -6130,7 +6130,7 @@ const LIVE_DATA = {
       },
       {
         "date": "2024-07-01",
-        "weight_pct": 35.03
+        "weight_pct": 35.02
       },
       {
         "date": "2024-08-01",
@@ -6218,7 +6218,7 @@ const LIVE_DATA = {
       },
       {
         "date": "2026-05-01",
-        "weight_pct": 38.86
+        "weight_pct": 38.85
       },
       {
         "date": "2026-06-01",

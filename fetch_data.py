@@ -112,19 +112,23 @@ SUB_MARKETS = {
 }
 
 # ── World Market Capitalisation ──────────────────────────────────────────────
-# Baseline: Q1 2026 (31 March 2026) — source: Russell 3000 / MSCI ACWI IMI
+# Baseline: Q2 2026 (30 June 2026) — source: Dimensional "2026 Q2" quarterly
+# market review, "World Market Capitalization" figures. Index representation:
+#   US Market              → Russell 3000 Index            → $72.3T (63%)
+#   International Developed → MSCI World ex USA IMI Index   → $28.5T (25%)
+#   Emerging Markets       → MSCI Emerging Markets IMI Idx → $14.0T (12%)
 # Dollar values are updated dynamically by scaling with ETF performance since baseline.
 # This avoids any web-scraping: we already download these ETFs for the main dashboard.
 WORLD_MKTCAP_BASELINE = {
-    "date":  "2026-03-31",
-    "total": 100.9,   # USD trillions
+    "date":  "2026-06-30",
+    "total": 114.8,   # USD trillions
     "regions": [
-        {"name": "US Market",             "pct": 63, "trillions": 62.6, "etf": "SPY",  "ccy": "USD", "color": "#003a5c"},
-        {"name": "International Developed","pct": 26, "trillions": 26.6, "etf": "EFA",  "ccy": "USD", "color": "#b8922a"},
-        {"name": "Emerging Markets",       "pct": 11, "trillions": 11.7, "etf": "EEM",  "ccy": "USD", "color": "#5a7a3a"},
+        {"name": "US Market",             "pct": 63, "trillions": 72.3, "etf": "SPY",  "ccy": "USD", "color": "#003a5c"},
+        {"name": "International Developed","pct": 25, "trillions": 28.5, "etf": "EFA",  "ccy": "USD", "color": "#b8922a"},
+        {"name": "Emerging Markets",       "pct": 12, "trillions": 14.0, "etf": "EEM",  "ccy": "USD", "color": "#5a7a3a"},
     ],
 }
-MKTCAP_BASELINE_DATE = datetime(2026, 3, 31, tzinfo=timezone.utc)
+MKTCAP_BASELINE_DATE = datetime(2026, 6, 30, tzinfo=timezone.utc)
 
 # SpaceX (SPCX) IPO lock-up unlock schedule — free float as % of total
 # shares outstanding over time, used as a stable reference for SPCX's free
@@ -369,8 +373,9 @@ def load_spi_six_series():
 
 def calc_world_mktcap(fx_weekly, cached_series=None):
     """
-    Update World Market Cap dollar values by scaling the Q1-2026 baseline
-    forward using each region's ETF price performance (in USD).
+    Update World Market Cap dollar values by scaling the Q2-2026 baseline
+    (Dimensional Q2 2026 market review, as of 30 June 2026) forward using
+    each region's ETF price performance (in USD).
     cached_series: dict {ticker: [(ts, price), ...]} — reuses already-downloaded data.
     Percentages are re-derived from the updated dollar values.
     Returns a dict ready for live_data.js.
@@ -390,9 +395,14 @@ def calc_world_mktcap(fx_weekly, cached_series=None):
             if not series or len(series) < 2:
                 raise ValueError("no data")
 
-            # Find price at (or nearest to) baseline date
-            base_idx = min(range(len(series)), key=lambda i: abs(series[i][0] - baseline_ts))
-            base_price = series[base_idx][1]
+            # Baseline price = close of the last monthly bar at or before the
+            # baseline date. yfinance labels monthly bars on the 1st of the
+            # month but Close is that month's closing price, so a 30-June
+            # baseline must resolve to the June bar (labelled 2026-06-01), not
+            # snap forward to July. Mirrors the "last completed month" logic
+            # used for the current price just below.
+            at_or_before = [(t, v) for t, v in series if t <= baseline_ts]
+            base_price = at_or_before[-1][1] if at_or_before else series[0][1]
 
             # Last completed month-end
             now = datetime.now(timezone.utc)
@@ -1419,7 +1429,7 @@ def main():
 
     # 5) World Market Cap (reuses already-downloaded fx_monthly and ETF data)
     next_step2 = next_step + 1
-    print(f"\n[{next_step2}] World Market Capitalisation (dynamic, baseline Q1 2026)")
+    print(f"\n[{next_step2}] World Market Capitalisation (dynamic, baseline Q2 2026)")
     world_mktcap = calc_world_mktcap(fx_monthly, cached_series=lt_raw)
     for r in world_mktcap["regions"]:
         print(f"  {r['name']:28s}  {r['pct']:2d}%  ${r['trillions']:.1f}T")

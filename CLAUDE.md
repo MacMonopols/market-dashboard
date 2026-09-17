@@ -1,5 +1,25 @@
 # market-dashboard
 
+## World Value's own YTD/52W performance — added to YTD Dashboard, set up 2026-09-17
+
+`index.html`'s YTD Dashboard now lists "Global Equities – Value Factor (MSCI
+World Enhanced Value)" (`IWVL.SW`) as its own row alongside every other main
+market, showing its YTD return and 52-week range in CHF — this is separate
+from the relative *Value vs Cap-Weighted* ratio chart on the Long Term
+Summary tab (see the section below): that one compares IWVL against SWDA;
+this one just reports IWVL's own performance like any other tracked market.
+
+Added the same way as every other `MAIN_MARKETS` entry: a
+`(name, ticker, ccy)` tuple in `fetch_data.py`'s `MAIN_MARKETS` list (flows
+through the existing weekly `fetch_weekly()` / `calc_chf_returns()` path,
+same as all other rows — no new calc logic needed), paired with a matching
+entry in `data.js`'s `MARKETS` array under the same name so `index.html`'s
+merge logic picks it up. The name is intentionally verbose ("… MSCI World
+Enhanced Value") rather than reusing the short IWVL/"World Value" label used
+on the Long Term Summary chart, so a reader scanning the YTD Dashboard list
+alone — without the methodology note that accompanies the other chart — still
+sees the Enhanced Value vs Value Weighted distinction called out inline.
+
 ## World Value vs World Cap-Weighted — new Long Term Summary module, set up 2026-09-17
 
 `longterm.html` has a new card, "World Value vs World Cap-Weighted", following

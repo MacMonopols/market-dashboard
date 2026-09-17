@@ -38,6 +38,7 @@ MAIN_MARKETS = [
     ("Magnificent 7",                     "MAGS",      "USD"),
     ("Global Equities",                   "ACWI",      "USD"),
     ("Global Equities Ex-US (MSCI W ex USA)", "IWQU.L", "GBP"),
+    ("Global Equities – Value Factor (MSCI World Enhanced Value)", "IWVL.SW", "USD"),  # = WORLD_VALUE_TICKER below
     ("Pacific ex Japan Equities",         "EPP",       "USD"),
     ("Swiss Equities – Small Caps",       "CSSMIM.SW", "CHF"),
     ("UK Equities",                       "EWU",       "USD"),

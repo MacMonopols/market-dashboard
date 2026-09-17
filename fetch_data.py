@@ -317,6 +317,29 @@ WORLD_QUALITY_METHODOLOGY_NOTE = (
     "cap-weighted parent index used here as the benchmark."
 )
 
+# ── World Small Cap vs World Cap-Weighted ────────────────────────────────────
+# Set up 2026-09-17. Third leg of the same "3 dimensions of expected return"
+# trio as Value/Quality above — this is the actual small-cap dimension rather
+# than a large-cap factor tilt, so unlike IWVL/IWQU it's a genuine size-segment
+# index fund (MSCI World Small Cap), not an "Edge Factor" product.
+WORLD_SMALLCAP_TICKER = "WSML.L"  # iShares MSCI World Small Cap UCITS ETF USD (Acc) (ISIN IE00BF4RFH31)
+
+# No SIX-listed World Small Cap fund exists from iShares (checked via
+# yfinance) — WSML only lists on LSE, same as the EXUS.L precedent used
+# elsewhere in this dashboard for the same reason. Still same fund provider
+# (BlackRock/iShares) and same USD share class as SWDA.SW, so the ratio
+# isn't muddied by an FX/domicile mismatch, only a different exchange.
+WORLD_SMALLCAP_METHODOLOGY_NOTE = (
+    "WSML tracks the MSCI World Small Cap Index — the small-cap segment of "
+    "the MSCI World Investable Market Index (IMI), a genuine size-based "
+    "index rather than a large-cap 'size factor' tilt. No SIX-listed version "
+    "of this fund exists, so WSML.L (LSE) is used instead — still the same "
+    "fund provider (BlackRock/iShares) and USD share class as SWDA.SW, "
+    "avoiding any FX/domicile mismatch in the ratio. SWDA (iShares Core "
+    "MSCI World) is the standard cap-weighted parent index used here as "
+    "the benchmark."
+)
+
 # ── ETF holdings (MSCI ACWI country weights, S&P 500 top 10) ────────────────
 # Set up 2026-07-23. Replaces the static country-weight tables previously
 # hardcoded in longterm.html with a daily fetch of each ETF's own holdings
@@ -1071,6 +1094,9 @@ def calc_world_value_vs_capweighted():
 def calc_world_quality_vs_capweighted():
     return calc_factor_vs_capweighted(WORLD_QUALITY_TICKER, WORLD_CAPWEIGHTED_TICKER, WORLD_QUALITY_METHODOLOGY_NOTE)
 
+def calc_world_smallcap_vs_capweighted():
+    return calc_factor_vs_capweighted(WORLD_SMALLCAP_TICKER, WORLD_CAPWEIGHTED_TICKER, WORLD_SMALLCAP_METHODOLOGY_NOTE)
+
 def calc_mag7_cap_weighted(member_series, fx_data):
     """
     Cap-weighted Mag7 YTD/52W performance, replacing the MAGS ETF's
@@ -1632,6 +1658,22 @@ def main():
                           "capWeightedTicker": WORLD_CAPWEIGHTED_TICKER, "history": [],
                           "note": WORLD_QUALITY_METHODOLOGY_NOTE}
 
+    # 5h) World Small Cap vs World Cap-Weighted (live ETF prices, WSML vs SWDA)
+    next_step9 = next_step8 + 1
+    print(f"\n[{next_step9}] World Small Cap vs World Cap-Weighted ({WORLD_SMALLCAP_TICKER} vs {WORLD_CAPWEIGHTED_TICKER})")
+    try:
+        world_smallcap = calc_world_smallcap_vs_capweighted()
+        if world_smallcap["history"]:
+            latest = world_smallcap["history"][-1]["ratio_rebased"]
+            print(f"  → {len(world_smallcap['history'])} months, rebased ratio now {latest:.1f} (100 = {world_smallcap['history'][0]['date']})")
+        else:
+            print("  ⚠ no overlapping history between the two ETFs")
+    except Exception as e:
+        print(f"  ⚠ World Small Cap vs Cap-Weighted failed: {e}")
+        world_smallcap = {"asOf": None, "factorTicker": WORLD_SMALLCAP_TICKER,
+                           "capWeightedTicker": WORLD_CAPWEIGHTED_TICKER, "history": [],
+                           "note": WORLD_SMALLCAP_METHODOLOGY_NOTE}
+
     # 6) Output
     fetched_at = datetime.now().strftime("%d.%m.%Y %H:%M")
     out = {
@@ -1647,6 +1689,7 @@ def main():
         "spyTop10":        spy_top10,
         "worldValue":      world_value,
         "worldQuality":    world_quality,
+        "worldSmallCap":   world_smallcap,
     }
 
     out_path = os.path.join(os.path.dirname(__file__), "live_data.js")

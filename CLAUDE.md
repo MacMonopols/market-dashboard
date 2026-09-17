@@ -1,13 +1,38 @@
 # market-dashboard
 
-## World Quality (Profitability proxy) vs World Cap-Weighted — new Long Term Summary module, set up 2026-09-17
+## World Small Cap vs World Cap-Weighted — 3rd Long Term Summary factor module, set up 2026-09-17
 
-`longterm.html` now has a second factor-vs-cap-weighted card, "World Quality
-vs World Cap-Weighted", alongside "World Value vs World Cap-Weighted" (see
-below) — together the two read like the first three of Dimensional's "3
-dimensions of expected return" framework (small cap / value / profitability;
-small cap tracked alongside them as a "Global Equities" drill-down item on
-the YTD Dashboard — see below).
+`longterm.html` now has a third factor-vs-cap-weighted card, "World Small
+Cap vs World Cap-Weighted", alongside "World Value vs World Cap-Weighted"
+and "World Quality vs World Cap-Weighted" (both below) — together the three
+complete Dimensional's "3 dimensions of expected return" framework (small
+cap / value / profitability) as live ratio charts, matching the same trio
+already present as a drill-down under "Global Equities" on the YTD
+Dashboard (see further below).
+
+Also built on the shared `calc_factor_vs_capweighted()` /
+`renderFactorVsCapWeighted()` helpers (see the Quality section just below
+for why they're shared) — `calc_world_smallcap_vs_capweighted()` is a third
+thin wrapper over the same helper.
+
+- **Small cap leg**: `WSML.L` — iShares MSCI World Small Cap UCITS ETF USD
+  (Acc) (ISIN IE00BF4RFH31), tracking the **MSCI World Small Cap Index**, the
+  actual small-cap segment of the MSCI World IMI universe. Unlike IWVL/IWQU
+  below, this is a genuine size-segment index fund, not a large-cap "factor
+  tilt" product — the most direct match to Dimensional's small-cap dimension
+  of the three. No SIX-listed version of this fund exists (checked via
+  yfinance), so `WSML.L` (LSE) is used instead — same precedent as `EXUS.L`
+  elsewhere in this dashboard. Still the same fund provider (BlackRock/
+  iShares) and USD share class as `SWDA.SW`, so the ratio isn't muddied by
+  an FX/domicile mismatch, only a different exchange than IWVL/IWQU's SIX
+  listing.
+- **Cap-weighted leg**: `SWDA.SW`, same benchmark as the other two cards.
+
+## World Quality (Profitability proxy) vs World Cap-Weighted — 2nd Long Term Summary factor module, set up 2026-09-17
+
+`longterm.html` also has a second factor-vs-cap-weighted card, "World
+Quality vs World Cap-Weighted", alongside "World Value vs World
+Cap-Weighted" (see below).
 
 `fetch_data.py`'s `calc_factor_vs_capweighted(factor_ticker,
 cap_weighted_ticker, note)` is now the shared helper behind both cards

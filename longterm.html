@@ -401,6 +401,22 @@
   </div>
 </div>
 
+<!-- ── World Small Cap vs World Cap-Weighted (rendered by JS from live_data.js) ── -->
+<div class="mktcap-card" id="world-smallcap-card" style="display:none">
+  <div class="mktcap-title">World Small Cap vs World Cap-Weighted</div>
+  <div class="mktcap-date" id="world-smallcap-date"></div>
+  <div class="mktcap-body" style="align-items:flex-start;">
+    <div>
+      <div class="mktcap-pct" id="world-smallcap-pct"></div>
+      <div class="mktcap-name">cumulative, rebased to 100</div>
+    </div>
+  </div>
+  <div class="spy-history-wrap">
+    <svg id="world-smallcap-history-svg" width="900" height="200" viewBox="0 0 900 200"></svg>
+    <div class="spy-history-legend" id="world-smallcap-history-legend"></div>
+  </div>
+</div>
+
 <div class="card">
   <table id="lt-table">
     <tr><td colspan="9" style="padding:20px;color:var(--text-muted);font-size:13px;">
@@ -975,8 +991,9 @@
       </span>`;
   }
 
-  if (LD?.worldValue)   renderFactorVsCapWeighted(LD.worldValue,   'world-value',   'value');
-  if (LD?.worldQuality) renderFactorVsCapWeighted(LD.worldQuality, 'world-quality', 'quality');
+  if (LD?.worldValue)    renderFactorVsCapWeighted(LD.worldValue,    'world-value',    'value');
+  if (LD?.worldQuality)  renderFactorVsCapWeighted(LD.worldQuality,  'world-quality',  'quality');
+  if (LD?.worldSmallCap) renderFactorVsCapWeighted(LD.worldSmallCap, 'world-smallcap', 'small cap');
 
 })();
 </script>

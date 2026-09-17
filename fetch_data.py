@@ -239,12 +239,13 @@ MAG7_BASELINE = [
 # ticker = None → no ETF available; show "—"
 LONGTERM_MARKETS = [
     # All ETFs are Irish UCITS (or Swiss-domiciled) to reflect tax-efficient Swiss investor experience.
-    # US-domiciled ETFs (SPY, EFA, EEM) excluded: higher withholding tax drag (~15% on dividends).
+    # US-domiciled ETFs (SPY, EEM) excluded: higher withholding tax drag (~15% on dividends).
+    # Exception: EFA (Intl Developed ex US) — see its row below and CLAUDE.md.
     #
     # name,                       ticker,        ccy,   group,   index / ETF description
     ("CH Market (SPI)",           "__SPI_SIX__", "CHF", "Stocks", "SPI TR (SIX index) + CHSPI.SW UCITS"),
     ("US Stock Market",           "CSPX.L",      "USD", "Stocks", "iShares Core S&P 500 UCITS ETF (LSE USD, Irish domicile, since 2010)"),
-    ("Intl Developed ex US",      "EXUS.L",      "USD", "Stocks", "Xtrackers MSCI World ex USA UCITS ETF (LSE, Irish domicile, since 2024 — short history, see CLAUDE.md)"),
+    ("Intl Developed ex US",      "EFA",         "USD", "Stocks", "iShares MSCI EAFE ETF (NYSEArca, US domicile, since 2001 — deliberate exception to the UCITS-only convention above for 25yr history depth, see CLAUDE.md)"),
     ("Emerging Markets",          "IEEM.SW",     "USD", "Stocks", "iShares MSCI EM UCITS ETF (SIX, Irish domicile, since 2009)"),
     ("Global Real Estate",        "IWDP.L",      "GBP", "Stocks", "iShares Dev. Mkts Property Yield UCITS ETF (LSE, Irish domicile, since 2009, unhedged CHF)"),
     ("Swiss Real Estate",         "SRECHA.SW",   "CHF", "Stocks", "iShares Swiss Real Estate ETF (SIX, since 2011)"),

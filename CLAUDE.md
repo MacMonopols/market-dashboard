@@ -94,6 +94,21 @@ during this search (only US-domiciled alternatives like `IEFA`, which the
 existing `LONGTERM_MARKETS` convention already excludes for withholding-tax
 reasons) — if one surfaces later, swap it in for deeper history.
 
+**Revised 2026-09-17, same day**: `EXUS.L`'s ~2.5yr history turned out to be
+too short in practice (5/10/15/20yr columns all blank) — the user explicitly
+asked to switch to `EFA` (iShares MSCI EAFE ETF) instead, accepting the
+US-domicile withholding-tax drag (~15% on dividends) that `LONGTERM_MARKETS`
+otherwise avoids, in exchange for a 25-year history (since 2001) and the row
+actually being useful. This makes `Intl Developed ex US`/`EFA` a **deliberate,
+named exception** to the "all ETFs are Irish UCITS" convention documented at
+the top of `LONGTERM_MARKETS` in `fetch_data.py` — not an oversight. Also
+note EFA tracks **MSCI EAFE** (Europe, Australasia, Far East), which excludes
+**Canada** — a small but real difference from "MSCI World ex USA" (which
+includes Canada). `EXUS.L` remains in place for `MAIN_MARKETS`/`data.js`
+("Global Equities Ex-US (MSCI W ex USA)" on the YTD Dashboard), since that
+row only ever needs 1yr + 52-week data, where its short history isn't a
+problem — this EFA swap is scoped to the Long Term Summary only.
+
 ## Global Equities factor drill-down (Value / Small Cap / Quality) — YTD Dashboard, set up 2026-09-17, revised 2026-09-17
 
 `index.html`'s YTD Dashboard originally listed the Value factor ETF

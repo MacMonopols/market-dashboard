@@ -29,7 +29,6 @@ const MARKETS = [
     ],
   },
   { name: "Japanese Equities",               cat: "equity",    ticker: "EWJ",      tickerCcy: "USD" },
-  { name: "Global Equities – Small Caps",    cat: "equity",    ticker: "IUSN.DE",  tickerCcy: "EUR" },
   {
     name: "US Equities (S&P 500)", cat: "equity", ticker: "SPY", tickerCcy: "USD",
     subMarkets: [
@@ -55,9 +54,18 @@ const MARKETS = [
       { name: "Tesla",     ticker: "TSLA",  flag: "🚗", weight: 14.29, note: "Tesla Inc." },
     ],
   },
-  { name: "Global Equities",                 cat: "equity",    ticker: "ACWI",     tickerCcy: "USD" },
+  {
+    name: "Global Equities", cat: "equity", ticker: "ACWI", tickerCcy: "USD",
+    subMarketsLabel: "Factor / Style",
+    subMarketsIcon: "📊",
+    subMarketsSource: "iShares Factor ETFs vs cap-weighted MSCI World",
+    subMarkets: [
+      { name: "Value Factor",   ticker: "IWVL.SW", flag: "💰", weight: null, note: "iShares Edge MSCI World Value Factor UCITS ETF (MSCI World Enhanced Value)" },
+      { name: "Small Cap",      ticker: "IUSN.DE",  flag: "🐣", weight: null, note: "iShares MSCI World Small Cap UCITS ETF" },
+      { name: "Quality Factor", ticker: "IWQU.SW", flag: "⭐", weight: null, note: "iShares Edge MSCI World Quality Factor UCITS ETF (Profitability proxy)" },
+    ],
+  },
   { name: "Global Equities Ex-US (MSCI W ex USA)", cat: "equity", ticker: "EXUS.L", tickerCcy: "USD" },
-  { name: "Global Equities – Value Factor (MSCI World Enhanced Value)", cat: "equity", ticker: "IWVL.SW", tickerCcy: "USD" },
   { name: "Pacific ex Japan Equities",       cat: "equity",    ticker: "EPP",      tickerCcy: "USD" },
   { name: "Swiss Equities – Small Caps",     cat: "equity",    ticker: "CSSMIM.SW",tickerCcy: "CHF" },
   { name: "UK Equities",                     cat: "equity",    ticker: "EWU",      tickerCcy: "USD" },

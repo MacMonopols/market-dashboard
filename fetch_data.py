@@ -33,12 +33,10 @@ FX_TICKERS = {
 MAIN_MARKETS = [
     ("Emerging Market Equities",          "EEM",       "USD"),
     ("Japanese Equities",                 "EWJ",       "USD"),
-    ("Global Equities – Small Caps",      "IUSN.DE",   "EUR"),
     ("US Equities (S&P 500)",             "SPY",       "USD"),
     ("Magnificent 7",                     "MAGS",      "USD"),
     ("Global Equities",                   "ACWI",      "USD"),
     ("Global Equities Ex-US (MSCI W ex USA)", "EXUS.L", "USD"),
-    ("Global Equities – Value Factor (MSCI World Enhanced Value)", "IWVL.SW", "USD"),  # = WORLD_VALUE_TICKER below
     ("Pacific ex Japan Equities",         "EPP",       "USD"),
     ("Swiss Equities – Small Caps",       "CSSMIM.SW", "CHF"),
     ("UK Equities",                       "EWU",       "USD"),
@@ -70,6 +68,19 @@ MAIN_MARKETS = [
 
 # ── Sub-market breakdowns (parent market name → list of sub-items) ───────────
 SUB_MARKETS = {
+    # Drill-down of "Global Equities" (ACWI) into its style/factor slices —
+    # not a weight breakdown (these don't sum to the parent), same pattern
+    # as "US Equities (S&P 500)" → Nasdaq 100 / Russell 2000 below. Moved
+    # here from standalone MAIN_MARKETS rows 2026-09-17; Value Factor
+    # (IWVL) and Small Cap (IUSN) were already tracked, Quality Factor
+    # (IWQU) added alongside them — see WORLD_VALUE_TICKER /
+    # WORLD_QUALITY_TICKER below for the same tickers' other use (Long
+    # Term Summary's factor-vs-cap-weighted ratio charts).
+    "Global Equities": [
+        ("Value Factor",   "IWVL.SW", "USD"),
+        ("Small Cap",      "IUSN.DE", "EUR"),
+        ("Quality Factor", "IWQU.SW", "USD"),
+    ],
     "Emerging Market Equities": [
         ("Taiwan",       "EWT",  "USD"),
         ("China",        "MCHI", "USD"),

@@ -6,7 +6,8 @@
 vs World Cap-Weighted", alongside "World Value vs World Cap-Weighted" (see
 below) — together the two read like the first three of Dimensional's "3
 dimensions of expected return" framework (small cap / value / profitability;
-small cap already tracked separately as "Global Equities – Small Caps").
+small cap tracked alongside them as a "Global Equities" drill-down item on
+the YTD Dashboard — see below).
 
 `fetch_data.py`'s `calc_factor_vs_capweighted(factor_ticker,
 cap_weighted_ticker, note)` is now the shared helper behind both cards
@@ -68,25 +69,38 @@ during this search (only US-domiciled alternatives like `IEFA`, which the
 existing `LONGTERM_MARKETS` convention already excludes for withholding-tax
 reasons) — if one surfaces later, swap it in for deeper history.
 
-## World Value's own YTD/52W performance — added to YTD Dashboard, set up 2026-09-17
+## Global Equities factor drill-down (Value / Small Cap / Quality) — YTD Dashboard, set up 2026-09-17, revised 2026-09-17
 
-`index.html`'s YTD Dashboard now lists "Global Equities – Value Factor (MSCI
-World Enhanced Value)" (`IWVL.SW`) as its own row alongside every other main
-market, showing its YTD return and 52-week range in CHF — this is separate
-from the relative *Value vs Cap-Weighted* ratio chart on the Long Term
-Summary tab (see the section below): that one compares IWVL against SWDA;
-this one just reports IWVL's own performance like any other tracked market.
+`index.html`'s YTD Dashboard originally listed the Value factor ETF
+(`IWVL.SW`) as its own standalone `MAIN_MARKETS` row, and Small Cap
+(`IUSN.DE`) as a separate standalone row elsewhere in the list. Both were
+moved under the "Global Equities" (`ACWI`) row as a drill-down — same
+▼-expand pattern already used for "US Equities (S&P 500)" → Nasdaq 100 /
+Russell 2000, "Emerging Market Equities" → country breakdown, etc. — and
+**Quality** (`IWQU.SW`) was added as a third item in the same drill-down, so
+all three of Dimensional's non-cap-weighted "dimensions of expected return"
+(small cap / value / profitability) now sit together under their common
+cap-weighted parent instead of competing for space as top-level rows.
 
-Added the same way as every other `MAIN_MARKETS` entry: a
-`(name, ticker, ccy)` tuple in `fetch_data.py`'s `MAIN_MARKETS` list (flows
-through the existing weekly `fetch_weekly()` / `calc_chf_returns()` path,
-same as all other rows — no new calc logic needed), paired with a matching
-entry in `data.js`'s `MARKETS` array under the same name so `index.html`'s
-merge logic picks it up. The name is intentionally verbose ("… MSCI World
-Enhanced Value") rather than reusing the short IWVL/"World Value" label used
-on the Long Term Summary chart, so a reader scanning the YTD Dashboard list
-alone — without the methodology note that accompanies the other chart — still
-sees the Enhanced Value vs Value Weighted distinction called out inline.
+Implementation: a new `"Global Equities"` entry in `fetch_data.py`'s
+`SUB_MARKETS` dict — `[("Value Factor", "IWVL.SW", "USD"), ("Small Cap",
+"IUSN.DE", "EUR"), ("Quality Factor", "IWQU.SW", "USD")]` — flows through
+the existing generic `SUB_MARKETS` batch-fetch/`calc_chf_returns()` loop, no
+new calc logic needed (same mechanism as every other sub-market group). The
+matching `data.js` entry sets `subMarkets` (three items, `weight: null` since
+these are alternative style/factor slices, not a weight breakdown that sums
+to the parent — same as Nasdaq 100 / Russell 2000 under S&P 500) plus
+`subMarketsLabel: "Factor / Style"`, `subMarketsIcon: "📊"`, and
+`subMarketsSource` text, so the drill-down header doesn't fall back to the
+country-breakdown defaults ("Country" / 🌍 / "MSCI EM Index").
+
+This is purely a display reorganization of the YTD Dashboard — each ETF's
+own YTD/52W numbers are unchanged, and it's independent of the *relative*
+Value-vs-cap-weighted / Quality-vs-cap-weighted ratio charts on the Long
+Term Summary tab (`calc_factor_vs_capweighted()`, see above): those compare
+IWVL/IWQU against SWDA over time; this drill-down just reports each ETF's
+own performance like any other tracked market, one level down from "Global
+Equities" instead of as a top-level row.
 
 ## World Value vs World Cap-Weighted — new Long Term Summary module, set up 2026-09-17
 

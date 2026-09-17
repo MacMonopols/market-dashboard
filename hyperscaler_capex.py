@@ -35,6 +35,8 @@ Pièges XBRL à connaître :
   directement la valeur au "end" de chaque trimestre.
 """
 
+import json
+import os
 import time
 import requests
 
@@ -42,6 +44,37 @@ SEC_HEADERS = {
     # La SEC exige un User-Agent identifiable (nom + email) sous peine de 403.
     "User-Agent": "Oblique Market Dashboard contact@oblique.swiss"
 }
+
+# Ce module fait ~119 requêtes SEC EDGAR séquentielles (7 sociétés x 17
+# tag-variantes), rate-limitées à 10 req/s -> ~50s à chaque run. Or les
+# faits XBRL sous-jacents ne changent qu'au dépôt de chaque 10-Q/10-K
+# (~4x/an par société), donc les re-fetcher tous les jours n'apporte
+# quasiment jamais d'info nouvelle. On cache le résultat sur disque et on
+# ne re-tape SEC EDGAR que si le cache a plus de CACHE_MAX_AGE_DAYS jours.
+CACHE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hyperscaler_capex_cache.json")
+CACHE_MAX_AGE_DAYS = 7
+
+
+def _load_cache():
+    if not os.path.exists(CACHE_PATH):
+        return None
+    try:
+        with open(CACHE_PATH) as f:
+            cached = json.load(f)
+        age_days = (time.time() - cached["fetchedAt"]) / 86400
+        if age_days > CACHE_MAX_AGE_DAYS:
+            return None
+        return cached["data"]
+    except (json.JSONDecodeError, KeyError, OSError):
+        return None
+
+
+def _save_cache(data):
+    try:
+        with open(CACHE_PATH, "w") as f:
+            json.dump({"fetchedAt": time.time(), "data": data}, f)
+    except OSError as e:
+        print(f"  ⚠ could not write hyperscaler capex cache: {e}")
 
 # CIK SEC (10 chiffres, zero-pad) des hyperscalers suivis
 # Tesla est volontairement exclu : son capex est dominé par les usines/lignes
@@ -336,6 +369,11 @@ def _build_company(name, cik):
 
 
 def fetch_hyperscaler_capex(companies=COMPANIES):
+    cached = _load_cache()
+    if cached is not None:
+        print(f"  → using cached SEC EDGAR data (<{CACHE_MAX_AGE_DAYS}d old, {len(cached['companies'])}/{len(companies)} companies) — delete {os.path.basename(CACHE_PATH)} to force refresh")
+        return cached
+
     results = []
     for name, cik in companies.items():
         print(f"  ↓ {name} (SEC EDGAR) …")
@@ -343,7 +381,9 @@ def fetch_hyperscaler_capex(companies=COMPANIES):
         if company:
             print(f"    OK ({len(company['quarters'])} trimestres TTM)")
             results.append(company)
-    return {"companies": results}
+    data = {"companies": results}
+    _save_cache(data)
+    return data
 
 
 if __name__ == "__main__":

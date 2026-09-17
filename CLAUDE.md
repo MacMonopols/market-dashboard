@@ -1,5 +1,24 @@
 # market-dashboard
 
+## Hyperscaler Capex now cached (7-day TTL) instead of re-fetched every run, set up 2026-09-17
+
+`fetch_hyperscaler_capex()` in `hyperscaler_capex.py` was taking ~50s of
+every `fetch_data.py` run — it makes ~119 sequential SEC EDGAR requests (7
+companies x 17 XBRL tag-variants, deliberately throttled to stay under SEC's
+10 req/s limit). But the underlying data is quarterly 10-Q/10-K filings, so
+it's unchanged on ~89 of every ~90 days — the daily re-fetch was mostly
+wasted work.
+
+Now `fetch_hyperscaler_capex()` checks `hyperscaler_capex_cache.json`
+(git-ignored — regenerable, not source of truth) first: if it exists and is
+`CACHE_MAX_AGE_DAYS` (7) old, the cached result is returned in ~0s instead of
+re-hitting SEC EDGAR. Verified via scratch timing: cold run 49.7s, warm run
+0.00s with byte-identical output; also verified a >7-day-old cache is
+correctly treated as stale and triggers a live re-fetch. Delete
+`hyperscaler_capex_cache.json` any time to force an immediate refresh (e.g.
+right after a hyperscaler earnings release, if you don't want to wait up to
+7 days for the new filing to show up).
+
 ## World Small Cap vs World Cap-Weighted — 3rd Long Term Summary factor module, set up 2026-09-17
 
 `longterm.html` now has a third factor-vs-cap-weighted card, "World Small

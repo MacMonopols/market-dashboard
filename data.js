@@ -98,7 +98,7 @@ const MARKETS = [
   { name: "Commodities (Diversified, unhedged)", cat: "commodity", ticker: "ICOM.L", tickerCcy: "USD" },
   { name: "Gold Bullion (unhedged)",          cat: "commodity", ticker: "ZGLD.SW",  tickerCcy: "CHF" },
   // ── Bonds ────────────────────────────────────────────────────────────────
-  { name: "CHF Bonds",                       cat: "bond",      ticker: "CHCORP.SW",tickerCcy: "CHF" },
+  { name: "CHF Bonds",                       cat: "bond",      ticker: "CSBGC7.SW",tickerCcy: "CHF" },
   { name: "EM Bonds Local Currency",         cat: "bond",      ticker: "EMLC",     tickerCcy: "USD" },
   { name: "Global Bonds (CHF hedged)",       cat: "bond",      ticker: "AGGH.SW",  tickerCcy: "CHF" },
   { name: "EUR Bonds",                       cat: "bond",      ticker: "IBGE.L",   tickerCcy: "GBP" },
@@ -108,7 +108,7 @@ const MARKETS = [
   { name: "EUR Corporate Bonds",             cat: "bond",      ticker: "IEAC.AS",  tickerCcy: "EUR" },
   { name: "Inflation Linked",                cat: "bond",      ticker: "TIP",      tickerCcy: "USD" },
   // ── Money Market ─────────────────────────────────────────────────────────
-  { name: "Money Market CHF",                cat: "cash",      ticker: "CSBGC0.SW",tickerCcy: "CHF" },
+  { name: "Money Market CHF",                cat: "cash",      ticker: "CSBGC3.SW",tickerCcy: "CHF" },
   { name: "Money Market GBP",                cat: "cash",      ticker: "CSH2.L",   tickerCcy: "GBP" },
   { name: "Money Market USD",                cat: "cash",      ticker: "BIL",      tickerCcy: "USD" },
   { name: "Money Market EUR",                cat: "cash",      ticker: "EXVM.DE",  tickerCcy: "EUR" },

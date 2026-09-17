@@ -48,7 +48,11 @@ MAIN_MARKETS = [
     ("Asian Real Estate (Equities)",      "RWX",       "USD"),
     ("Commodities (Diversified, unhedged)", "ICOM.L",    "USD"),
     ("Gold Bullion (unhedged)",            "ZGLD.SW",   "CHF"),
-    ("CHF Bonds",                         "CHCORP.SW", "CHF"),
+    # CHF Bonds = Swiss GOVERNMENT bonds (CSBGC7.SW, 3-7yr), distinct from CHF
+    # Corporate Bonds below (CHCORP.SW) — same govt-vs-corporate split already
+    # used for EUR (IBGE.L govt vs IEAC.AS corp). Was wrongly CHCORP.SW too
+    # until 2026-09-17 (both rows showed identical figures — see CLAUDE.md).
+    ("CHF Bonds",                         "CSBGC7.SW", "CHF"),
     ("EM Bonds Local Currency",           "EMLC",      "USD"),
     ("Global Bonds (CHF hedged)",         "AGGH.SW",   "CHF"),
     ("EUR Bonds",                         "IBGE.L",    "GBP"),
@@ -57,7 +61,12 @@ MAIN_MARKETS = [
     ("USD Corporate Bonds",               "LQD",       "USD"),
     ("EUR Corporate Bonds",               "IEAC.AS",   "EUR"),
     ("Inflation Linked",                  "TIP",       "USD"),
-    ("Money Market CHF",                  "CSBGC0.SW", "CHF"),
+    # 0-3yr Swiss govt bonds — shortest-duration fund available in the same
+    # iShares CSBGC family, closest fit to a cash-like "money market" proxy.
+    # Was CSBGC0.SW (7-15yr!) until 2026-09-17 — a long-duration government
+    # bond fund mislabeled as money market, explaining its oversized 52W
+    # swings for a supposedly cash-like row. See CLAUDE.md.
+    ("Money Market CHF",                  "CSBGC3.SW", "CHF"),
     ("Money Market GBP",                  "CSH2.L",    "GBP"),
     ("Money Market USD",                  "BIL",       "USD"),
     ("Money Market EUR",                  "EXVM.DE",   "EUR"),

@@ -1,5 +1,43 @@
 # market-dashboard
 
+## Fixed duplicate/mislabeled CHF bond tickers on YTD Dashboard, set up 2026-09-17
+
+User noticed that sorting the YTD Dashboard by "52W Range" showed several
+markets with suspiciously identical figures. Root cause, found by scanning
+`MAIN_MARKETS` for duplicate tickers: **`"CHF Bonds"` and `"CHF Corporate
+Bonds"` both used `CHCORP.SW`** — the same iShares Core CHF Corporate Bond
+ETF — so the two rows were guaranteed to show identical YTD/52W figures
+every single day, not a coincidence.
+
+While hunting for a distinct, genuinely-different ticker for "CHF Bonds",
+also found a second, related mislabel: **`"Money Market CHF"` used
+`CSBGC0.SW`**, which per yfinance is actually the **iShares Swiss Domestic
+Government Bond 7–15yr ETF** — a long-duration bond fund, not a cash-like
+instrument. That explained its oddly wide 52W swing (-2.39% / +1.68%,
+comparable to genuine multi-year bond funds) for a row meant to represent
+"money market."
+
+Both fixed using the same iShares Swiss Domestic Government Bond family
+(`CSBGC{0,3,7}.SW`, by maturity bucket) already partly in use:
+
+- **`"CHF Bonds"`**: `CHCORP.SW` → `CSBGC7.SW` (3–7yr Swiss government
+  bonds) — now a genuine government-bond counterpart to "CHF Corporate
+  Bonds", mirroring the same govt-vs-corporate split already used for EUR
+  (`"EUR Bonds"` = `IBGE.L` govt vs `"EUR Corporate Bonds"` = `IEAC.AS` corp).
+- **`"Money Market CHF"`**: `CSBGC0.SW` (7–15yr) → `CSBGC3.SW` (0–3yr) — the
+  shortest-duration fund in the same iShares family, the closest available
+  proxy to a cash-like instrument (still not true overnight/T-bill money
+  market, since no such CHF-listed ETF was found, but far closer than 7–15yr
+  duration).
+
+Changed in both `fetch_data.py`'s `MAIN_MARKETS` and the matching `data.js`
+entries (ticker label only, for display). Verified via scratch patch +
+browser: "CHF Bonds" now shows -1.2% vs "CHF Corporate Bonds" -0.5%
+(previously identical), and "Money Market CHF"'s 52W range tightened from
+[-2.39%, +1.68%] to [-0.66%, +0.28%], consistent with an actual short-duration
+fund. `LONGTERM_MARKETS`'s `"Swiss Bond Index"` (Long Term Summary tab) still
+uses `CHCORP.SW` — out of scope for this fix, not touched.
+
 ## Hyperscaler Capex now cached (7-day TTL) instead of re-fetched every run, set up 2026-09-17
 
 `fetch_hyperscaler_capex()` in `hyperscaler_capex.py` was taking ~50s of

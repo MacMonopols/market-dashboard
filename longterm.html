@@ -369,6 +369,22 @@
   </div>
 </div>
 
+<!-- ── World Value vs World Cap-Weighted (rendered by JS from live_data.js) ── -->
+<div class="mktcap-card" id="world-value-card" style="display:none">
+  <div class="mktcap-title">World Value vs World Cap-Weighted</div>
+  <div class="mktcap-date" id="world-value-date"></div>
+  <div class="mktcap-body" style="align-items:flex-start;">
+    <div>
+      <div class="mktcap-pct" id="world-value-pct"></div>
+      <div class="mktcap-name">cumulative, rebased to 100</div>
+    </div>
+  </div>
+  <div class="spy-history-wrap">
+    <svg id="world-value-history-svg" width="900" height="200" viewBox="0 0 900 200"></svg>
+    <div class="spy-history-legend" id="world-value-history-legend"></div>
+  </div>
+</div>
+
 <div class="card">
   <table id="lt-table">
     <tr><td colspan="9" style="padding:20px;color:var(--text-muted);font-size:13px;">
@@ -878,6 +894,71 @@
         from today's ~500 constituents' known weights and their own price history. ${spy.historyNote || ''}
       </span>`;
   }
+
+  // ── World Value vs World Cap-Weighted (IWVL vs SWDA, live ETF prices) ──
+  // Same "one clearly-labeled line + methodology note" pattern as the SPY
+  // top-10 history chart above, but both legs here are live ETF prices
+  // (ratio, not a reconstructed approximation) — see calc_world_value_vs_
+  // capweighted() in fetch_data.py. Line = IWVL/SWDA ratio rebased to 100
+  // at IWVL's inception; above 100 = value has cumulatively outperformed
+  // the cap-weighted MSCI World parent since inception, below = underperformed.
+  function renderWorldValue() {
+    const wv = LD.worldValue;
+    if (!wv || !wv.history || wv.history.length < 2) return;
+
+    document.getElementById('world-value-card').style.display = '';
+    document.getElementById('world-value-date').textContent =
+      `${wv.valueTicker} vs ${wv.capWeightedTicker} · As of ${wv.asOf} · Source: Yahoo Finance (monthly close)`;
+
+    const history = wv.history;
+    const latest  = history[history.length - 1].ratio_rebased;
+    const up      = latest >= 100;
+    const pctEl   = document.getElementById('world-value-pct');
+    pctEl.textContent = latest.toFixed(1);
+    pctEl.style.color = up ? 'var(--green)' : 'var(--red)';
+
+    const svg      = document.getElementById('world-value-history-svg');
+    const legendEl = document.getElementById('world-value-history-legend');
+
+    const W = 900, H = 200, padL = 42, padR = 16, padT = 12, padB = 26;
+    const values = history.map(r => r.ratio_rebased);
+    const minW = Math.min(...values, 100) * 0.98;
+    const maxW = Math.max(...values, 100) * 1.02;
+    const x = i => padL + (W - padL - padR) * (i / (history.length - 1));
+    const y = v => H - padB - (H - padT - padB) * ((v - minW) / ((maxW - minW) || 1));
+
+    const color = up ? '#2e7d4f' : '#c0392b';
+    const pts  = history.map((r, i) => [x(i), y(r.ratio_rebased)]);
+    const line = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+    const area = line
+      + ` L${pts[pts.length - 1][0].toFixed(1)},${(H - padB).toFixed(1)}`
+      + ` L${pts[0][0].toFixed(1)},${(H - padB).toFixed(1)} Z`;
+
+    let svgHtml = '';
+    svgHtml += `<path d="${area}" fill="${color}" opacity="0.08"/>`;
+    svgHtml += `<line x1="${padL}" y1="${H - padB}" x2="${W - padR}" y2="${H - padB}" stroke="#dde3ea"/>`;
+    svgHtml += `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H - padB}" stroke="#dde3ea"/>`;
+    if (minW < 100 && maxW > 100) {
+      svgHtml += `<line x1="${padL}" y1="${y(100).toFixed(1)}" x2="${W - padR}" y2="${y(100).toFixed(1)}" stroke="#b0bac6" stroke-dasharray="3,3"/>`;
+      svgHtml += `<text x="${W - padR}" y="${(y(100) - 4).toFixed(1)}" text-anchor="end" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="#6b7a8d">100 (inception)</text>`;
+    }
+    svgHtml += `<path d="${line}" fill="none" stroke="${color}" stroke-width="2"/>`;
+
+    svgHtml += `<text x="${padL - 6}" y="${y(maxW).toFixed(1)}" text-anchor="end" dominant-baseline="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="#6b7a8d">${maxW.toFixed(1)}</text>`;
+    svgHtml += `<text x="${padL - 6}" y="${y(minW).toFixed(1)}" text-anchor="end" dominant-baseline="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="#6b7a8d">${minW.toFixed(1)}</text>`;
+    svgHtml += `<text x="${padL}" y="${H - 8}" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="#6b7a8d">${history[0].date}</text>`;
+    svgHtml += `<text x="${W - padR}" y="${H - 8}" text-anchor="end" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="#6b7a8d">${history[history.length - 1].date}</text>`;
+
+    svg.innerHTML = svgHtml;
+    legendEl.innerHTML = `
+      <span style="display:block;font-size:10.5px;color:var(--text-muted);line-height:1.5;max-width:820px;">
+        <strong>${wv.valueTicker} ÷ ${wv.capWeightedTicker}, rebased to 100 at ${history[0].date}</strong> —
+        a rising line means the value factor has cumulatively outperformed the cap-weighted MSCI World
+        parent since inception, a falling line means it has underperformed. ${wv.note || ''}
+      </span>`;
+  }
+
+  if (LD?.worldValue) renderWorldValue();
 
 })();
 </script>

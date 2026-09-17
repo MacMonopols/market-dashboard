@@ -247,6 +247,33 @@ SPI_SIX_CSV = os.path.expanduser(
 
 LONGTERM_PERIODS = [1, 5, 10, 15, 20]   # years
 
+# ── World Value Factor vs World Cap-Weighted ────────────────────────────────
+# Set up 2026-09-17. Same principle as the Mag7 section — one live ratio
+# read on megacap concentration/valuation — but here comparing a value-factor
+# ETF against its cap-weighted parent instead of a subset against its whole.
+WORLD_VALUE_TICKER = "IWVL.SW"        # iShares Edge MSCI World Value Factor UCITS ETF (ISIN IE00BP3QZB59)
+WORLD_CAPWEIGHTED_TICKER = "SWDA.SW"  # iShares Core MSCI World UCITS ETF (ISIN IE00B4L5Y983) — chosen over
+                                       # a generic "MSCI World" proxy because it's the same fund family
+                                       # (BlackRock/iShares), same SIX listing, same USD share class as
+                                       # IWVL.SW, so the ratio isn't muddied by cross-provider tracking
+                                       # differences or an FX/domicile mismatch.
+
+# IWVL tracks MSCI World ENHANCED Value (a concentrated ~400-name selection,
+# cap-weighted within that selection by a value score) — NOT MSCI World
+# VALUE WEIGHTED (which re-weights the FULL ~1,500-name World universe by
+# value score instead of selecting a subset). The two indices can diverge
+# meaningfully; this note exists so the dashboard doesn't imply the broader,
+# academic "value factor" when it's actually showing this one ETF's index.
+WORLD_VALUE_METHODOLOGY_NOTE = (
+    "IWVL tracks the MSCI World Enhanced Value Index — a concentrated selection "
+    "of the ~400 highest-value-scoring names out of the ~1,500-name MSCI World "
+    "universe, cap-weighted within that selection. This is NOT the same as the "
+    "MSCI World Value Weighted Index, which re-weights the full MSCI World "
+    "universe by value score rather than selecting a subset — the two can "
+    "diverge meaningfully. SWDA (iShares Core MSCI World) is the standard "
+    "cap-weighted parent index used here as the benchmark."
+)
+
 # ── ETF holdings (MSCI ACWI country weights, S&P 500 top 10) ────────────────
 # Set up 2026-07-23. Replaces the static country-weight tables previously
 # hardcoded in longterm.html with a daily fetch of each ETF's own holdings
@@ -945,6 +972,55 @@ def calc_spy_top10():
         "history": history, "historyNote": SPY_TOP10_HISTORY_METHODOLOGY_NOTE,
     }
 
+def calc_world_value_vs_capweighted():
+    """
+    Relative performance of the MSCI World Enhanced Value factor (IWVL) vs
+    its cap-weighted MSCI World parent (SWDA), as a cumulative ratio rebased
+    to 100 at the first month both ETFs have data for.
+
+    Unlike calc_spy_top10_history_approx() (which reconstructs an
+    approximation from today's holdings + price history because no direct
+    historical series exists), both legs here are live ETF prices — no
+    approximation needed, just IWVL/SWDA month by month. Both are USD share
+    classes, so the ratio needs no FX conversion (a currency mismatch would
+    cancel out in a ratio anyway, but same-currency legs avoid ever having
+    to explain that).
+
+    Returns {"asOf", "valueTicker", "capWeightedTicker", "history": [...],
+    "note"}, or an empty history if either ETF's fetch fails.
+    """
+    value_series = fetch_monthly_max(WORLD_VALUE_TICKER)
+    cap_series   = fetch_monthly_max(WORLD_CAPWEIGHTED_TICKER)
+    if not value_series or not cap_series:
+        return {"asOf": None, "valueTicker": WORLD_VALUE_TICKER,
+                "capWeightedTicker": WORLD_CAPWEIGHTED_TICKER, "history": [],
+                "note": WORLD_VALUE_METHODOLOGY_NOTE}
+
+    cap_by_month = {
+        datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m"): px
+        for ts, px in cap_series
+    }
+
+    points = []
+    ratio0 = None
+    for ts, v_px in value_series:
+        dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+        c_px = cap_by_month.get(dt.strftime("%Y-%m"))
+        if not c_px:
+            continue
+        ratio = v_px / c_px
+        if ratio0 is None:
+            ratio0 = ratio
+        points.append({"date": dt.strftime("%Y-%m-%d"), "ratio_rebased": round(ratio / ratio0 * 100, 2)})
+
+    return {
+        "asOf": points[-1]["date"] if points else None,
+        "valueTicker": WORLD_VALUE_TICKER,
+        "capWeightedTicker": WORLD_CAPWEIGHTED_TICKER,
+        "history": points,
+        "note": WORLD_VALUE_METHODOLOGY_NOTE,
+    }
+
 def calc_mag7_cap_weighted(member_series, fx_data):
     """
     Cap-weighted Mag7 YTD/52W performance, replacing the MAGS ETF's
@@ -1474,6 +1550,22 @@ def main():
         spy_top10 = {"asOf": None, "source": None, "top10": [], "history": [],
                      "historyNote": SPY_TOP10_HISTORY_METHODOLOGY_NOTE}
 
+    # 5f) World Value Factor vs World Cap-Weighted (live ETF prices, IWVL vs SWDA)
+    next_step7 = next_step6 + 1
+    print(f"\n[{next_step7}] World Value vs World Cap-Weighted ({WORLD_VALUE_TICKER} vs {WORLD_CAPWEIGHTED_TICKER})")
+    try:
+        world_value = calc_world_value_vs_capweighted()
+        if world_value["history"]:
+            latest = world_value["history"][-1]["ratio_rebased"]
+            print(f"  → {len(world_value['history'])} months, rebased ratio now {latest:.1f} (100 = {world_value['history'][0]['date']})")
+        else:
+            print("  ⚠ no overlapping history between the two ETFs")
+    except Exception as e:
+        print(f"  ⚠ World Value vs Cap-Weighted failed: {e}")
+        world_value = {"asOf": None, "valueTicker": WORLD_VALUE_TICKER,
+                        "capWeightedTicker": WORLD_CAPWEIGHTED_TICKER, "history": [],
+                        "note": WORLD_VALUE_METHODOLOGY_NOTE}
+
     # 6) Output
     fetched_at = datetime.now().strftime("%d.%m.%Y %H:%M")
     out = {
@@ -1487,6 +1579,7 @@ def main():
         "hyperscalerCapex": hyperscaler_capex,
         "acwiCountryWeights": acwi_country_weights,
         "spyTop10":        spy_top10,
+        "worldValue":      world_value,
     }
 
     out_path = os.path.join(os.path.dirname(__file__), "live_data.js")

@@ -1,5 +1,39 @@
 # market-dashboard
 
+## World Value vs World Cap-Weighted — new Long Term Summary module, set up 2026-09-17
+
+`longterm.html` has a new card, "World Value vs World Cap-Weighted", following
+the same principle as the Mag7 concentration section (`mag7-block`) and the
+SPY top-10 history chart: read what a megacap-adjacent factor/subset is doing
+relative to its parent, as one clearly-labeled live line + methodology note,
+not a from-scratch reconstruction.
+
+`fetch_data.py`'s `calc_world_value_vs_capweighted()` computes the ratio of
+two live ETF prices, monthly, rebased to 100 at the first common month:
+
+- **Value leg**: `IWVL.SW` — iShares Edge MSCI World Value Factor UCITS ETF
+  (ISIN IE00BP3QZB59), tracking the **MSCI World Enhanced Value Index**.
+- **Cap-weighted leg**: `SWDA.SW` — iShares Core MSCI World UCITS ETF (ISIN
+  IE00B4L5Y983), the standard cap-weighted MSCI World benchmark. Picked over
+  a generic "any MSCI World ETF" because it's the same fund family
+  (BlackRock/iShares), same SIX listing, same USD share class as IWVL.SW —
+  avoiding cross-provider tracking noise and any FX/domicile mismatch in the
+  ratio.
+
+Unlike `calc_spy_top10_history_approx()`, this needs no reconstruction —
+both legs are live ETF prices going back to IWVL's 2015 SIX inception, so the
+ratio is exact, not an approximation.
+
+**Methodology caveat that must stay visible wherever this series is shown**
+(`WORLD_VALUE_METHODOLOGY_NOTE` in `fetch_data.py`, rendered under the chart
+in `longterm.html`'s `renderWorldValue()`): IWVL tracks MSCI World
+**Enhanced** Value — a concentrated ~400-name selection out of the ~1,500-name
+MSCI World universe, cap-weighted within that selection — which is NOT the
+same as MSCI World **Value Weighted** (which re-weights the FULL MSCI World
+universe by value score instead of selecting a subset). The two indices can
+diverge meaningfully; never present this chart as "the" academic value
+factor without that distinction.
+
 ## Vol & Options nav link — external app, set up 2026-08-25
 
 The "Vol & Options" nav entry on every page links out to

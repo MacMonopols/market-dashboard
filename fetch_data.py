@@ -37,7 +37,7 @@ MAIN_MARKETS = [
     ("US Equities (S&P 500)",             "SPY",       "USD"),
     ("Magnificent 7",                     "MAGS",      "USD"),
     ("Global Equities",                   "ACWI",      "USD"),
-    ("Global Equities Ex-US (MSCI W ex USA)", "IWQU.L", "GBP"),
+    ("Global Equities Ex-US (MSCI W ex USA)", "EXUS.L", "USD"),
     ("Global Equities – Value Factor (MSCI World Enhanced Value)", "IWVL.SW", "USD"),  # = WORLD_VALUE_TICKER below
     ("Pacific ex Japan Equities",         "EPP",       "USD"),
     ("Swiss Equities – Small Caps",       "CSSMIM.SW", "CHF"),
@@ -233,7 +233,7 @@ LONGTERM_MARKETS = [
     # name,                       ticker,        ccy,   group,   index / ETF description
     ("CH Market (SPI)",           "__SPI_SIX__", "CHF", "Stocks", "SPI TR (SIX index) + CHSPI.SW UCITS"),
     ("US Stock Market",           "CSPX.L",      "USD", "Stocks", "iShares Core S&P 500 UCITS ETF (LSE USD, Irish domicile, since 2010)"),
-    ("Intl Developed ex US",      "IWQU.L",      "GBP", "Stocks", "iShares MSCI World ex-US UCITS ETF (LSE, Irish domicile, since 2014)"),
+    ("Intl Developed ex US",      "EXUS.L",      "USD", "Stocks", "Xtrackers MSCI World ex USA UCITS ETF (LSE, Irish domicile, since 2024 — short history, see CLAUDE.md)"),
     ("Emerging Markets",          "IEEM.SW",     "USD", "Stocks", "iShares MSCI EM UCITS ETF (SIX, Irish domicile, since 2009)"),
     ("Global Real Estate",        "IWDP.L",      "GBP", "Stocks", "iShares Dev. Mkts Property Yield UCITS ETF (LSE, Irish domicile, since 2009, unhedged CHF)"),
     ("Swiss Real Estate",         "SRECHA.SW",   "CHF", "Stocks", "iShares Swiss Real Estate ETF (SIX, since 2011)"),
@@ -272,6 +272,37 @@ WORLD_VALUE_METHODOLOGY_NOTE = (
     "MSCI World Value Weighted Index, which re-weights the full MSCI World "
     "universe by value score rather than selecting a subset — the two can "
     "diverge meaningfully. SWDA (iShares Core MSCI World) is the standard "
+    "cap-weighted parent index used here as the benchmark."
+)
+
+# ── World Quality Factor vs World Cap-Weighted ──────────────────────────────
+# Set up 2026-09-17. Same pattern as World Value above — same fund family
+# (iShares Edge MSCI World Factor), same launch date (Oct 2014) and TER
+# (0.25%) as IWVL, benchmarked against the same SWDA cap-weighted parent.
+WORLD_QUALITY_TICKER = "IWQU.SW"  # iShares Edge MSCI World Quality Factor UCITS ETF (ISIN IE00BP3QZ601)
+
+# MSCI World Sector Neutral Quality is used here as a proxy for the
+# Fama-French/Dimensional "Profitability" factor (RMW) in the "3 dimensions
+# of expected return" framework (small cap / value / profitability) — but
+# it's not an exact match. Dimensional defines profitability on operating
+# profitability alone; MSCI Quality also folds in leverage and earnings
+# stability. Dimensional's own "High Profitability" ETFs (DUHP for US, DIHP
+# for international) match the strict definition, but are US-listed only
+# with no single World-wide fund, so weren't used here — staying within the
+# same SIX-listed iShares Edge World Factor family as IWVL avoids mixing
+# fund providers within one dashboard section.
+WORLD_QUALITY_METHODOLOGY_NOTE = (
+    "IWQU tracks the MSCI World Sector Neutral Quality Index — three "
+    "equally-weighted criteria (high ROE, low financial leverage, stable "
+    "earnings growth), sector-neutral vs the parent MSCI World. This is used "
+    "here as a proxy for the Fama-French/Dimensional Profitability factor "
+    "(RMW), but is NOT an exact match: Dimensional defines profitability on "
+    "operating profitability alone, while MSCI Quality also folds in "
+    "leverage and earnings stability. Dimensional's own 'High Profitability' "
+    "ETFs (DUHP for US, DIHP for international) match the strict definition, "
+    "but are US-listed only with no single World-wide fund, so weren't used "
+    "here — this stays within the same SIX-listed iShares Edge World Factor "
+    "family as IWVL. SWDA (iShares Core MSCI World) is the standard "
     "cap-weighted parent index used here as the benchmark."
 )
 
@@ -973,29 +1004,30 @@ def calc_spy_top10():
         "history": history, "historyNote": SPY_TOP10_HISTORY_METHODOLOGY_NOTE,
     }
 
-def calc_world_value_vs_capweighted():
+def calc_factor_vs_capweighted(factor_ticker, cap_weighted_ticker, note):
     """
-    Relative performance of the MSCI World Enhanced Value factor (IWVL) vs
-    its cap-weighted MSCI World parent (SWDA), as a cumulative ratio rebased
-    to 100 at the first month both ETFs have data for.
+    Relative performance of a factor ETF vs its cap-weighted MSCI World
+    parent, as a cumulative ratio rebased to 100 at the first month both
+    ETFs have data for. Shared by World Value (IWVL) and World Quality
+    (IWQU) — same fund family, same cap-weighted benchmark (SWDA).
 
     Unlike calc_spy_top10_history_approx() (which reconstructs an
     approximation from today's holdings + price history because no direct
     historical series exists), both legs here are live ETF prices — no
-    approximation needed, just IWVL/SWDA month by month. Both are USD share
-    classes, so the ratio needs no FX conversion (a currency mismatch would
-    cancel out in a ratio anyway, but same-currency legs avoid ever having
-    to explain that).
+    approximation needed, just factor/cap-weighted month by month. Both are
+    USD share classes, so the ratio needs no FX conversion (a currency
+    mismatch would cancel out in a ratio anyway, but same-currency legs
+    avoid ever having to explain that).
 
-    Returns {"asOf", "valueTicker", "capWeightedTicker", "history": [...],
+    Returns {"asOf", "factorTicker", "capWeightedTicker", "history": [...],
     "note"}, or an empty history if either ETF's fetch fails.
     """
-    value_series = fetch_monthly_max(WORLD_VALUE_TICKER)
-    cap_series   = fetch_monthly_max(WORLD_CAPWEIGHTED_TICKER)
-    if not value_series or not cap_series:
-        return {"asOf": None, "valueTicker": WORLD_VALUE_TICKER,
-                "capWeightedTicker": WORLD_CAPWEIGHTED_TICKER, "history": [],
-                "note": WORLD_VALUE_METHODOLOGY_NOTE}
+    factor_series = fetch_monthly_max(factor_ticker)
+    cap_series    = fetch_monthly_max(cap_weighted_ticker)
+    if not factor_series or not cap_series:
+        return {"asOf": None, "factorTicker": factor_ticker,
+                "capWeightedTicker": cap_weighted_ticker, "history": [],
+                "note": note}
 
     cap_by_month = {
         datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m"): px
@@ -1004,23 +1036,29 @@ def calc_world_value_vs_capweighted():
 
     points = []
     ratio0 = None
-    for ts, v_px in value_series:
+    for ts, f_px in factor_series:
         dt = datetime.fromtimestamp(ts, tz=timezone.utc)
         c_px = cap_by_month.get(dt.strftime("%Y-%m"))
         if not c_px:
             continue
-        ratio = v_px / c_px
+        ratio = f_px / c_px
         if ratio0 is None:
             ratio0 = ratio
         points.append({"date": dt.strftime("%Y-%m-%d"), "ratio_rebased": round(ratio / ratio0 * 100, 2)})
 
     return {
         "asOf": points[-1]["date"] if points else None,
-        "valueTicker": WORLD_VALUE_TICKER,
-        "capWeightedTicker": WORLD_CAPWEIGHTED_TICKER,
+        "factorTicker": factor_ticker,
+        "capWeightedTicker": cap_weighted_ticker,
         "history": points,
-        "note": WORLD_VALUE_METHODOLOGY_NOTE,
+        "note": note,
     }
+
+def calc_world_value_vs_capweighted():
+    return calc_factor_vs_capweighted(WORLD_VALUE_TICKER, WORLD_CAPWEIGHTED_TICKER, WORLD_VALUE_METHODOLOGY_NOTE)
+
+def calc_world_quality_vs_capweighted():
+    return calc_factor_vs_capweighted(WORLD_QUALITY_TICKER, WORLD_CAPWEIGHTED_TICKER, WORLD_QUALITY_METHODOLOGY_NOTE)
 
 def calc_mag7_cap_weighted(member_series, fx_data):
     """
@@ -1563,9 +1601,25 @@ def main():
             print("  ⚠ no overlapping history between the two ETFs")
     except Exception as e:
         print(f"  ⚠ World Value vs Cap-Weighted failed: {e}")
-        world_value = {"asOf": None, "valueTicker": WORLD_VALUE_TICKER,
+        world_value = {"asOf": None, "factorTicker": WORLD_VALUE_TICKER,
                         "capWeightedTicker": WORLD_CAPWEIGHTED_TICKER, "history": [],
                         "note": WORLD_VALUE_METHODOLOGY_NOTE}
+
+    # 5g) World Quality Factor vs World Cap-Weighted (live ETF prices, IWQU vs SWDA)
+    next_step8 = next_step7 + 1
+    print(f"\n[{next_step8}] World Quality vs World Cap-Weighted ({WORLD_QUALITY_TICKER} vs {WORLD_CAPWEIGHTED_TICKER})")
+    try:
+        world_quality = calc_world_quality_vs_capweighted()
+        if world_quality["history"]:
+            latest = world_quality["history"][-1]["ratio_rebased"]
+            print(f"  → {len(world_quality['history'])} months, rebased ratio now {latest:.1f} (100 = {world_quality['history'][0]['date']})")
+        else:
+            print("  ⚠ no overlapping history between the two ETFs")
+    except Exception as e:
+        print(f"  ⚠ World Quality vs Cap-Weighted failed: {e}")
+        world_quality = {"asOf": None, "factorTicker": WORLD_QUALITY_TICKER,
+                          "capWeightedTicker": WORLD_CAPWEIGHTED_TICKER, "history": [],
+                          "note": WORLD_QUALITY_METHODOLOGY_NOTE}
 
     # 6) Output
     fetched_at = datetime.now().strftime("%d.%m.%Y %H:%M")
@@ -1581,6 +1635,7 @@ def main():
         "acwiCountryWeights": acwi_country_weights,
         "spyTop10":        spy_top10,
         "worldValue":      world_value,
+        "worldQuality":    world_quality,
     }
 
     out_path = os.path.join(os.path.dirname(__file__), "live_data.js")

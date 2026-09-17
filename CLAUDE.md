@@ -1,5 +1,73 @@
 # market-dashboard
 
+## World Quality (Profitability proxy) vs World Cap-Weighted — new Long Term Summary module, set up 2026-09-17
+
+`longterm.html` now has a second factor-vs-cap-weighted card, "World Quality
+vs World Cap-Weighted", alongside "World Value vs World Cap-Weighted" (see
+below) — together the two read like the first three of Dimensional's "3
+dimensions of expected return" framework (small cap / value / profitability;
+small cap already tracked separately as "Global Equities – Small Caps").
+
+`fetch_data.py`'s `calc_factor_vs_capweighted(factor_ticker,
+cap_weighted_ticker, note)` is now the shared helper behind both cards
+(refactored out of what was `calc_world_value_vs_capweighted()`) — same
+"single source of truth, no silent divergence" pattern as
+`get_company_market_cap()` / `fetch_etf_holdings()`. `calc_world_value_vs_
+capweighted()` and `calc_world_quality_vs_capweighted()` are now both thin
+wrappers over it. `longterm.html`'s `renderFactorVsCapWeighted(data,
+idPrefix, factorLabel)` is the equivalent shared render function (was
+`renderWorldValue()`), called once per factor with its own DOM id prefix.
+
+- **Quality leg**: `IWQU.SW` — iShares Edge MSCI World Quality Factor UCITS
+  ETF (ISIN IE00BP3QZ601), tracking **MSCI World Sector Neutral Quality**
+  (three equally-weighted criteria: high ROE, low financial leverage, stable
+  earnings growth; sector-neutral vs parent MSCI World). Same fund family as
+  IWVL (iShares Edge MSCI World Factor), same October 2014 launch, same
+  0.25% TER — chosen for that consistency over Dimensional's own "High
+  Profitability" ETFs (`DUHP` for US, `DIHP` for international), which match
+  the strict Fama-French Profitability (RMW) definition more closely but are
+  US-listed only with no single World-wide fund, so don't fit the SIX-listed
+  iShares Edge family the rest of this section uses.
+- **Cap-weighted leg**: `SWDA.SW`, same benchmark as the Value card, for the
+  same fund-family/listing/share-class consistency reasons.
+
+**Methodology caveat that must stay visible wherever this series is shown**
+(`WORLD_QUALITY_METHODOLOGY_NOTE` in `fetch_data.py`, rendered under the
+chart): MSCI Quality is used here as a **proxy** for the Fama-French/
+Dimensional Profitability factor (RMW), not an exact match — Dimensional
+defines profitability on operating profitability alone, while MSCI Quality
+also folds in leverage and earnings stability. Never present this chart as
+"the" academic profitability factor without that distinction, same spirit as
+the Value card's Enhanced-Value-vs-Value-Weighted caveat below.
+
+### Ticker bug found and fixed while verifying IWQU: `IWQU.L` was already in use, mislabeled
+
+While confirming `IWQU.SW` for the Quality card above, verified via
+`yfinance` that `IWQU.L` — already hardcoded elsewhere in the dashboard as
+"Global Equities Ex-US (MSCI W ex USA)" (`data.js` / `fetch_data.py`'s
+`MAIN_MARKETS`) and as "Intl Developed ex US" (`fetch_data.py`'s
+`LONGTERM_MARKETS`) — is in fact the **same Quality Factor ETF**, not a
+World-ex-US fund. Both of those rows had been silently showing Quality
+Factor returns under an unrelated label (confirmed live: the Long Term
+Summary's "Intl Developed ex US" row was showing 10 years of Quality
+Factor's actual annualized returns). `tickerCcy`/`ccy` was also wrong
+(`GBP`, when `IWQU.L`'s real currency is USD per yfinance) — a second,
+compounding error in the CHF conversion for those rows.
+
+Fixed by replacing `IWQU.L` with `EXUS.L` (USD) — Xtrackers MSCI World ex
+USA UCITS ETF, confirmed via yfinance to be the actual "MSCI World ex USA"
+fund — in both `MAIN_MARKETS` and `LONGTERM_MARKETS` in `fetch_data.py`, and
+in `data.js`'s `MARKETS`. **Trade-off, decided with the user 2026-09-17**:
+`EXUS.L` only launched in 2024, so it has ~2.5 years of history on Yahoo
+Finance vs. the ~10 years `IWQU.L` (wrongly) had — the Long Term Summary's
+"Intl Developed ex US" row will now show a correct 1-year return but "—" for
+the 5/10/15/20-year columns until more history accumulates, rather than
+continuing to show a decade of mislabeled Quality Factor data. No Irish/
+Swiss-domiciled "World ex-US" UCITS fund with longer history was found
+during this search (only US-domiciled alternatives like `IEFA`, which the
+existing `LONGTERM_MARKETS` convention already excludes for withholding-tax
+reasons) — if one surfaces later, swap it in for deeper history.
+
 ## World Value's own YTD/52W performance — added to YTD Dashboard, set up 2026-09-17
 
 `index.html`'s YTD Dashboard now lists "Global Equities – Value Factor (MSCI
@@ -46,7 +114,8 @@ ratio is exact, not an approximation.
 
 **Methodology caveat that must stay visible wherever this series is shown**
 (`WORLD_VALUE_METHODOLOGY_NOTE` in `fetch_data.py`, rendered under the chart
-in `longterm.html`'s `renderWorldValue()`): IWVL tracks MSCI World
+by `longterm.html`'s `renderFactorVsCapWeighted()`, see the Quality section
+above for why this is now a shared function): IWVL tracks MSCI World
 **Enhanced** Value — a concentrated ~400-name selection out of the ~1,500-name
 MSCI World universe, cap-weighted within that selection — which is NOT the
 same as MSCI World **Value Weighted** (which re-weights the FULL MSCI World

@@ -56,7 +56,7 @@ const MARKETS = [
     ],
   },
   { name: "Global Equities",                 cat: "equity",    ticker: "ACWI",     tickerCcy: "USD" },
-  { name: "Global Equities Ex-US (MSCI W ex USA)", cat: "equity", ticker: "IWQU.L", tickerCcy: "GBP" },
+  { name: "Global Equities Ex-US (MSCI W ex USA)", cat: "equity", ticker: "EXUS.L", tickerCcy: "USD" },
   { name: "Global Equities – Value Factor (MSCI World Enhanced Value)", cat: "equity", ticker: "IWVL.SW", tickerCcy: "USD" },
   { name: "Pacific ex Japan Equities",       cat: "equity",    ticker: "EPP",      tickerCcy: "USD" },
   { name: "Swiss Equities – Small Caps",     cat: "equity",    ticker: "CSSMIM.SW",tickerCcy: "CHF" },

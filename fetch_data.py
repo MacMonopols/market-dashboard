@@ -258,7 +258,7 @@ LONGTERM_MARKETS = [
     ("Emerging Markets",          "IEEM.SW",     "USD", "Stocks", "iShares MSCI EM UCITS ETF (SIX, Irish domicile, since 2009)"),
     ("Global Real Estate",        "IWDP.L",      "GBP", "Stocks", "iShares Dev. Mkts Property Yield UCITS ETF (LSE, Irish domicile, since 2009, unhedged CHF)"),
     ("Swiss Real Estate",         "SRECHA.SW",   "CHF", "Stocks", "iShares Swiss Real Estate ETF (SIX, since 2011)"),
-    ("Swiss Bond Index",          "CHCORP.SW",   "CHF", "Bonds",  "iShares CHF Corp Bond ETF (SIX, UCITS, since 2014)"),
+    ("Swiss Bond Index",          "CSBGC7.SW",   "CHF", "Bonds",  "iShares Swiss Domestic Government Bond 3-7yr ETF (SIX, since 2008 — switched from the corporate-only CHCORP.SW 2026-09-17, see CLAUDE.md)"),
     ("Global Bonds (CHF hedged)", "AGGH.SW",     "CHF", "Bonds",  "iShares Core Gbl Agg Bond CHF Hdgd UCITS ETF (SIX, since 2018)"),
 ]
 

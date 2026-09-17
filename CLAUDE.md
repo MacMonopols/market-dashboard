@@ -1,5 +1,34 @@
 # market-dashboard
 
+## Fixed mislabeled Swiss Bond Index ticker on Long Term Summary, set up 2026-09-17
+
+Follow-up to the CHF bond ticker fix below: `LONGTERM_MARKETS`'s `"Swiss
+Bond Index"` row (Long Term Summary tab) had the same mislabel as the YTD
+Dashboard's `"CHF Bonds"` did — it used `CHCORP.SW`, the iShares Core CHF
+**Corporate** Bond ETF, under a name implying a broad/government bond
+index. Switched to `CSBGC7.SW` (iShares Swiss Domestic Government Bond
+3–7yr ETF), the same government-bond fund now used for `"CHF Bonds"` on the
+YTD Dashboard.
+
+Bonus: `CSBGC7.SW` also has deeper history than `CHCORP.SW` (since 2008 vs
+since 2014), which fills in the Long Term Summary's previously-blank 15yr
+column for this row:
+
+| Period | Before (CHCORP.SW) | After (CSBGC7.SW) |
+|---|---|---|
+| 1yr  | -0.09% | -1.03% |
+| 5yr  | -1.61% | +0.93% |
+| 10yr | —      | +0.36% |
+| 15yr | —      | +0.52% |
+| 20yr | —      | —      |
+
+Verified via scratch patch + browser: row now reads -1.03% / +0.93% /
++0.36% / +0.52% / — with the ticker and footnote updated accordingly, no
+console errors. Same underlying `CSBGC{0,3,7}.SW` fund family as the YTD
+Dashboard fix, applied here to `LONGTERM_MARKETS` in `fetch_data.py` only
+(no `data.js` entry exists for this row — the Long Term Summary reads
+`LD.longTermMarkets` dynamically from `live_data.js`).
+
 ## Fixed duplicate/mislabeled CHF bond tickers on YTD Dashboard, set up 2026-09-17
 
 User noticed that sorting the YTD Dashboard by "52W Range" showed several
@@ -35,8 +64,9 @@ entries (ticker label only, for display). Verified via scratch patch +
 browser: "CHF Bonds" now shows -1.2% vs "CHF Corporate Bonds" -0.5%
 (previously identical), and "Money Market CHF"'s 52W range tightened from
 [-2.39%, +1.68%] to [-0.66%, +0.28%], consistent with an actual short-duration
-fund. `LONGTERM_MARKETS`'s `"Swiss Bond Index"` (Long Term Summary tab) still
-uses `CHCORP.SW` — out of scope for this fix, not touched.
+fund. `LONGTERM_MARKETS`'s `"Swiss Bond Index"` (Long Term Summary tab) also
+used `CHCORP.SW` under the same mislabel — out of scope for this fix, fixed
+as a same-day follow-up, see the section above.
 
 ## Hyperscaler Capex now cached (7-day TTL) instead of re-fetched every run, set up 2026-09-17
 

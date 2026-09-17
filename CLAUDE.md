@@ -1,5 +1,77 @@
 # market-dashboard
 
+## Full ticker-mislabeling audit — 3 more bugs found and fixed, set up 2026-09-17
+
+Follow-up to the Swiss Bond Index fix below: since that fix and the CHF
+bond fix before it were both found by spot-checking individual rows, the
+user asked to systematically check *every* ticker used across the
+dashboard for the same kind of mislabeling. Method: de-duped all ~73
+unique tickers across `MAIN_MARKETS`, `SUB_MARKETS`, `LONGTERM_MARKETS`,
+and the World Value/Quality/Small-Cap factor tickers, pulled each one's
+`longName`/`currency`/`category`/`longBusinessSummary` via `yfinance`, and
+compared against the dashboard row label each ticker is used under. 70 of
+73 were confirmed consistent; 3 genuine bugs were found, ranked by
+severity:
+
+1. **`"EUR Bonds"` / `IBGE.L` — dead ticker (most severe: silently blank).**
+   `IBGE.L` returns zero price data from Yahoo Finance
+   ("possibly delisted; no price data found") on both the weekly and
+   monthly fetch paths — this row was silently showing a `"Keine Daten
+   (IBGE.L)"` error instead of real data. Replaced with `SEGA.L` (iShares
+   Core € Govt Bond UCITS ETF, LSE-listed, GBP-quoted), a live, broad
+   all-maturity Eurozone government bond fund — same govt-bond role the
+   row was meant to have.
+2. **`"Global Bonds (CHF hedged)"` / `AGGH.SW` — wrong currency hedge
+   (silent FX bug).** Confirmed via yfinance: `AGGH.SW`'s `longName` is
+   "...EUR Hedged (Acc)", `currency` is `EUR` — not CHF. Because the row's
+   `tickerCcy` was set to `"CHF"`, `build_chf_monthly()`/`calc_chf_returns()`
+   skipped FX conversion entirely (treating the series as "already CHF"),
+   silently missing the EUR/CHF layer every day. Replaced with `AGGS.SW`
+   (iShares Core Global Aggregate Bond UCITS ETF **CHF** Hedged), confirmed
+   via yfinance to have `currency: CHF` — the genuine CHF-hedged share
+   class of the same fund family.
+3. **`"Asian Real Estate (Equities)"` / `RWX` — wrong geography (label
+   wrong, data live but misleading).** `RWX` (SPDR DJ International Real
+   Estate) tracks ex-US real estate broadly (Europe/Asia/Australia/Canada
+   mixed) per its own index methodology, not an Asia-specific index —
+   confirmed via its `longBusinessSummary`. Replaced with `IASP.L`
+   (iShares Asia Property Yield UCITS ETF), the genuine Asia-only fund.
+
+| Row | Before | After | 1yr | 52W Low | 52W High | 30d |
+|---|---|---|---|---|---|---|
+| Asian Real Estate (Equities) | RWX | IASP.L | -3.33% | -7.78% | +4.85% | -0.98% |
+| Global Bonds (CHF hedged) | AGGH.SW | AGGS.SW | -3.42% | -3.42% | +0.90% | -1.19% |
+| EUR Bonds | IBGE.L (dead) | SEGA.L | -1.12% | -3.62% | +15.02%* | -0.98% |
+
+\* `SEGA.L`'s +15.02% 52W high is a known, dashboard-wide methodology
+artifact of `calc_chf_returns()` (it's the cumulative return since the
+last pre-Jan-1 data point, computed across the whole trailing series, not
+a literal rolling 52-week price high) — not a bug introduced by this
+ticker swap, same behavior every other row's 52W figures already have.
+
+`"Global Bonds (CHF hedged)"` is also used in `LONGTERM_MARKETS` (Long
+Term Summary tab), updated the same way:
+
+| Period | Before (AGGH.SW) | After (AGGS.SW) |
+|---|---|---|
+| 1yr  | +0.30% | -2.45% |
+| 5yr  | +0.82% | -3.52% |
+| 10yr | +0.75% | — |
+| 15yr | — | — |
+| 20yr | — | — |
+
+(`AGGS.SW` has slightly less history than `AGGH.SW` — 103 months vs 102,
+both since 2018 — so the 10yr column, previously blank-but-wrong under
+`AGGH.SW`'s incomplete-hedge data, is now correctly blank for
+insufficient history instead.)
+
+Changed in `fetch_data.py`'s `MAIN_MARKETS` (all three rows) and
+`LONGTERM_MARKETS` (Global Bonds CHF hedged only — no `LONGTERM_MARKETS`
+entry exists for the other two), and in `data.js`'s matching `MARKETS`
+entries (ticker label only, for display). Verified via scratch patch +
+browser on both `index.html` and `longterm.html`: all new figures match,
+"EUR Bonds" no longer shows a "no data" error, no console errors.
+
 ## Fixed mislabeled Swiss Bond Index ticker on Long Term Summary, set up 2026-09-17
 
 Follow-up to the CHF bond ticker fix below: `LONGTERM_MARKETS`'s `"Swiss

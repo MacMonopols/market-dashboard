@@ -93,15 +93,15 @@ const MARKETS = [
   { name: "US Real Estate (Equities)",       cat: "re",        ticker: "VNQ",      tickerCcy: "USD" },
   { name: "Swiss Real Estate (SXI Broad)",   cat: "re",        ticker: "SRFCHA.SW",tickerCcy: "CHF" },
   { name: "European Real Estate (Equities)", cat: "re",        ticker: "IPRP.AS",  tickerCcy: "EUR" },
-  { name: "Asian Real Estate (Equities)",    cat: "re",        ticker: "RWX",      tickerCcy: "USD" },
+  { name: "Asian Real Estate (Equities)",    cat: "re",        ticker: "IASP.L",   tickerCcy: "USD" },
   // ── Commodities / Gold ───────────────────────────────────────────────────
   { name: "Commodities (Diversified, unhedged)", cat: "commodity", ticker: "ICOM.L", tickerCcy: "USD" },
   { name: "Gold Bullion (unhedged)",          cat: "commodity", ticker: "ZGLD.SW",  tickerCcy: "CHF" },
   // ── Bonds ────────────────────────────────────────────────────────────────
   { name: "CHF Bonds",                       cat: "bond",      ticker: "CSBGC7.SW",tickerCcy: "CHF" },
   { name: "EM Bonds Local Currency",         cat: "bond",      ticker: "EMLC",     tickerCcy: "USD" },
-  { name: "Global Bonds (CHF hedged)",       cat: "bond",      ticker: "AGGH.SW",  tickerCcy: "CHF" },
-  { name: "EUR Bonds",                       cat: "bond",      ticker: "IBGE.L",   tickerCcy: "GBP" },
+  { name: "Global Bonds (CHF hedged)",       cat: "bond",      ticker: "AGGS.SW",  tickerCcy: "CHF" },
+  { name: "EUR Bonds",                       cat: "bond",      ticker: "SEGA.L",   tickerCcy: "GBP" },
   { name: "USD Bonds",                       cat: "bond",      ticker: "AGG",      tickerCcy: "USD" },
   { name: "CHF Corporate Bonds",             cat: "bond",      ticker: "CHCORP.SW",tickerCcy: "CHF" },
   { name: "USD Corporate Bonds",             cat: "bond",      ticker: "LQD",      tickerCcy: "USD" },

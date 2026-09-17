@@ -45,17 +45,31 @@ MAIN_MARKETS = [
     ("US Real Estate (Equities)",         "VNQ",       "USD"),
     ("Swiss Real Estate (SXI Broad)",     "SRFCHA.SW", "CHF"),
     ("European Real Estate (Equities)",   "IPRP.AS",   "EUR"),
-    ("Asian Real Estate (Equities)",      "RWX",       "USD"),
+    # RWX (SPDR DJ INTERNATIONAL Real Estate) tracks ex-US real estate broadly
+    # (Europe/Asia/Australia/Canada mixed) per its own index methodology, not
+    # an Asia-specific index — was mislabeled until 2026-09-17. IASP.L
+    # (iShares Asia Property Yield) is the genuine Asia-only fund. See CLAUDE.md.
+    ("Asian Real Estate (Equities)",      "IASP.L",    "USD"),
     ("Commodities (Diversified, unhedged)", "ICOM.L",    "USD"),
     ("Gold Bullion (unhedged)",            "ZGLD.SW",   "CHF"),
     # CHF Bonds = Swiss GOVERNMENT bonds (CSBGC7.SW, 3-7yr), distinct from CHF
     # Corporate Bonds below (CHCORP.SW) — same govt-vs-corporate split already
-    # used for EUR (IBGE.L govt vs IEAC.AS corp). Was wrongly CHCORP.SW too
+    # used for EUR (SEGA.L govt vs IEAC.AS corp). Was wrongly CHCORP.SW too
     # until 2026-09-17 (both rows showed identical figures — see CLAUDE.md).
     ("CHF Bonds",                         "CSBGC7.SW", "CHF"),
     ("EM Bonds Local Currency",           "EMLC",      "USD"),
-    ("Global Bonds (CHF hedged)",         "AGGH.SW",   "CHF"),
-    ("EUR Bonds",                         "IBGE.L",    "GBP"),
+    # AGGH.SW is actually the EUR-Hedged share class of this fund (confirmed
+    # via yfinance: longName "...EUR Hedged (Acc)", currency=EUR) — was
+    # wrongly treated as already-CHF (tickerCcy "CHF" skips FX conversion),
+    # silently missing the EUR/CHF layer, until 2026-09-17. AGGS.SW is the
+    # genuine CHF-Hedged share class (currency=CHF, confirmed via yfinance).
+    # See CLAUDE.md.
+    ("Global Bonds (CHF hedged)",         "AGGS.SW",   "CHF"),
+    # IBGE.L returns zero price data from Yahoo Finance ("possibly delisted")
+    # — this row was silently showing a blank "no data" error until
+    # 2026-09-17. SEGA.L (iShares Core € Govt Bond UCITS ETF, LSE, GBP-quoted)
+    # is a live, broad all-maturity Eurozone government bond fund. See CLAUDE.md.
+    ("EUR Bonds",                         "SEGA.L",    "GBP"),
     ("USD Bonds",                         "AGG",       "USD"),
     ("CHF Corporate Bonds",               "CHCORP.SW", "CHF"),
     ("USD Corporate Bonds",               "LQD",       "USD"),
@@ -259,7 +273,7 @@ LONGTERM_MARKETS = [
     ("Global Real Estate",        "IWDP.L",      "GBP", "Stocks", "iShares Dev. Mkts Property Yield UCITS ETF (LSE, Irish domicile, since 2009, unhedged CHF)"),
     ("Swiss Real Estate",         "SRECHA.SW",   "CHF", "Stocks", "iShares Swiss Real Estate ETF (SIX, since 2011)"),
     ("Swiss Bond Index",          "CSBGC7.SW",   "CHF", "Bonds",  "iShares Swiss Domestic Government Bond 3-7yr ETF (SIX, since 2008 — switched from the corporate-only CHCORP.SW 2026-09-17, see CLAUDE.md)"),
-    ("Global Bonds (CHF hedged)", "AGGH.SW",     "CHF", "Bonds",  "iShares Core Gbl Agg Bond CHF Hdgd UCITS ETF (SIX, since 2018)"),
+    ("Global Bonds (CHF hedged)", "AGGS.SW",     "CHF", "Bonds",  "iShares Core Global Aggregate Bond UCITS ETF CHF Hedged (SIX, since 2018 — switched from the EUR-hedged AGGH.SW 2026-09-17, see CLAUDE.md)"),
 ]
 
 # Path to the portfolio-backtest SPI TR cache (already monthly, already in CHF)

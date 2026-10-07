@@ -276,10 +276,14 @@ LONGTERM_MARKETS = [
     ("Global Bonds (CHF hedged)", "AGGS.SW",     "CHF", "Bonds",  "iShares Core Global Aggregate Bond UCITS ETF CHF Hedged (SIX, since 2018 — switched from the EUR-hedged AGGH.SW 2026-09-17, see CLAUDE.md)"),
 ]
 
-# Path to the portfolio-backtest SPI TR cache (already monthly, already in CHF)
-SPI_SIX_CSV = os.path.expanduser(
-    "~/portfolio-backtest/data/cache/spi_six_merged.csv"
-)
+# SPI TR (SIX) monthly history, already in CHF, 1987 onwards. It is checked
+# into the repo (copied from ~/portfolio-backtest/data/cache/spi_six_merged.csv)
+# because the GitHub Actions runner has no access to that local file. Without it
+# the SPI silently fell back to CHSPI.SW alone (since ~2014), so 15Y/20Y were blank.
+# Only the pre-ETF part (before CHSPI.SW inception) is used, so this file never
+# needs refreshing.
+SPI_SIX_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "data", "spi_six_tr_monthly.csv")
 
 LONGTERM_PERIODS = [1, 5, 10, 15, 20]   # years
 
@@ -450,7 +454,7 @@ def _build_spi_chf_series():
         # --- B) SIX TR index (long history) ---
         six_raw = load_spi_six_series()
         if not six_raw:
-            # Fallback: ETF only
+            print("\n  ⚠ SPI SIX history missing, CHSPI.SW only (15Y/20Y will be blank)")
             return etf
         six_s = pd.Series({pd.Timestamp.utcfromtimestamp(t): v for t, v in six_raw})
         six_s.index = six_s.index.tz_localize(None)

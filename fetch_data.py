@@ -267,9 +267,9 @@ LONGTERM_MARKETS = [
     #
     # name,                       ticker,        ccy,   group,   index / ETF description
     ("CH Market (SPI)",           "__SPI_SIX__", "CHF", "Stocks", "SPI TR (SIX index) + CHSPI.SW UCITS"),
-    ("US Stock Market",           "CSPX.L",      "USD", "Stocks", "iShares Core S&P 500 UCITS ETF (LSE USD, Irish domicile, since 2010)"),
+    ("US Stock Market",           "CSPX.L",      "USD", "Stocks", "iShares Core S&P 500 UCITS ETF (LSE USD, Irish domicile, since 2010); before 2010: S&P 500 Total Return index"),
     ("Intl Developed ex US",      "EFA",         "USD", "Stocks", "iShares MSCI EAFE ETF (NYSEArca, US domicile, since 2001 — deliberate exception to the UCITS-only convention above for 25yr history depth, see CLAUDE.md)"),
-    ("Emerging Markets",          "IEEM.SW",     "USD", "Stocks", "iShares MSCI EM UCITS ETF (SIX, Irish domicile, since 2009)"),
+    ("Emerging Markets",          "IEEM.SW",     "USD", "Stocks", "iShares MSCI EM UCITS ETF (SIX, Irish domicile, since 2009); before 2009: iShares MSCI EM ETF (EEM, US-listed)"),
     ("Global Real Estate",        "IWDP.L",      "GBP", "Stocks", "iShares Dev. Mkts Property Yield UCITS ETF (LSE, Irish domicile, since 2009, unhedged CHF)"),
     ("Swiss Real Estate",         "SRECHA.SW",   "CHF", "Stocks", "iShares Swiss Real Estate ETF (SIX, since 2011)"),
     ("Swiss Bond Index",          "CSBGC7.SW",   "CHF", "Bonds",  "iShares Swiss Domestic Government Bond 3-7yr ETF (SIX, since 2008 — switched from the corporate-only CHCORP.SW 2026-09-17, see CLAUDE.md)"),
@@ -286,6 +286,19 @@ SPI_SIX_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            "data", "spi_six_tr_monthly.csv")
 
 LONGTERM_PERIODS = [1, 5, 10, 15, 20]   # years
+
+# Longer-history series spliced in BEFORE a LONGTERM_MARKETS ETF's inception,
+# so the 20Y column isn't blank just because the UCITS fund is younger than 20
+# years (set up 2026-10-07). Same currency as the ETF it extends. Only the
+# pre-inception months are taken from the proxy, rescaled to the ETF's first
+# close, so 1Y-10Y (and 15Y where the ETF is old enough) stay pure ETF data.
+# Caveat: the proxy part ignores the UCITS fund's fees / withholding-tax drag.
+# No such proxy was found for Global Real Estate or Swiss Real Estate (nothing
+# on Yahoo before 2007-11), so those stay blank at 20Y.
+LONGTERM_PRE_INCEPTION_PROXIES = {
+    "CSPX.L":  "^SP500TR",   # S&P 500 Total Return index (USD, since 1988)
+    "IEEM.SW": "EEM",        # iShares MSCI EM ETF (USD, US-listed, since 2003)
+}
 
 # ── World Value Factor vs World Cap-Weighted ────────────────────────────────
 # Set up 2026-09-17. Same principle as the Mag7 section — one live ratio
@@ -433,6 +446,22 @@ SPY_TOP10_HISTORY_METHODOLOGY_NOTE = (
 
 # ── Hilfsfunktionen ──────────────────────────────────────────────────────────
 
+def _splice_pre_inception(primary, older):
+    """
+    Extend `primary` [(ts, price)] backwards with the part of `older` that
+    predates primary's first point, rescaled so the two series join smoothly.
+    Returns primary unchanged if there is nothing to splice.
+    """
+    if not primary or not older:
+        return primary
+    start_ts, start_px = primary[0]
+    older_pre = [(t, v) for t, v in older if t < start_ts]
+    older_at_start = [v for t, v in older if t <= start_ts]
+    if not older_pre or not older_at_start or not older_at_start[-1]:
+        return primary
+    scale = start_px / older_at_start[-1]
+    return [(t, v * scale) for t, v in older_pre] + list(primary)
+
 def _build_spi_chf_series():
     """
     Best-quality SPI CH Market monthly series in CHF:
@@ -442,41 +471,19 @@ def _build_spi_chf_series():
     This gives accurate 1Y/5Y/10Y from the ETF and valid 15Y/20Y from the index.
     """
     try:
-        import pandas as pd
-
         # --- A) CHSPI.SW ETF (primary, reliable) ---
         etf = fetch_monthly_max("CHSPI.SW")
         if not etf:
             return None
-        etf_s = pd.Series({pd.Timestamp.utcfromtimestamp(t): v for t, v in etf})
-        etf_s.index = etf_s.index.tz_localize(None)
 
         # --- B) SIX TR index (long history) ---
         six_raw = load_spi_six_series()
         if not six_raw:
             print("\n  ⚠ SPI SIX history missing, CHSPI.SW only (15Y/20Y will be blank)")
             return etf
-        six_s = pd.Series({pd.Timestamp.utcfromtimestamp(t): v for t, v in six_raw})
-        six_s.index = six_s.index.tz_localize(None)
 
-        # --- C) Splice: normalise SIX to ETF level at ETF inception ---
-        # Find overlap: first month of ETF data
-        etf_start = etf_s.index[0]
-        # Find closest SIX point at ETF inception
-        six_at_start = six_s.asof(etf_start)
-        etf_at_start = etf_s.iloc[0]
-        if six_at_start is None or pd.isna(six_at_start) or six_at_start == 0:
-            return etf
-        scale = etf_at_start / six_at_start
-
-        # Keep SIX only for dates BEFORE ETF inception, scaled
-        six_pre = six_s[six_s.index < etf_start] * scale
-
-        # Combine: SIX (old, scaled) + ETF (recent, authoritative)
-        combined = pd.concat([six_pre, etf_s]).sort_index()
-        combined = combined[~combined.index.duplicated(keep='last')]
-
-        return [(int(ts.timestamp()), float(v)) for ts, v in combined.items()]
+        # --- C) Splice: SIX before ETF inception, rescaled to the ETF level ---
+        return _splice_pre_inception(etf, six_raw)
     except Exception as e:
         print(f"\n  ⚠ SPI splice error: {e}")
         return None
@@ -1594,6 +1601,14 @@ def main():
             continue
         else:
             etf_series  = lt_raw[ticker]
+            proxy = LONGTERM_PRE_INCEPTION_PROXIES.get(ticker)
+            if proxy:
+                proxy_series = fetch_monthly_max(proxy)
+                if proxy_series:
+                    etf_series = _splice_pre_inception(etf_series, proxy_series)
+                    entry["ticker"] = f"{ticker} + {proxy}"
+                else:
+                    print(f"  ⚠ pre-inception proxy {proxy} for {ticker} unavailable")
             chf_monthly = build_chf_monthly(etf_series, fx_monthly.get(ccy))
 
         entry["returns"] = {

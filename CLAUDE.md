@@ -1,5 +1,28 @@
 # market-dashboard
 
+## Long Term Summary 20Y column — pre-inception splices, set up 2026-10-07
+
+The 20Y column was blank for most stocks because their UCITS ETFs are
+younger than 20 years. `LONGTERM_PRE_INCEPTION_PROXIES` in `fetch_data.py`
+now extends two of them backwards with a longer series in the same currency,
+via `_splice_pre_inception()` (the same splice the SPI already used, now
+shared):
+- US Stock Market: `CSPX.L` (2010) preceded by `^SP500TR` (S&P 500 TR
+  index, 1988). 20Y = +8.80%.
+- Emerging Markets: `IEEM.SW` (2009) preceded by `EEM` (US-listed, 2003).
+  20Y = +3.68%.
+
+Only months before the ETF's inception come from the proxy, so 1Y–15Y are
+unchanged. The proxy part ignores the UCITS fund's fees and withholding-tax
+drag. Global Real Estate (`IWDP.L`) and Swiss Real Estate (`SRECHA.SW`) stay
+blank at 20Y: nothing on Yahoo goes back far enough (`IFGL`, the oldest
+candidate, starts 2007-11 and is ex-US only).
+
+Related fix the same day: the SPI's pre-2014 SIX TR history used to be read
+from `~/portfolio-backtest`, which the GitHub Actions runner can't see, so
+the deployed site showed blank 15Y/20Y for the SPI. It is now checked in as
+`data/spi_six_tr_monthly.csv`.
+
 ## Full ticker-mislabeling audit — 3 more bugs found and fixed, set up 2026-09-17
 
 Follow-up to the Swiss Bond Index fix below: since that fix and the CHF

@@ -1,5 +1,18 @@
 # market-dashboard
 
+## Unrecorded share splits on Yahoo — `fix_unrecorded_splits()`, set up 2026-10-30
+
+`Money Market GBP` (`CSH2.L`) showed YTD -99.6% because Yahoo applied a 250:1
+share split to the price on 2026-10-27 (125,770 → 503.4) but recorded no split
+event and did not adjust the history, so `auto_adjust=True` could not repair
+it. `fix_unrecorded_splits()` in `fetch_data.py` (called from `batch_fetch`,
+`fetch_weekly` and `fetch_monthly_max`) treats a ≥10x step between consecutive
+points whose ratio is within 5% of an integer as a split / reverse split and
+rescales the earlier points, logging a `⚠` line. YTD is now +6.9% for
+CSH2.L. A real ≥10x one-period move with an almost integer ratio would be
+misread, which is very unlikely for the ETFs used here. Not applied to
+`fetch_month_end_closes` (indices only).
+
 ## US share of world market cap — history chart on Long Term Summary, set up 2026-10-30
 
 New card "US Share of World Market Capitalisation" on `longterm.html`, under

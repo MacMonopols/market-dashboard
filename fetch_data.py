@@ -1371,6 +1371,32 @@ def calc_mag7_cap_weighted(member_series, fx_data):
         "weights": {ticker: round(w * 100, 1) for ticker, w, _ in weighted},
     }
 
+def fix_unrecorded_splits(series, ticker=""):
+    """
+    Yahoo sometimes applies a share split to the price but not to the history
+    (and records no split event), so auto_adjust cannot repair it, e.g.
+    CSH2.L fell from 125,770 to 503.4 (/250) on 2026-10-27. A 10x or larger
+    step between consecutive points whose ratio is within 5% of an integer is
+    treated as a split (or reverse split) and the earlier points are rescaled.
+    """
+    if not series or len(series) < 2:
+        return series
+    factors = [1.0] * len(series)   # cumulative factor applied to each point
+    for i in range(len(series) - 1, 0, -1):
+        prev, cur = series[i - 1][1], series[i][1]
+        if prev <= 0 or cur <= 0:
+            continue
+        r = prev / cur if prev > cur else cur / prev
+        k = round(r)
+        if r >= 10 and abs(r - k) / k <= 0.05:
+            f = 1.0 / k if prev > cur else float(k)
+            print(f"  ⚠ {ticker}: unrecorded {k}:1 "
+                  f"{'split' if prev > cur else 'reverse split'} at "
+                  f"{datetime.fromtimestamp(series[i][0]):%Y-%m-%d}, history rescaled")
+            for j in range(i):
+                factors[j] *= f
+    return [(t, c * factors[n]) for n, (t, c) in enumerate(series)]
+
 def fetch_monthly_max(ticker, auto_adjust=True):
     """Download full available monthly history for long-term return calculations."""
     try:
@@ -1382,6 +1408,7 @@ def fetch_monthly_max(ticker, auto_adjust=True):
             df.columns = df.columns.get_level_values(0)
         closes = df["Close"].dropna()
         series = [(int(ts.timestamp()), float(c)) for ts, c in closes.items()]
+        series = fix_unrecorded_splits(series, ticker)
         return series if len(series) >= 12 else None
     except Exception:
         return None
@@ -1452,7 +1479,8 @@ def fetch_weekly(ticker):
         if hasattr(df.columns, "levels"):
             df.columns = df.columns.get_level_values(0)
         closes = df["Close"].dropna()
-        result = [(int(ts.timestamp()), float(c)) for ts, c in closes.items()]
+        result = fix_unrecorded_splits(
+            [(int(ts.timestamp()), float(c)) for ts, c in closes.items()], ticker)
         return result if len(result) >= 10 else None
     except Exception:
         return None
@@ -1608,6 +1636,7 @@ def batch_fetch(tickers_ccys):
                 continue
             closes = sub["Close"].dropna()
             series = [(int(ts.timestamp()), float(c)) for ts, c in closes.items()]
+            series = fix_unrecorded_splits(series, ticker)
             if len(series) >= 10:
                 result[ticker] = series
         except Exception:

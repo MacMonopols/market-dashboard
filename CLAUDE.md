@@ -1,5 +1,54 @@
 # market-dashboard
 
+## US share of world market cap — history chart on Long Term Summary, set up 2026-10-30
+
+New card "US Share of World Market Capitalisation" on `longterm.html`, under
+the World Market Capitalisation donut. `calc_us_share_history()` in
+`fetch_data.py` (written to `LD.usShareHistory`) uses the SAME three-region
+definition and proxies as the donut (`WORLD_MKTCAP_BASELINE`: US = Russell
+3000 via `SPY`, International Developed via `EFA`, EM via `EEM`), so the last
+point equals the donut's US %. Each region's Q2-2026 baseline cap is scaled
+backward by its ETF price return; monthly, 2003-04 (EEM inception) to the last
+completed month. 63.6% at 2026-09, low ~30% in 2007–2011.
+
+**Longer history (added 2026-10-30)**: a second, dashed line `historyDeveloped`
+goes back to 1972 = US vs developed markets only (no EM): `^GSPC` (S&P 500)
+vs `^990100-USD-STRD` (MSCI World price index, USD; Yahoo's daily series
+starts 1972-01-03), anchored on baseline US + Intl Developed (= $100.8T), Intl
+Developed = World − US. Month-end closes come from daily data
+(`fetch_month_end_closes()`) because Yahoo's *monthly* `^GSPC` only starts in
+1985. EM cannot be included before 2003 with free data, hence two lines
+instead of one; 1970 was not reachable (the MSCI World history on Yahoo
+starts 1972). **Known bias**: pre-1990 values very likely understate the US
+share (e.g. 42% in 1972 and 48% in 1999, vs roughly 60% and 55% recalled from
+the literature, unverified) because net issuance outside the US and buybacks
+inside it are ignored. An MSCI country-weight history (a CSV checked in under
+`data/`, like `spi_six_tr_monthly.csv`) would be the fix. MSCI's undocumented
+download endpoint was deliberately NOT scraped.
+
+**Japan line (added 2026-10-30)**: red line (`usShareHistory.japan`, solid =
+share of the 3-region world total from 2003, dashed = share of developed only
+from 1972). Japan's cap = Nikkei 225 (`^N225`, daily from 1965) converted to USD
+with FRED `DEXJPUS` (`fetch_usdjpy_month_end()`; plain `requests` UA, see FRED
+quirks below), anchored on Intl Developed baseline × Japan's share among
+DM-ex-US countries in today's iShares ACWI country weights
+(`japan_pct_of_intl_dev()`; skipped if `acwiCountryWeights.source` is not
+`"ishares"`, i.e. the degraded stockanalysis fallback). **Caveats**: the Nikkei
+is price-weighted over 225 stocks, not cap-weighted like TOPIX (Yahoo has no
+TOPIX), so it tracks Japan's true cap only roughly; the constant-share-count bias
+also applies, so the 1989 peak (~32%) is likely understated.
+
+Chosen over MSCI World / ACWI because those only give today's country weights
+(`calc_acwi_country_weights`), not a history, and this keeps the chart
+consistent with the donut.
+
+- **Unadjusted closes** (`fetch_monthly_max(ticker, auto_adjust=False)`):
+  total-return series would count dividends as market-cap growth.
+- **Approximation**, flagged under the chart (`US_SHARE_HISTORY_METHODOLOGY_NOTE`):
+  constant share counts assumed (no buybacks/issuance/IPOs), EFA excludes
+  Canada and is large/mid cap only. Old values can differ from official MSCI
+  ACWI / Dimensional figures — never present as an official series.
+
 ## Long Term Summary 20Y column — pre-inception splices, set up 2026-10-07
 
 The 20Y column was blank for most stocks because their UCITS ETFs are
@@ -22,6 +71,92 @@ Related fix the same day: the SPI's pre-2014 SIX TR history used to be read
 from `~/portfolio-backtest`, which the GitHub Actions runner can't see, so
 the deployed site showed blank 15Y/20Y for the SPI. It is now checked in as
 `data/spi_six_tr_monthly.csv`.
+
+## Hyperscaler funding ratios (4 new charts on the Hyperscaler Capex tab), set up 2026-10-05
+
+`hyperscaler-capex.html` has 4 new cards under "Competing for the same
+dollar", each tracking how the 5 big hyperscaler bond issuers (Microsoft,
+Alphabet, Amazon, Meta, Oracle) compete with the US Treasury for funding:
+
+1. **Hyperscaler net issuance / US corporate bond net issuance (TTM %)**
+2. **Hyperscaler net issuance / Treasury net new borrowing (TTM %)**
+3. **Spread vs Treasuries by rating (OAS, bp)**
+4. **Capex / operating cash flow (TTM %)**, with a dashed 100% reference
+   line (above it, capex exceeds internally generated cash)
+
+Ratios 1–3 are computed in the new `hyperscaler_funding.py`
+(`calc_hyperscaler_funding()`, called from `fetch_data.py` right after the
+Hyperscaler Capex block, written to `LD.hyperscalerFunding`). Ratio 4 is a
+new `capexToOcfTTM` field per quarter in `hyperscaler_capex.py`.
+
+**Methodology substitution, net vs net, not gross**: the original request
+used "US IG issuance" (gross, the SIFMA series behind Vanguard's ~11%
+figure). SIFMA's data download is gated behind a contact form, so it is not
+used. Both sides are measured net instead:
+- Hyperscaler net issuance is debt proceeds minus repayments, TTM, from SEC
+  EDGAR cash-flow statements. It includes EUR/CHF/GBP issues.
+- The market denominator is Fed Z.1 `BOGZ1FA103163005Q`. That is net bond
+  issuance by all US nonfinancial corporations, all ratings. It is
+  SAAR in $ millions, so each quarter = value × 1e6 / 4, summed over 4
+  quarters.
+- The Treasury denominator is the change in debt held by the public over
+  the same 12 months (Treasury Fiscal Data `debt_to_penny`).
+
+So the corporate-share figure (~66% at Q2 2026) is NOT comparable to
+Vanguard's ~11% gross-share figure. Net supply is much smaller than gross,
+because most gross issuance refinances maturing bonds. A ratio is shown as
+blank whenever its denominator is below $100bn (`MIN_DENOMINATOR_USD`, e.g.
+2022, when corporates were net repaying). A blank shows as a break in the
+line, not as a spike.
+
+**Spreads are rating-bucket proxies, not issuer-level spreads**: they use
+ICE BofA US Corporate OAS indices on FRED:
+- `BAMLC0A1CAAA` (AAA) for Microsoft
+- `BAMLC0A2CAA` (AA) for Alphabet, Amazon and Meta
+- `BAMLC0A4CBBB` (BBB) for Oracle
+
+FRED only serves the last ~3 years of ICE data, so the chart starts around
+2023-10. Persisting it ourselves to build a longer history is a possible
+follow-up.
+
+**FRED fetch quirks**, as found while building this:
+- A browser-like `User-Agent` gets tarpitted (connection timeouts), so
+  keep the default `requests` UA.
+- Mixing quarterly and daily series in one `fredgraph.csv` request
+  returns a zip, not a CSV, so use one request per frequency.
+- FRED intermittently blocks bursts. Hence retries plus
+  `hyperscaler_funding_cache.json` (git-ignored). On fetch failure the
+  last cached market data is used, flagged `stale: true`, and the chart
+  notes say so.
+
+**Two pre-existing bugs in `hyperscaler_capex.py` fixed along the way**:
+- **Debt issuance was silently zero/partial for MSFT, GOOGL and ORCL.**
+  Each company reports proceeds under a different XBRL tag, so
+  `FALLBACK_TAGS["debt_issuance"]` now lists the tags actually used:
+  - `ProceedsFromDebtMaturingInMoreThanThreeMonths` (Microsoft)
+  - `ProceedsFromDebtNetOfIssuanceCosts` (Alphabet)
+  - `ProceedsFromIssuanceOfSeniorLongTermDebt` / `ProceedsFromIssuanceOfDebt` (Oracle)
+
+  A matching `debt_repayment` metric was added. Both use max-per-period
+  merging across tags (`MAX_MERGE_METRICS`). Caveat: Alphabet's tag may
+  include some short-term debt historically, which inflates its gross
+  figures more than its net ones.
+- **TTM sums could straddle non-consecutive quarters.** When a company
+  had gaps in a tag's history, `_rolling_ttm` summed 4 values from
+  different years. Both TTM helpers now require the 4 quarter-ends to span
+  250–300 days (`_is_four_consecutive_quarters`). Side effect: Microsoft's
+  capex-based charts now start at Q1 2025, because its quarterly D&A
+  before that sits under a custom `msft:` tag, not a us-gaap tag.
+  Supporting that tag would restore Microsoft's earlier history.
+
+`CACHE_SCHEMA_VERSION` (3) in `hyperscaler_capex.py` invalidates any
+`hyperscaler_capex_cache.json` written before these changes, so the 7-day
+cache does not serve stale-schema data.
+
+Values at Q2 2026: hyperscaler net issuance $238bn TTM, which is 65.8% of
+US nonfinancial corporate net bond issuance ($361bn) and 8.7% of Treasury
+net borrowing ($2.73tn). Spreads were AAA 41bp, AA 60bp and BBB 104bp.
+Verified via scratch patch + browser, with no console errors.
 
 ## Full ticker-mislabeling audit — 3 more bugs found and fixed, set up 2026-09-17
 

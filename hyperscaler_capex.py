@@ -9,6 +9,8 @@ clé) :
   3. Capex vs D&A (écart $), TTM      – "mur de dépréciation" à venir
   4. Dette nette / EBITDA, TTM        – solvabilité
   5. Émissions de dette (TTM)         – comment le trou de cash est financé
+  6. Capex / cash-flow opérationnel   – > 100% = le capex dépasse ce que
+                                        l'activité génère, il faut emprunter
 
 Appelé depuis fetch_data.py, résultat fusionné dans live_data.js sous la clé
 "hyperscalerCapex". Pas de dépendance pandas/Plotly : les graphiques sont
@@ -38,6 +40,8 @@ Pièges XBRL à connaître :
 import json
 import os
 import time
+from datetime import date
+
 import requests
 
 SEC_HEADERS = {
@@ -53,6 +57,11 @@ SEC_HEADERS = {
 # ne re-tape SEC EDGAR que si le cache a plus de CACHE_MAX_AGE_DAYS jours.
 CACHE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hyperscaler_capex_cache.json")
 CACHE_MAX_AGE_DAYS = 7
+# À incrémenter à chaque changement de la structure des données (nouveaux
+# champs, nouveaux tags XBRL) : un cache d'une version antérieure est
+# ignoré, sinon il servirait jusqu'à 7 jours de données sans les nouveaux
+# champs (ou avec les anciens tags fautifs).
+CACHE_SCHEMA_VERSION = 3
 
 
 def _load_cache():
@@ -62,7 +71,7 @@ def _load_cache():
         with open(CACHE_PATH) as f:
             cached = json.load(f)
         age_days = (time.time() - cached["fetchedAt"]) / 86400
-        if age_days > CACHE_MAX_AGE_DAYS:
+        if age_days > CACHE_MAX_AGE_DAYS or cached.get("schemaVersion") != CACHE_SCHEMA_VERSION:
             return None
         return cached["data"]
     except (json.JSONDecodeError, KeyError, OSError):
@@ -72,7 +81,7 @@ def _load_cache():
 def _save_cache(data):
     try:
         with open(CACHE_PATH, "w") as f:
-            json.dump({"fetchedAt": time.time(), "data": data}, f)
+            json.dump({"fetchedAt": time.time(), "schemaVersion": CACHE_SCHEMA_VERSION, "data": data}, f)
     except OSError as e:
         print(f"  ⚠ could not write hyperscaler capex cache: {e}")
 
@@ -138,8 +147,22 @@ FALLBACK_TAGS = {
     "cash_and_equivalents": [
         "CashAndCashEquivalentsAtCarryingValue",
     ],
+    # Chaque hyperscaler tague ses émissions obligataires différemment —
+    # avec le seul ProceedsFromIssuanceOfLongTermDebt, Microsoft et Alphabet
+    # n'avaient AUCUNE donnée et Oracle affichait 0 depuis 2025 malgré ~$46 Md
+    # émis (vérifié via l'API companyfacts, 2026-10-05).
     "debt_issuance": [
-        "ProceedsFromIssuanceOfLongTermDebt",
+        "ProceedsFromIssuanceOfLongTermDebt",           # Amazon, Meta
+        "ProceedsFromDebtNetOfIssuanceCosts",           # Alphabet
+        "ProceedsFromDebtMaturingInMoreThanThreeMonths",  # Microsoft
+        "ProceedsFromIssuanceOfSeniorLongTermDebt",     # Oracle (depuis FY2023)
+        "ProceedsFromIssuanceOfDebt",                   # Oracle (historique)
+    ],
+    "debt_repayment": [
+        "RepaymentsOfLongTermDebt",                     # Amazon
+        "RepaymentsOfDebtAndCapitalLeaseObligations",   # Alphabet (inclut le principal des finance leases)
+        "RepaymentsOfDebtMaturingInMoreThanThreeMonths",  # Microsoft
+        "RepaymentsOfDebt",                             # Oracle
     ],
 }
 
@@ -151,11 +174,21 @@ CORE_METRICS = ["revenue", "capex", "operating_cash_flow", "depreciation_amortiz
 # échouer l'entreprise entière si l'une d'elles manque (ex. une société qui
 # n'émet pas de dette certains trimestres n'a tout simplement pas de fait
 # XBRL ce trimestre-là, ce n'est pas une erreur).
-DEBT_METRICS = ["operating_income", "long_term_debt", "cash_and_equivalents", "debt_issuance"]
+DEBT_METRICS = ["operating_income", "long_term_debt", "cash_and_equivalents", "debt_issuance", "debt_repayment"]
 
 # Postes de bilan (faits XBRL "instant" : une seule date "end", pas de flux
 # à décumuler) — à distinguer des flux "duration" ci-dessus.
 INSTANT_METRICS = {"long_term_debt", "cash_and_equivalents"}
+
+# Flux de financement dont les tags ne sont PAS de simples synonymes
+# historiques : une même société peut rapporter un tag générique à 0 et un
+# tag spécifique avec le vrai montant pour la même période (ex. Oracle :
+# ProceedsFromIssuanceOfLongTermDebt = 0 mais
+# ProceedsFromIssuanceOfSeniorLongTermDebt = $18 Md au même trimestre).
+# "Dernier déposé gagne" choisirait alors au hasard entre les deux ; on garde
+# le MAX par période (jamais la somme : deux tags d'une même société peuvent
+# décrire le même flux, l'additionner le compterait deux fois).
+MAX_MERGE_METRICS = {"debt_issuance", "debt_repayment"}
 
 
 def _fetch_concept_raw(cik, tag, instant=False):
@@ -221,7 +254,10 @@ def _fetch_metric(cik, metric):
     latest = {}
     for r in combined:
         key = (r["start"], r["end"])
-        if key not in latest or r["filed"] > latest[key]["filed"]:
+        if metric in MAX_MERGE_METRICS:
+            if key not in latest or r["val"] > latest[key]["val"]:
+                latest[key] = r
+        elif key not in latest or r["filed"] > latest[key]["filed"]:
             latest[key] = r
     return sorted(latest.values(), key=lambda r: r["end"])
 
@@ -252,34 +288,49 @@ def _instant_series(records):
     return {r["end"]: r["val"] for r in records}
 
 
+def _is_four_consecutive_quarters(window):
+    """Vrai si les 4 dates de fin couvrent bien ~1 an (≈ 273 jours entre la
+    1re et la 4e). Sans ce garde-fou, une série avec des trous (ex. la D&A
+    de Microsoft n'est taguée us-gaap qu'annuellement avant FY2025 — le
+    trimestriel est sous un tag custom msft:) sommerait 4 valeurs de 4
+    exercices DIFFÉRENTS en les présentant comme un TTM."""
+    days = (date.fromisoformat(window[-1]) - date.fromisoformat(window[0])).days
+    return 250 <= days <= 300
+
+
 def _rolling_ttm(sorted_ends, values_by_end):
     """Somme glissante sur les 4 derniers trimestres (lisse la saisonnalité).
-    Exige les 4 valeurs présentes (série stricte)."""
+    Exige les 4 valeurs présentes et 4 trimestres consécutifs (série stricte)."""
     ttm = {}
     for i, end in enumerate(sorted_ends):
         if i < 3:
             continue
         window = sorted_ends[i - 3:i + 1]
+        if not _is_four_consecutive_quarters(window):
+            continue
         ttm[end] = sum(values_by_end[e] for e in window)
     return ttm
 
 
-def _rolling_ttm_lenient(common_ends, values_by_end):
+def _rolling_ttm_lenient(calendar_ends, values_by_end):
     """
-    Comme _rolling_ttm mais tolère les trimestres manquants (comptés comme
-    0) : utilisé pour les émissions de dette, qui sont "lumpy" — beaucoup
-    d'entreprises n'émettent pas de dette chaque trimestre et ne rapportent
-    alors tout simplement pas ce fait XBRL (ce n'est pas une donnée
-    manquante, c'est un montant nul). La fenêtre glissante reste calée sur
-    le calendrier trimestriel commun (common_ends) plutôt que sur les seules
+    Comme _rolling_ttm mais tolère les trimestres sans valeur (comptés comme
+    0) : utilisé pour les émissions/remboursements de dette, qui sont
+    "lumpy" — beaucoup d'entreprises n'émettent pas de dette chaque
+    trimestre et ne rapportent alors tout simplement pas ce fait XBRL (ce
+    n'est pas une donnée manquante, c'est un montant nul). La fenêtre
+    glissante reste calée sur un calendrier trimestriel complet
+    (calendar_ends, celui du chiffre d'affaires) plutôt que sur les seules
     dates où une émission a eu lieu, pour ne pas agréger à tort deux
     émissions éloignées dans le temps.
     """
     ttm = {}
-    for i, end in enumerate(common_ends):
+    for i, end in enumerate(calendar_ends):
         if i < 3:
             continue
-        window = common_ends[i - 3:i + 1]
+        window = calendar_ends[i - 3:i + 1]
+        if not _is_four_consecutive_quarters(window):
+            continue
         ttm[end] = sum(values_by_end.get(e, 0) for e in window)
     return ttm
 
@@ -318,6 +369,7 @@ def _build_company(name, cik):
             "capexPctSalesTTM": round(capex_ttm / rev_ttm * 100, 2),
             "fcfPctSalesTTM":   round((ocf_ttm - capex_ttm) / rev_ttm * 100, 2),
             "capexMinusDaTTM":  round(capex_ttm - da_ttm),
+            "capexToOcfTTM":    round(capex_ttm / ocf_ttm * 100, 2) if ocf_ttm > 0 else None,
         })
 
     # ── Dette : ajout best-effort, ne fait pas échouer l'entreprise si
@@ -331,9 +383,31 @@ def _build_company(name, cik):
     oi_ttm = _rolling_ttm(common_ends, op_income_q) if op_income_q else {}
     da_ttm_by_end = _rolling_ttm(common_ends, per_metric["depreciation_amortization"])
 
+    # Flux de dette calés sur le calendrier trimestriel du chiffre d'affaires
+    # (complet pour toutes les sociétés), PAS sur common_ends : ce dernier
+    # perd tout trimestre où une métrique core manque (ex. D&A Microsoft
+    # avant FY2025), ce qui tronquerait l'historique d'émissions alors que
+    # les émissions elles-mêmes sont bien rapportées chaque trimestre.
+    debt_calendar = sorted(per_metric["revenue"])
+
     debt_issuance_recs = _fetch_metric(cik, "debt_issuance")
     debt_issuance_q = _quarterize(debt_issuance_recs) if debt_issuance_recs else {}
-    debt_issuance_ttm = _rolling_ttm_lenient(common_ends, debt_issuance_q) if debt_issuance_recs else {}
+    debt_issuance_ttm = _rolling_ttm_lenient(debt_calendar, debt_issuance_q) if debt_issuance_recs else {}
+
+    debt_repayment_recs = _fetch_metric(cik, "debt_repayment")
+    debt_repayment_q = _quarterize(debt_repayment_recs) if debt_repayment_recs else {}
+    # Pas de fait de remboursement = aucun remboursement (ex. Meta, dont les
+    # premières obligations n'arrivent à échéance qu'en 2027) : 0, pas None.
+    debt_repayment_ttm = _rolling_ttm_lenient(debt_calendar, debt_repayment_q)
+
+    # Série d'émissions autonome (plus longue que `quarters`), utilisée par
+    # hyperscaler_funding.py pour les ratios émissions / marché.
+    debt_flows = [{
+        "periodEnd":          end,
+        "debtIssuanceTTM":    round(debt_issuance_ttm[end]),
+        "debtRepaymentTTM":   round(debt_repayment_ttm.get(end, 0)),
+        "netDebtIssuanceTTM": round(debt_issuance_ttm[end] - debt_repayment_ttm.get(end, 0)),
+    } for end in sorted(debt_issuance_ttm)]
 
     ltd_recs = _fetch_metric(cik, "long_term_debt")
     ltd_by_end = _instant_series(ltd_recs) if ltd_recs else {}
@@ -364,8 +438,14 @@ def _build_company(name, cik):
             q["netDebtToEbitdaTTM"] = None
 
         q["debtIssuanceTTM"] = round(debt_issuance_ttm[end]) if end in debt_issuance_ttm else None
+        q["debtRepaymentTTM"] = round(debt_repayment_ttm[end]) if end in debt_repayment_ttm else None
+        # Émission NETTE (nouvelle offre obligataire que le marché doit
+        # absorber) — c'est elle qu'on compare aux émissions nettes du marché
+        # corporate (Fed Z.1) et du Treasury, cf hyperscaler_funding.py.
+        q["netDebtIssuanceTTM"] = (round(debt_issuance_ttm[end] - debt_repayment_ttm.get(end, 0))
+                                   if end in debt_issuance_ttm else None)
 
-    return {"name": name, "profile": CAPEX_PROFILE.get(name), "quarters": quarters}
+    return {"name": name, "profile": CAPEX_PROFILE.get(name), "quarters": quarters, "debtFlows": debt_flows}
 
 
 def fetch_hyperscaler_capex(companies=COMPANIES):

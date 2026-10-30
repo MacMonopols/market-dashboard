@@ -369,6 +369,22 @@
   </div>
 </div>
 
+<!-- ── US Share of World Market Cap, history (rendered by JS from live_data.js) ── -->
+<div class="mktcap-card" id="us-share-card" style="display:none">
+  <div class="mktcap-title">US &amp; Japan Share of World Market Capitalisation</div>
+  <div class="mktcap-date" id="us-share-date"></div>
+  <div class="mktcap-body" style="align-items:flex-start;">
+    <div>
+      <div class="mktcap-pct" id="us-share-pct"></div>
+      <div class="mktcap-name">US share of world market cap</div>
+    </div>
+  </div>
+  <div class="spy-history-wrap">
+    <svg id="us-share-history-svg" width="900" height="200" viewBox="0 0 900 200"></svg>
+    <div class="spy-history-legend" id="us-share-history-legend"></div>
+  </div>
+</div>
+
 <!-- ── World Value vs World Cap-Weighted (rendered by JS from live_data.js) ── -->
 <div class="mktcap-card" id="world-value-card" style="display:none">
   <div class="mktcap-title">World Value vs World Cap-Weighted</div>
@@ -926,6 +942,80 @@
         from today's ~500 constituents' known weights and their own price history. ${spy.historyNote || ''}
       </span>`;
   }
+
+  // ── US share of world market cap, history ───────────────────────────────
+  // Same three-region definition as the donut above (US = Russell 3000,
+  // Intl Developed, EM), reconstructed backward from the Q2-2026 baseline
+  // via proxy-ETF price returns — see calc_us_share_history() in
+  // fetch_data.py. An approximation; the methodology note is shown below
+  // the chart.
+  function renderUsShareHistory(data) {
+    if (!data || !data.history || data.history.length < 2) return;
+
+    document.getElementById('us-share-card').style.display = '';
+    const dev = data.historyDeveloped || [];
+    const jp  = data.japan || {};
+    const jpHist = (jp.history || []).map(r => ({ date: r.date, us_pct: r.pct }));
+    const jpDev  = (jp.historyDeveloped || []).map(r => ({ date: r.date, us_pct: r.pct }));
+    document.getElementById('us-share-date').textContent =
+      `As of ${data.asOf} · Source: Yahoo Finance (SPY, EFA, EEM, S&P 500, MSCI World, Nikkei 225), FRED (USD/JPY), scaled from the Dimensional Q2 2026 baseline`;
+
+    const history = data.history;
+    const latest  = history[history.length - 1].us_pct;
+    document.getElementById('us-share-pct').textContent = latest.toFixed(1) + '%';
+
+    const svg      = document.getElementById('us-share-history-svg');
+    const legendEl = document.getElementById('us-share-history-legend');
+
+    // Time-based x axis: the two series start 31 years apart
+    const t = d => Date.parse(d);
+    const all = history.concat(dev, jpHist, jpDev);
+    const t0 = Math.min(...all.map(r => t(r.date)));
+    const t1 = Math.max(...all.map(r => t(r.date)));
+
+    const W = 900, H = 200, padL = 42, padR = 16, padT = 12, padB = 26;
+    const values = all.map(r => r.us_pct);
+    const minW = Math.floor(Math.min(...values) / 10) * 10;  // Japan pushes this to ~0
+    const maxW = Math.ceil(Math.max(...values) / 10) * 10;
+    const x = d => padL + (W - padL - padR) * ((t(d) - t0) / ((t1 - t0) || 1));
+    const y = v => H - padB - (H - padT - padB) * ((v - minW) / ((maxW - minW) || 1));
+    const path = rows => rows.map((r, i) => (i === 0 ? 'M' : 'L') + x(r.date).toFixed(1) + ',' + y(r.us_pct).toFixed(1)).join(' ');
+
+    const color = '#003a5c', colorDev = '#b8922a', colorJp = '#c0392b';
+    const txt = 'font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="#6b7a8d"';
+    let svgHtml = '';
+    svgHtml += `<line x1="${padL}" y1="${H - padB}" x2="${W - padR}" y2="${H - padB}" stroke="#dde3ea"/>`;
+    svgHtml += `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H - padB}" stroke="#dde3ea"/>`;
+    for (let g = minW + 10; g < maxW; g += 10) {
+      svgHtml += `<line x1="${padL}" y1="${y(g).toFixed(1)}" x2="${W - padR}" y2="${y(g).toFixed(1)}" stroke="#b0bac6" stroke-dasharray="3,3" opacity="0.5"/>`;
+      svgHtml += `<text x="${padL - 6}" y="${y(g).toFixed(1)}" text-anchor="end" dominant-baseline="middle" ${txt}>${g}%</text>`;
+    }
+    // Decade ticks
+    for (let yr = Math.ceil(new Date(t0).getUTCFullYear() / 10) * 10; yr <= new Date(t1).getUTCFullYear(); yr += 10) {
+      const xx = x(yr + '-01-01').toFixed(1);
+      svgHtml += `<line x1="${xx}" y1="${H - padB}" x2="${xx}" y2="${H - padB + 3}" stroke="#b0bac6"/>`;
+      svgHtml += `<text x="${xx}" y="${H - 8}" text-anchor="middle" ${txt}>${yr}</text>`;
+    }
+    if (dev.length > 1) svgHtml += `<path d="${path(dev)}" fill="none" stroke="${colorDev}" stroke-width="1.6" stroke-dasharray="4,2"/>`;
+    if (jpDev.length > 1) svgHtml += `<path d="${path(jpDev)}" fill="none" stroke="${colorJp}" stroke-width="1.6" stroke-dasharray="4,2"/>`;
+    svgHtml += `<path d="${path(history)}" fill="none" stroke="${color}" stroke-width="2"/>`;
+    if (jpHist.length > 1) svgHtml += `<path d="${path(jpHist)}" fill="none" stroke="${colorJp}" stroke-width="2"/>`;
+    svgHtml += `<text x="${padL - 6}" y="${y(maxW).toFixed(1)}" text-anchor="end" dominant-baseline="middle" ${txt}>${maxW}%</text>`;
+    svgHtml += `<text x="${padL - 6}" y="${y(minW).toFixed(1)}" text-anchor="end" dominant-baseline="middle" ${txt}>${minW}%</text>`;
+
+    svg.innerHTML = svgHtml;
+    legendEl.innerHTML = `
+      <span style="display:block;font-size:10.5px;color:var(--text-muted);line-height:1.5;max-width:820px;">
+        <strong style="color:${color}">US</strong> and <strong style="color:${colorJp}">Japan</strong>:
+        <strong>━ solid</strong> = share of the three-region world total, same definition as the donut
+        (from ${history[0].date.slice(0, 4)}); <strong>╌ dashed</strong> = share of developed markets only, no
+        emerging markets (from ${dev.length ? dev[0].date.slice(0, 4) : '—'}).
+        ${jp.baselineT ? `Japan baseline: $${jp.baselineT}T at ${data.baseline || 'Q2 2026'}.` : '<em>Japan unavailable this run.</em>'}
+        <br>${data.note || ''}
+      </span>`;
+  }
+
+  if (LD?.usShareHistory) renderUsShareHistory(LD.usShareHistory);
 
   // ── Factor vs World Cap-Weighted (live ETF prices) ──────────────────────
   // Same "one clearly-labeled line + methodology note" pattern as the SPY

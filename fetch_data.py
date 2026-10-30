@@ -15,6 +15,7 @@ import io
 import requests
 from datetime import datetime, timezone, timedelta
 from hyperscaler_capex import fetch_hyperscaler_capex
+from hyperscaler_funding import calc_hyperscaler_funding
 
 # ── Konfiguration ────────────────────────────────────────────────────────────
 
@@ -565,6 +566,148 @@ def calc_world_mktcap(fx_weekly, cached_series=None):
         "updatedTo":  datetime.now(timezone.utc).strftime("%d.%m.%Y"),
         "totalT":     round(total_updated, 1),
         "regions":    results,
+    }
+
+# Same set as DM_EX_US_COUNTRIES in longterm.html — keep in sync. Used to turn
+# ACWI country weights into Japan's share of "International Developed".
+DM_EX_US_COUNTRIES = {
+    "Japan", "United Kingdom", "Canada", "France", "Switzerland", "Germany",
+    "Australia", "Netherlands", "Spain", "Hong Kong", "Italy", "Sweden",
+    "Denmark", "Singapore", "Belgium", "Finland", "Norway", "Israel",
+    "New Zealand", "Ireland", "Austria", "Portugal",
+}
+
+def japan_pct_of_intl_dev(acwi):
+    """
+    Japan's share (0-1) of International Developed, from ACWI country weights,
+    the same split the World Market Cap drilldown shows. None unless the
+    weights come from the official iShares file (the stockanalysis fallback
+    infers countries per ticker, too rough to anchor a baseline on).
+    """
+    if not acwi or acwi.get("source") != "ishares":
+        return None
+    dm = {c["name"]: c["pct"] for c in acwi["countries"] if c["name"] in DM_EX_US_COUNTRIES}
+    total = sum(dm.values())
+    return dm["Japan"] / total if dm.get("Japan") and total else None
+
+def fetch_usdjpy_month_end():
+    """
+    {YYYY-MM: JPY per USD, last observation of the month} from FRED DEXJPUS
+    (daily, since 1971; Yahoo's JPY=X only starts in 1996). Default requests
+    User-Agent on purpose, see CLAUDE.md (hyperscaler funding FRED quirks).
+    Returns {} on failure.
+    """
+    for _ in range(3):
+        try:
+            r = requests.get("https://fred.stlouisfed.org/graph/fredgraph.csv?id=DEXJPUS", timeout=30)
+            r.raise_for_status()
+            out = {}
+            for row in csv.DictReader(io.StringIO(r.text)):
+                v = row.get("DEXJPUS")
+                if v and v != ".":
+                    out[row["observation_date"][:7]] = float(v)   # rows are chronological: last one wins
+            return out
+        except Exception:
+            continue
+    return {}
+
+US_SHARE_HISTORY_METHODOLOGY_NOTE = (
+    "Both lines are approximations, not official index series. Each region's market cap at a past "
+    "month is its Q2-2026 Dimensional baseline (Russell 3000 / MSCI World ex USA IMI / MSCI EM IMI, "
+    "as in the donut above) scaled backward by a price index, without dividends (paid-out cash "
+    "leaves market cap). Solid line: all three regions, via SPY / EFA / EEM, from 2003 (EEM "
+    "inception); EFA excludes Canada and is large/mid cap only. Dashed line: US vs developed "
+    "markets only (no emerging markets), S&P 500 vs MSCI World price index (USD) with Intl Developed "
+    "as the residual, from 1972 (the oldest MSCI World history on Yahoo Finance). Emerging markets "
+    "cannot be included before 2003 with free data, so the dashed line sits above the solid one by "
+    "roughly the EM share. Share counts are assumed constant: net issuance outside the US and "
+    "buybacks inside it are ignored, which very likely understates the US share in the early "
+    "decades — treat pre-1990 values as indicative only. "
+    "Japan: Nikkei 225 (price-weighted, 225 stocks, not cap-weighted like TOPIX, which Yahoo does "
+    "not carry) converted to USD with the FRED yen rate and anchored on Japan's share of "
+    "International Developed in today's MSCI ACWI weights; it tracks Japan's true cap only roughly."
+)
+
+def calc_us_share_history(japan_intl_dev_share=None):
+    """
+    Evolution of the US share of world market cap, using the SAME three-region
+    definition and proxies as calc_world_mktcap() so the last point matches
+    the donut: each region's baseline dollar cap is scaled backward (and
+    forward) by its ETF's price return relative to the baseline month.
+    Monthly, from the first month all three ETFs have data (EEM, 2003-04),
+    up to the last completed month (same cutoff as calc_world_mktcap()).
+    Prices are unadjusted closes: total-return series would count dividends
+    as market-cap growth. Returns {"asOf", "history": [{"date", "us_pct"}],
+    "note"}; empty history if any ETF fails.
+    """
+    regions = WORLD_MKTCAP_BASELINE["regions"]
+    base_month = MKTCAP_BASELINE_DATE.strftime("%Y-%m")
+    now = datetime.now(timezone.utc)
+    last_complete = (datetime(now.year, now.month, 1, tzinfo=timezone.utc) - timedelta(days=1)).strftime("%Y-%m")
+
+    by_month = {}
+    for r in regions:
+        series = fetch_monthly_max(r["etf"], auto_adjust=False)
+        if not series:
+            return {"asOf": None, "history": [], "note": US_SHARE_HISTORY_METHODOLOGY_NOTE}
+        by_month[r["etf"]] = {
+            datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m"): px for ts, px in series
+        }
+        if base_month not in by_month[r["etf"]]:
+            return {"asOf": None, "history": [], "note": US_SHARE_HISTORY_METHODOLOGY_NOTE}
+
+    months = sorted(set.intersection(*(set(m) for m in by_month.values())))
+    points = []
+    for m in months:
+        if m > last_complete:
+            continue
+        caps = [r["trillions"] * by_month[r["etf"]][m] / by_month[r["etf"]][base_month] for r in regions]
+        points.append({"date": m + "-01", "us_pct": round(caps[0] / sum(caps) * 100, 1)})
+
+    # Developed-only line, back to the start of the MSCI World price index on
+    # Yahoo (1972). Baseline: US + Intl Developed = Russell 3000 + MSCI World
+    # ex USA IMI. World cap = baseline x index ratio; Intl Developed = World - US.
+    developed = []
+    us_base  = regions[0]["trillions"]
+    dev_base = regions[0]["trillions"] + regions[1]["trillions"]
+    us_ix    = fetch_month_end_closes("^GSPC")
+    world_ix = fetch_month_end_closes("^990100-USD-STRD")
+    if base_month in us_ix and base_month in world_ix:
+        for m in sorted(set(us_ix) & set(world_ix)):
+            if m > last_complete:
+                continue
+            us_cap    = us_base  * us_ix[m]    / us_ix[base_month]
+            world_cap = dev_base * world_ix[m] / world_ix[base_month]
+            developed.append({"date": m + "-01", "us_pct": round(us_cap / world_cap * 100, 1)})
+
+    # Japan: Nikkei 225 in USD (via FRED yen rate), baseline = Japan's share of
+    # the Intl Developed baseline. Two denominators like the US lines: the
+    # three-region total (2003+) and developed markets only (1972+).
+    japan = {"baselineT": None, "history": [], "historyDeveloped": []}
+    if japan_intl_dev_share:
+        jp_base = regions[1]["trillions"] * japan_intl_dev_share
+        japan["baselineT"] = round(jp_base, 1)
+        nk, fx = fetch_month_end_closes("^N225"), fetch_usdjpy_month_end()
+        if base_month in nk and base_month in fx:
+            jp_cap = lambda m: jp_base * (nk[m] / nk[base_month]) * (fx[base_month] / fx[m])
+            world_by_month = {}
+            for m in months:
+                if m <= last_complete:
+                    world_by_month[m] = sum(r["trillions"] * by_month[r["etf"]][m] / by_month[r["etf"]][base_month] for r in regions)
+            for m, tot in world_by_month.items():
+                if m in nk and m in fx:
+                    japan["history"].append({"date": m + "-01", "pct": round(jp_cap(m) / tot * 100, 1)})
+            for m in sorted(set(us_ix) & set(world_ix) & set(nk) & set(fx)):
+                if m <= last_complete:
+                    world_cap = dev_base * world_ix[m] / world_ix[base_month]
+                    japan["historyDeveloped"].append({"date": m + "-01", "pct": round(jp_cap(m) / world_cap * 100, 1)})
+
+    return {
+        "asOf": points[-1]["date"] if points else None,
+        "history": points,
+        "historyDeveloped": developed,
+        "japan": japan,
+        "note": US_SHARE_HISTORY_METHODOLOGY_NOTE,
     }
 
 def calc_mag7(world_total_t):
@@ -1228,11 +1371,11 @@ def calc_mag7_cap_weighted(member_series, fx_data):
         "weights": {ticker: round(w * 100, 1) for ticker, w, _ in weighted},
     }
 
-def fetch_monthly_max(ticker):
+def fetch_monthly_max(ticker, auto_adjust=True):
     """Download full available monthly history for long-term return calculations."""
     try:
         df = yf.download(ticker, period="max", interval="1mo",
-                         progress=False, auto_adjust=True)
+                         progress=False, auto_adjust=auto_adjust)
         if df.empty:
             return None
         if hasattr(df.columns, "levels"):
@@ -1242,6 +1385,25 @@ def fetch_monthly_max(ticker):
         return series if len(series) >= 12 else None
     except Exception:
         return None
+
+def fetch_month_end_closes(ticker):
+    """
+    {YYYY-MM: last daily close of the month}, unadjusted, full history.
+    Used where the monthly (interval="1mo") feed is shorter than the daily
+    one: Yahoo's monthly ^GSPC starts in 1985, its daily series in 1927.
+    Returns {} on failure.
+    """
+    try:
+        df = yf.download(ticker, period="max", interval="1d",
+                         progress=False, auto_adjust=False)
+        if df.empty:
+            return {}
+        if hasattr(df.columns, "levels"):
+            df.columns = df.columns.get_level_values(0)
+        closes = df["Close"].dropna()
+        return {m: float(v) for m, v in closes.groupby(closes.index.strftime("%Y-%m")).last().items()}
+    except Exception:
+        return {}
 
 def build_chf_monthly(etf_series, fx_monthly):
     """Zip ETF monthly closes with FX, return list of (ts, chf_price)."""
@@ -1648,6 +1810,19 @@ def main():
         print(f"  ⚠ Hyperscaler Capex fetch failed: {e}")
         hyperscaler_capex = {"companies": []}
 
+    # 5c-bis) Hyperscalers vs Treasury / corporate bond market (FRED + Treasury Fiscal Data)
+    print("  Hyperscaler funding ratios (Fed Z.1, Treasury, ICE BofA OAS)")
+    try:
+        hyperscaler_funding = calc_hyperscaler_funding(hyperscaler_capex)
+        last = hyperscaler_funding["quarters"][-1]
+        print(f"  → {len(hyperscaler_funding['quarters'])} quarters, latest {last['quarterEnd']}: "
+              f"{last['pctOfCorpNetIssuance']}% of US corp net issuance, "
+              f"{last['pctOfTreasuryNetBorrowing']}% of Treasury net borrowing"
+              + ("  (⚠ stale cached market data)" if hyperscaler_funding["stale"] else ""))
+    except Exception as e:
+        print(f"  ⚠ Hyperscaler funding ratios failed: {e}")
+        hyperscaler_funding = None
+
     # 5d) MSCI ACWI Country Weights (live ETF holdings, see fetch_etf_holdings)
     next_step5 = next_step4 + 1
     print(f"\n[{next_step5}] MSCI ACWI Country Weights (live ETF holdings)")
@@ -1657,6 +1832,17 @@ def main():
     except Exception as e:
         print(f"  ⚠ ACWI country weights failed: {e}")
         acwi_country_weights = {"asOf": None, "source": None, "countries": [], "note": ACWI_METHODOLOGY_NOTE}
+
+    # 5d2) US / Japan share of world market cap — history (needs the ACWI country
+    #      weights above to anchor Japan's baseline market cap)
+    print("\nUS / Japan share of world market cap — history ...", end=" ", flush=True)
+    us_share = calc_us_share_history(japan_pct_of_intl_dev(acwi_country_weights))
+    if us_share["history"]:
+        jp = us_share.get("japan")
+        print(f"OK {len(us_share['history'])} months, US {us_share['history'][-1]['us_pct']}%"
+              + (f", Japan {jp['history'][-1]['pct']}%" if jp and jp["history"] else ", Japan ⚠ unavailable"))
+    else:
+        print("⚠ unavailable")
 
     # 5e) S&P 500 Top 10 (live ETF holdings, see fetch_etf_holdings)
     next_step6 = next_step5 + 1
@@ -1726,8 +1912,10 @@ def main():
         "subMarkets":      sub_results,
         "longTermMarkets": lt_results,
         "worldMktCap":     world_mktcap,
+        "usShareHistory":  us_share,
         "mag7":            mag7,
         "hyperscalerCapex": hyperscaler_capex,
+        "hyperscalerFunding": hyperscaler_funding,
         "acwiCountryWeights": acwi_country_weights,
         "spyTop10":        spy_top10,
         "worldValue":      world_value,

@@ -113,6 +113,10 @@
     .chart-svg .bar-label { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 10.5px; font-weight: 700; fill: var(--text); }
     .chart-svg .bar-name  { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 10.5px; fill: var(--text-muted); }
 
+    .chart-svg .ref-line { stroke: var(--oblique-red); stroke-width: 1; stroke-dasharray: 4,3; }
+    .chart-svg .ref-label { font-family: "Helvetica Neue", Arial, sans-serif; fill: var(--oblique-red); font-size: 9.5px; }
+    .method-note { font-size: 10.5px; color: var(--text-muted); line-height: 1.55; margin-top: 10px; }
+
     .chart-legend {
       display: flex;
       gap: 20px;
@@ -187,6 +191,40 @@
   <div class="card-subtitle" id="issuance-sub">Long-term debt proceeds, trailing twelve months — acceleration signals a shift from self-funding to borrowing</div>
   <svg id="issuance-svg" class="chart-svg" viewBox="0 0 900 280"></svg>
   <div class="chart-legend" id="issuance-legend" style="justify-content:center"></div>
+</div>
+
+<div style="max-width:960px;margin:24px auto 12px;font-size:12.5px;color:var(--text-muted);line-height:1.6;">
+  <strong>Competing for the same dollar.</strong> Hyperscaler bonds now draw on the same pool of fixed-income savings as US Treasuries.
+  The four ratios below track how big that new supply is relative to the corporate market and to Treasury borrowing, what spread investors demand for it, and how far capex has outgrown internally generated cash.
+</div>
+
+<div class="card">
+  <div class="card-title">Hyperscaler Net Issuance / US Corporate Bond Net Issuance — TTM %</div>
+  <div class="card-subtitle" id="share-corp-sub">Weight in the market: share of all net new US nonfinancial corporate bond supply</div>
+  <svg id="share-corp-svg" class="chart-svg" viewBox="0 0 900 240"></svg>
+  <div class="method-note" id="share-corp-note"></div>
+</div>
+
+<div class="card">
+  <div class="card-title">Hyperscaler Net Issuance / Treasury Net New Borrowing — TTM %</div>
+  <div class="card-subtitle" id="share-ust-sub">Competition for funding: hyperscaler bond supply relative to the Treasury's net new money</div>
+  <svg id="share-ust-svg" class="chart-svg" viewBox="0 0 900 240"></svg>
+  <div class="method-note" id="share-ust-note"></div>
+</div>
+
+<div class="card">
+  <div class="card-title">Spread vs Treasuries by Rating — OAS, bp</div>
+  <div class="card-subtitle" id="spread-sub">Relative attractiveness: extra yield over Treasuries, by the rating bucket each hyperscaler sits in</div>
+  <svg id="spread-svg" class="chart-svg" viewBox="0 0 900 260"></svg>
+  <div class="chart-legend" id="spread-legend"></div>
+  <div class="method-note" id="spread-note"></div>
+</div>
+
+<div class="card">
+  <div class="card-title">Capex / Operating Cash Flow — TTM %</div>
+  <div class="card-subtitle" id="capex-ocf-sub">Above 100%, capex exceeds the cash the business generates — the gap has to be borrowed (or drawn from cash)</div>
+  <svg id="capex-ocf-svg" class="chart-svg" viewBox="0 0 900 280"></svg>
+  <div class="chart-legend" id="capex-ocf-legend"></div>
 </div>
 
 <div class="footer" id="footer">
@@ -273,7 +311,7 @@
     const padL = 40, padR = 14, padT = 14, padB = 26;
     const plotW = W - padL - padR, plotH = H - padT - padB;
 
-    const series = companies.map(c => ({
+    const series = opts.series || companies.map(c => ({
       name: c.name,
       profile: c.profile,
       color: opts.colorBy === 'profile'
@@ -285,12 +323,15 @@
           v: opts.transform ? opts.transform(q[metricKey]) : q[metricKey], periodEnd: q.periodEnd })),
     })).filter(s => s.points.length > 0);
 
-    const allPoints = series.flatMap(s => s.points);
+    // Points with v === null are gaps: they break the line but don't count
+    // toward the axis range (only explicit opts.series can contain them).
+    const allPoints = series.flatMap(s => s.points).filter(p => p.v !== null);
     const tMin = Math.min(...allPoints.map(p => p.t));
     const tMax = Math.max(...allPoints.map(p => p.t));
     let vMin = Math.min(...allPoints.map(p => p.v));
     let vMax = Math.max(...allPoints.map(p => p.v));
     if (opts.forceZero) vMin = Math.min(vMin, 0);
+    (opts.refLines || []).forEach(r => { vMin = Math.min(vMin, r.v); vMax = Math.max(vMax, r.v); });
     const vPad = (vMax - vMin) * 0.1 || 1;
     vMin -= vPad; vMax += vPad;
 
@@ -312,6 +353,10 @@
     if (opts.forceZero && vMin < 0 && vMax > 0) {
       svgHtml += `<line class="zero-line" x1="${padL}" y1="${y(0)}" x2="${W-padR}" y2="${y(0)}"></line>`;
     }
+    (opts.refLines || []).forEach(r => {
+      svgHtml += `<line class="ref-line" x1="${padL}" y1="${y(r.v)}" x2="${W-padR}" y2="${y(r.v)}"></line>`;
+      svgHtml += `<text class="ref-label" x="${padL+6}" y="${y(r.v)-4}">${r.label}</text>`;
+    });
 
     // X-axis: label each calendar year the first time it appears, skipping
     // any that would land too close to the previous label (years can be
@@ -332,15 +377,20 @@
 
     // Lines + end dot
     series.forEach(s => {
-      const pathD = s.points.map((p,i) => `${i===0?'M':'L'}${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join(' ');
+      let pathD = '', penDown = false;
+      s.points.forEach(p => {
+        if (p.v === null) { penDown = false; return; }
+        pathD += `${penDown?'L':'M'}${x(p.t).toFixed(1)},${y(p.v).toFixed(1)} `;
+        penDown = true;
+      });
       svgHtml += `<path class="series-line" d="${pathD}" stroke="${s.color}"></path>`;
-      const last = s.points[s.points.length-1];
+      const last = s.points.filter(p => p.v !== null).pop();
       svgHtml += `<circle class="series-dot" cx="${x(last.t).toFixed(1)}" cy="${y(last.v).toFixed(1)}" r="3.5" fill="${s.color}"></circle>`;
     });
 
     // End-value labels, with a collision-avoidance pass so clustered lines stay legible
     const labels = series.map(s => {
-      const last = s.points[s.points.length-1];
+      const last = s.points.filter(p => p.v !== null).pop();
       return { y0: y(last.v), x: x(last.t), color: s.color,
         text: last.v.toFixed(opts.decimals!=null?opts.decimals:1) + (opts.suffix||'') };
     }).sort((a,b) => a.y0 - b.y0);
@@ -355,6 +405,8 @@
     });
 
     svg.innerHTML = svgHtml;
+
+    if (!legendId) return;
 
     // Legend: per-company by default (profile shown as a hover tooltip,
     // since several companies can share one profile), or a shared profile
@@ -428,6 +480,49 @@
   renderLineChart('issuance-svg', 'issuance-legend', 'debtIssuanceTTM',
     { decimals: 1, forceZero: true, suffix: 'bn', transform: v => v / 1e9,
       colorMap: ISSUANCE_COLORS });
+
+  // ── Hyperscalers vs Treasury / corporate bond market ──────
+  // Data: hyperscaler_funding.py (Fed Z.1, Treasury Fiscal Data, ICE BofA
+  // via FRED) + capexToOcfTTM from hyperscaler_capex.py.
+  const HF = LD.hyperscalerFunding;
+  const fmtBn = v => v >= 1e12 ? `$${(v/1e12).toFixed(2)}tn` : `$${(v/1e9).toFixed(0)}bn`;
+  const toT = iso => new Date(iso + "T00:00:00").getTime();
+  if (HF && HF.quarters && HF.quarters.length) {
+    const latest = HF.quarters[HF.quarters.length - 1];
+    const ratioSeries = (key, name, color) => [{ name, color, points:
+      HF.quarters.map(q => ({ t: toT(q.quarterEnd), v: q[key] })) }];
+
+    renderLineChart('share-corp-svg', null, null, { suffix: '%', decimals: 1, forceZero: true,
+      series: ratioSeries('pctOfCorpNetIssuance', 'Share of US corp. net issuance', '#003a5c') });
+    renderLineChart('share-ust-svg', null, null, { suffix: '%', decimals: 1, forceZero: true,
+      series: ratioSeries('pctOfTreasuryNetBorrowing', 'Share of Treasury net borrowing', '#E04822') });
+
+    const ql = fmtQuarter(latest.quarterEnd);
+    document.getElementById('share-corp-sub').textContent +=
+      ` — ${ql} TTM: hyperscalers ${fmtBn(latest.hyperscalerNetIssuanceTTM)} of ${fmtBn(latest.corpNetIssuanceTTM)}`;
+    document.getElementById('share-ust-sub').textContent +=
+      ` — ${ql} TTM: ${fmtBn(latest.hyperscalerNetIssuanceTTM)} vs ${fmtBn(latest.treasuryNetBorrowingTTM)}`;
+    const staleNote = HF.stale ? ` ⚠ Live market data unavailable on the last run — showing cached data from ${HF.asOf}.` : '';
+    document.getElementById('share-corp-note').textContent = HF.note + staleNote;
+    document.getElementById('share-ust-note').textContent = HF.note + staleNote;
+
+    const SPREAD_COLORS = { AAA: "#003a5c", AA: "#2e7d4f", BBB: "#a3161a" };
+    const spreadSeries = HF.spreads.filter(s => s.history.length).map(s => ({
+      name: `${s.rating} — ${s.proxyFor.join(' / ')}`,
+      color: SPREAD_COLORS[s.rating] || '#999',
+      points: s.history.map(h => ({ t: toT(h.date), v: h.bp })),
+    }));
+    renderLineChart('spread-svg', 'spread-legend', null, { suffix: 'bp', decimals: 0, forceZero: true,
+      series: spreadSeries });
+    document.getElementById('spread-note').textContent = HF.spreadNote + staleNote;
+  } else {
+    ['share-corp-note', 'share-ust-note', 'spread-note'].forEach(id =>
+      document.getElementById(id).textContent = '⚠ Funding data unavailable — see fetch_data.py output.');
+  }
+
+  renderLineChart('capex-ocf-svg', 'capex-ocf-legend', 'capexToOcfTTM',
+    { suffix: '%', decimals: 0, colorMap: ISSUANCE_COLORS,
+      refLines: [{ v: 100, label: '100% — capex = operating cash flow' }] });
 
   // ── Footer ────────────────────────────────────────────────
   const spans = companies.map(c => {

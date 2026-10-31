@@ -441,6 +441,10 @@
       <div class="mktcap-name">Expected return, dividend yield + growth</div>
     </div>
     <div>
+      <div class="mktcap-pct" id="er-scen-pct" style="color:#5b7fa3"></div>
+      <div class="mktcap-name" id="er-scen-label">If CAPE falls to 30 / 25 in 10 years</div>
+    </div>
+    <div>
       <div class="mktcap-pct" id="er-fit" style="color:#2a7f62"></div>
       <div class="mktcap-name" id="er-fit-label">R² expected vs realized</div>
     </div>
@@ -1245,7 +1249,7 @@
     { key: 'ALL', label: 'All' },
   ];
 
-  function renderExpectedReturn(data) {
+  function renderExpectedReturn(data, valuation) {
     if (!data || !data.expectedDividend || data.expectedDividend.length < 2) return;
     document.getElementById('expected-return-card').style.display = '';
     const ed = data.expectedDividend, ef = data.expectedFcf || [];
@@ -1256,6 +1260,15 @@
       last(ef).pct.toFixed(1) + '%';
     const es = data.expectedFcfSmooth || [];
     if (es.length) document.getElementById('er-fcfs-pct').textContent = last(es).pct.toFixed(1) + '%';
+    const sc = data.scenarios || {};
+    const scKeys = Object.keys(sc).filter(k => sc[k].length).sort((a, b) => b - a);
+    if (scKeys.length) {
+      document.getElementById('er-scen-pct').textContent = scKeys.map(k => last(sc[k]).pct.toFixed(1) + '%').join(' / ');
+      document.getElementById('er-scen-label').textContent =
+        `If CAPE goes from ${(+last(sc[scKeys[0]]).cape).toFixed(0)} to ${scKeys.join(' / ')} in ${data.scenarioYears || 10} years`;
+    }
+    const ten = (valuation && valuation.tenYear) || [];
+    data._tenNow = ten.length ? ten[ten.length - 1].pct : null;
     document.getElementById('er-div-pct').textContent = last(ed).pct.toFixed(1) + '%';
 
     const st = { h: '10', r: 'ALL' };
@@ -1291,8 +1304,10 @@
     if (all.length < 2) return;
 
     const t0 = Math.max(tCut, Math.min(...all.map(r => t(r.date)))), t1 = tEnd;
-    const W = 900, H = 280, padL = 38, padR = 16, padT = 12, padB = 26;
-    const vals = all.map(r => r.pct).concat([0]);
+    const scen = Object.keys(data.scenarios || {}).filter(k => (data.scenarios[k] || []).length).sort((a, b) => b - a);
+    const W = 900, H = 280, padL = 38, padR = scen.length ? 132 : 16, padT = 12, padB = 26;
+    const scenNow = scen.map(k => ({ k, r: data.scenarios[k][data.scenarios[k].length - 1] }));
+    const vals = all.map(r => r.pct).concat([0], scenNow.map(o => o.r.pct), data._tenNow != null ? [data._tenNow] : []);
     const lo = Math.min(...vals), hi = Math.max(...vals);
     const step = [2, 5, 10, 20].find(s => (hi - lo) / s <= 8) || 20;
     const minV = Math.floor(lo / step) * step, maxV = Math.ceil(hi / step) * step;
@@ -1329,6 +1344,22 @@
     if (ed.length > 1) s += `<path d="${path(ed)}" fill="none" stroke="${cD}" stroke-width="1.6"/>`;
     if (ef.length > 1) s += `<path d="${path(ef)}" fill="none" stroke="${cF}" stroke-width="1.6" opacity="0.55"/>`;
     if (es.length > 1) s += `<path d="${path(es)}" fill="none" stroke="${cF}" stroke-width="2.2" stroke-dasharray="6,3"/>`;
+    // Today's fan at the right edge: expected return at constant CAPE vs
+    // CAPE-reversion scenarios, with the 10Y Treasury for comparison
+    if (scenNow.length && esAll.length) {
+      const xr = W - padR + 8, lS = esAll[esAll.length - 1];
+      const ticks = [{ v: lS.pct, label: `CAPE stays ${(+scenNow[0].r.cape).toFixed(0)}`, c: cF, w: 2.2 }]
+        .concat(scenNow.map((o, i) => ({ v: o.r.pct, label: `CAPE → ${o.k}`, c: i ? '#8fa9c4' : '#5b7fa3', w: 1.6 })));
+      if (data._tenNow != null) ticks.push({ v: data._tenNow, label: 'US 10Y', c: '#7f8c9d', w: 1.2, dash: true });
+      s += `<line x1="${xr}" y1="${y(Math.max(...ticks.map(o => o.v))).toFixed(1)}" x2="${xr}" y2="${y(Math.min(...ticks.map(o => o.v))).toFixed(1)}" stroke="#b0bac6"/>`;
+      let lastY = -1e9;
+      ticks.sort((a, b) => b.v - a.v).forEach(o => {
+        const yy = y(o.v); const ly = Math.max(yy, lastY + 11); lastY = ly;
+        s += `<line x1="${xr - 6}" y1="${yy.toFixed(1)}" x2="${xr + 6}" y2="${yy.toFixed(1)}" stroke="${o.c}" stroke-width="${o.w}" ${o.dash ? 'stroke-dasharray="3,2"' : ''}/>`;
+        s += `<text x="${xr + 10}" y="${(ly + 3).toFixed(1)}" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="${o.c}">${o.v.toFixed(1)}% ${o.label}</text>`;
+      });
+      s += `<text x="${xr - 4}" y="${padT + 8}" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="#6b7a8d">Next ${data.scenarioYears || 10}y from today</text>`;
+    }
     document.getElementById('expected-return-svg').innerHTML = s;
 
     const fd = (data.fitDividend || {})[h] || {}, ff = (data.fitFcf || {})[h] || {}, fs = (data.fitFcfSmooth || {})[h] || {};
@@ -1347,12 +1378,13 @@
         <strong style="color:${cD}">━ E[R] dividend</strong> = dividend yield × (1+g) + g, g = trailing ${data.growthYears}y dividend growth
         (now ${lD.yieldPct}% + ${lD.growthPct}%) ·
         <strong style="color:${cR}">━ Realized</strong> S&amp;P 500 total return over the next ${h} year${h === '1' ? '' : 's'}, annualized.
+        ${scen.length ? `<strong style="color:#5b7fa3">Right-hand scale</strong>: today's smoothed-g expected return if the CAPE stays where it is, or falls to ${scen.join(' / ')} over ${data.scenarioYears || 10} years, vs the 10-year Treasury. ` : ''}
         Average realized − expected over all periods: FCF smoothed ${sg(fs.meanGapPct)}, FCF trailing ${sg(ff.meanGapPct)}, dividend ${sg(fd.meanGapPct)} (≈ multiple expansion).
         <br>${data.note || ''}
       </span>`;
   }
 
-  if (LD?.expectedReturn) renderExpectedReturn(LD.expectedReturn);
+  if (LD?.expectedReturn) renderExpectedReturn(LD.expectedReturn, LD.valuationYields);
 
   // ── Factor vs World Cap-Weighted (live ETF prices) ──────────────────────
   // Same "one clearly-labeled line + methodology note" pattern as the SPY

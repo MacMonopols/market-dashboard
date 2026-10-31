@@ -20,6 +20,13 @@ by `get_valuation_raw()` and shared with `calc_valuation_yields()`.
     GDPDEF inflation before) → `expectedFcfSmooth`, from 1967. Reason: the
     trailing 10y nominal g was 6.4 % in 2026 (2021-23 inflation) and 2.9 % in
     2016 (post-2008 trough); the smoothed g gives ~4.7 % and ~3.9 %.
+  - CAPE-reversion scenarios (added 2026-10-31, `scenarios` / `fitScenarios`,
+    `SCENARIO_CAPES = (30, 25)`): smoothed-g E[R] × (target/CAPE_t)^(1/10).
+    Drawn ONLY as today's fan on a right-hand scale (with the 10Y from
+    `LD.valuationYields`), not as history: with fixed targets the historical
+    lines explode (+35 %/yr in 1982 at CAPE 7) and are biased (mean gap
+    −3.6 / −5.7 pt), although their R² vs realized 10y is higher (0.51 vs
+    0.45) — reversion carries information, a fixed target does not.
 - Realized: S&P 500 nominal total return (Shiller method, (P + D/12)/P_prev,
   multpl price table) over the NEXT 1 / 5 / 10 years, annualized, plotted at
   the start date; the current (partial) month is never used as an end point.

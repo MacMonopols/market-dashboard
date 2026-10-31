@@ -257,6 +257,12 @@ GROWTH_YEARS = 10
 DEFLATOR_SERIES = "GDPDEF"
 EXPINF_SERIES = "EXPINF10YR"
 REAL_GROWTH_YEARS = 20
+# Multiple-reversion scenarios (GMO / Research Affiliates style): the
+# smoothed-g E[R] plus the annualized effect of the Shiller CAPE moving from
+# its level at t to a target over the next 10 years:
+#   E[R]_scen = (1 + E[R]) · (target / CAPE_t)^(1/10) − 1
+SCENARIO_CAPES = (30, 25)
+SCENARIO_YEARS = 10
 HORIZONS = (1, 5, 10)
 
 EXPECTED_RETURN_METHODOLOGY_NOTE = (
@@ -267,6 +273,9 @@ EXPECTED_RETURN_METHODOLOGY_NOTE = (
     "Dashed FCF line: same yield with a smoothed g = trailing 20-year real growth of corporate value "
     "added + expected inflation (Cleveland Fed 10-year, from 1982; trailing 10-year GDP-deflator "
     "inflation before), which strips out inflation bursts and slumps from the trailing nominal g. "
+    "Dotted lines: the same smoothed-g expected return if the Shiller CAPE moved from its level at "
+    "each date to 30 or 25 over the following 10 years (multiple-reversion scenarios); not a forecast "
+    "of the CAPE, a way to show what a given change in valuation does to the 10-year return. "
     "Realized = S&P 500 nominal total return over the NEXT 1, 5 or 10 years (dividends reinvested), "
     "annualized and plotted at the start date, so the line stops h years before today. The gap "
     "between realized and expected is mostly the change in valuation multiples, which Gordon "
@@ -295,7 +304,7 @@ def _r2(pairs):
     return round(sxy * sxy / (sxx * syy), 3) if sxx and syy else None
 
 
-def compute_expected_return(price, div_yield, gva, fcf_yield, deflator=None, expinf=None):
+def compute_expected_return(price, div_yield, gva, fcf_yield, deflator=None, expinf=None, cape=None):
     """price / div_yield: {YYYY-MM: float} (yield in %), gva: {FRED date: $bn},
     fcf_yield: [{date: YYYY-MM (quarter end), pct}] → dict of series."""
     months = sorted(set(price) & set(div_yield))
@@ -361,6 +370,19 @@ def compute_expected_return(price, div_yield, gva, fcf_yield, deflator=None, exp
                                   "realGrowthPct": round(100 * real_g, 2), "inflPct": round(100 * infl, 2),
                                   "inflSource": src})
 
+    scenarios = {}
+    if cape:
+        for target in SCENARIO_CAPES:
+            rows = []
+            for r in er_fcf_smooth:
+                c = cape.get(r["date"])
+                if not c:
+                    continue
+                m = (target / c) ** (1 / SCENARIO_YEARS)
+                rows.append({"date": r["date"], "pct": round(100 * ((1 + r["pct"] / 100) * m - 1), 2),
+                             "capePct": round(100 * (m - 1), 2), "cape": c})
+            scenarios[str(target)] = rows
+
     def fit(expected):
         out = {}
         for h, rows in realized.items():
@@ -379,6 +401,9 @@ def compute_expected_return(price, div_yield, gva, fcf_yield, deflator=None, exp
         "fitDividend": fit(er_div),
         "fitFcf": fit(er_fcf),
         "fitFcfSmooth": fit(er_fcf_smooth),
+        "scenarios": scenarios,
+        "fitScenarios": {k: fit(v) for k, v in scenarios.items()},
+        "scenarioYears": SCENARIO_YEARS,
         "realGrowthYears": REAL_GROWTH_YEARS,
         "growthYears": GROWTH_YEARS,
     }
@@ -393,7 +418,8 @@ def calc_expected_return(raw=None, stale=False, fcf_yield=None):
         fcf_yield = calc_valuation_yields(raw, stale)["fcfYield"]
     res = compute_expected_return(raw["spPrice"], raw["spDivYield"],
                                   raw["fred"][GVA_SERIES], fcf_yield,
-                                  raw["fred"].get(DEFLATOR_SERIES), raw["fred"].get(EXPINF_SERIES))
+                                  raw["fred"].get(DEFLATOR_SERIES), raw["fred"].get(EXPINF_SERIES),
+                                  raw.get("cape"))
     res.update({"asOf": raw["fetchedAt"], "stale": stale, "note": EXPECTED_RETURN_METHODOLOGY_NOTE})
     return res
 

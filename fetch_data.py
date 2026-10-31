@@ -17,6 +17,7 @@ from datetime import datetime, timezone, timedelta
 from hyperscaler_capex import fetch_hyperscaler_capex
 from hyperscaler_funding import calc_hyperscaler_funding
 from valuation_yields import get_valuation_raw, calc_valuation_yields, calc_expected_return
+from regional_expected_return import calc_regional_expected_return
 
 # ── Konfiguration ────────────────────────────────────────────────────────────
 
@@ -1962,6 +1963,24 @@ def main():
         print(f"⚠ failed: {e}")
         expected_return = None
 
+    # 5k) Regional expected-return snapshot (dividend yield + growth + inflation, CAPE reversion)
+    print("Regional expected return (snapshot) ...", end=" ", flush=True)
+    try:
+        us_infl = us_10y = None
+        if valuation_raw and valuation_raw.get("fred", {}).get("EXPINF10YR"):
+            ei = valuation_raw["fred"]["EXPINF10YR"]
+            d = max(ei)
+            us_infl = (d, ei[d])
+        if valuation_yields and valuation_yields.get("tenYear"):
+            t = valuation_yields["tenYear"][-1]
+            us_10y = (t["date"], t["pct"])
+        regional_er = calc_regional_expected_return(us_infl, us_10y)
+        print("OK " + ", ".join(f"{r['key']} {r['erConstantPct']:.1f}% (DY {r['divYieldPct']}%, {r['divYieldSource']})"
+                                 for r in regional_er["regions"]))
+    except Exception as e:
+        print(f"⚠ failed: {e}")
+        regional_er = None
+
     # 6) Output
     fetched_at = datetime.now().strftime("%d.%m.%Y %H:%M")
     out = {
@@ -1974,6 +1993,7 @@ def main():
         "usShareHistory":  us_share,
         "valuationYields": valuation_yields,
         "expectedReturn":  expected_return,
+        "regionalExpectedReturn": regional_er,
         "mag7":            mag7,
         "hyperscalerCapex": hyperscaler_capex,
         "hyperscalerFunding": hyperscaler_funding,

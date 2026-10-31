@@ -465,6 +465,19 @@
   </div>
 </div>
 
+<!-- ── Regional expected return snapshot (rendered by JS from live_data.js) ── -->
+<div class="mktcap-card" id="regional-er-card" style="display:none">
+  <div class="mktcap-title">Expected Equity Return by Region — Where We Start From Today</div>
+  <div class="mktcap-date" id="regional-er-date"></div>
+  <div class="spy-history-wrap" style="border-top:none;margin-top:4px;padding-top:0;">
+    <div style="overflow-x:auto;">
+      <table id="regional-er-table" style="width:100%;border-collapse:collapse;font-size:12px;"></table>
+    </div>
+    <svg id="regional-er-svg" width="900" height="190" viewBox="0 0 900 190" style="margin-top:10px;"></svg>
+    <div class="spy-history-legend" id="regional-er-legend"></div>
+  </div>
+</div>
+
 <!-- ── World Value vs World Cap-Weighted (rendered by JS from live_data.js) ── -->
 <div class="mktcap-card" id="world-value-card" style="display:none">
   <div class="mktcap-title">World Value vs World Cap-Weighted</div>
@@ -1410,6 +1423,80 @@
   }
 
   if (LD?.expectedReturn) renderExpectedReturn(LD.expectedReturn, LD.valuationYields);
+
+  // ── Regional expected-return snapshot (regional_expected_return.py) ─────
+  // Table: dividend yield + real growth + expected inflation = E[R] at
+  // constant valuation; CAPE vs its reference → E[R] with reversion; local
+  // 10Y for the equity premium. Bars: E[R] constant (solid) and with
+  // reversion (light) per region, tick = local 10Y. JST 1960-2020 real
+  // returns below as a historical reference.
+  function renderRegionalER(data) {
+    if (!data || !data.regions || !data.regions.length) return;
+    document.getElementById('regional-er-card').style.display = '';
+    const R = data.regions;
+    document.getElementById('regional-er-date').textContent =
+      `As of ${data.asOf}${data.stale && data.stale.length ? ' (some inputs cached)' : ''} · nominal, in each region's currency · CAPE snapshot ${data.capeSnapshot.asOf} (hand-entered)`;
+    const f = (v, d = 1) => v == null ? '—' : v.toFixed(d) + '%';
+    const sg = v => v == null ? '—' : (v > 0 ? '+' : '') + v.toFixed(1) + ' pt';
+    const th = 'style="text-align:right;padding:5px 8px;border-bottom:1px solid var(--border);color:var(--text-muted);font-weight:600;font-size:11px;"';
+    const thl = th.replace('right', 'left');
+    const td = 'style="text-align:right;padding:5px 8px;border-bottom:1px solid var(--border);"';
+    const tdl = td.replace('right', 'left');
+    let h = `<tr><th ${thl}>Region</th><th ${th}>Dividend yield</th><th ${th}>+ Real growth</th><th ${th}>+ Exp. inflation</th>
+      <th ${th}>= E[R] constant valuation</th><th ${th}>CAPE / ref.</th><th ${th}>Valuation effect</th><th ${th}>E[R] with reversion</th>
+      <th ${th}>Local 10Y</th><th ${th}>Premium (const.)</th></tr>`;
+    R.forEach(r => {
+      h += `<tr><td ${tdl}><strong>${r.label}</strong><br><span style="font-size:10px;color:var(--text-muted)">${r.divYieldSource}</span></td>
+        <td ${td}>${f(r.divYieldPct, 2)}</td><td ${td}>${f(r.realGrowthPct)}</td><td ${td}>${f(r.inflationPct)}</td>
+        <td ${td}><strong>${f(r.erConstantPct)}</strong></td>
+        <td ${td}>${r.cape ?? '—'} / ${r.capeRef ?? '—'}<br><span style="font-size:10px;color:var(--text-muted)">${r.capeRefLabel || ''}</span></td>
+        <td ${td}>${sg(r.valuationAdjPct)}</td><td ${td}><strong>${f(r.erReversionPct)}</strong></td>
+        <td ${td}>${r.bondPct == null ? '—' : r.bondPct.toFixed(2) + '%'}<br><span style="font-size:10px;color:var(--text-muted)">${r.bondLabel}</span></td>
+        <td ${td}>${r.bondPct == null ? '—' : sg(r.erConstantPct - r.bondPct)}</td></tr>`;
+    });
+    document.getElementById('regional-er-table').innerHTML = h;
+
+    // Bars
+    const W = 900, H = 190, padL = 150, padR = 60, padT = 10, padB = 22;
+    const vals = R.flatMap(r => [r.erConstantPct, r.erReversionPct, r.bondPct]).filter(v => v != null).concat([0]);
+    const maxV = Math.ceil(Math.max(...vals) / 2) * 2, minV = Math.min(0, Math.floor(Math.min(...vals)));
+    const x = v => padL + (W - padL - padR) * ((v - minV) / ((maxV - minV) || 1));
+    const rowH = (H - padT - padB) / R.length;
+    const txt = 'font-family="Helvetica Neue,Arial,sans-serif" font-size="10" fill="#6b7a8d"';
+    let s = '';
+    for (let g = minV; g <= maxV; g += 2) {
+      s += `<line x1="${x(g).toFixed(1)}" y1="${padT}" x2="${x(g).toFixed(1)}" y2="${H - padB}" stroke="#b0bac6" stroke-dasharray="3,3" opacity="0.5"/>`;
+      s += `<text x="${x(g).toFixed(1)}" y="${H - 6}" text-anchor="middle" ${txt}>${g}%</text>`;
+    }
+    R.forEach((r, i) => {
+      const y0 = padT + i * rowH;
+      s += `<text x="${padL - 8}" y="${(y0 + rowH / 2 + 3).toFixed(1)}" text-anchor="end" font-family="Helvetica Neue,Arial,sans-serif" font-size="11" fill="#1f2d3d">${r.label}</text>`;
+      s += `<rect x="${x(Math.min(0, r.erConstantPct)).toFixed(1)}" y="${(y0 + rowH * 0.18).toFixed(1)}" width="${Math.abs(x(r.erConstantPct) - x(0)).toFixed(1)}" height="${(rowH * 0.32).toFixed(1)}" fill="#003a5c"/>`;
+      s += `<text x="${(x(r.erConstantPct) + 4).toFixed(1)}" y="${(y0 + rowH * 0.18 + rowH * 0.27).toFixed(1)}" ${txt}>${r.erConstantPct.toFixed(1)}%</text>`;
+      if (r.erReversionPct != null) {
+        s += `<rect x="${x(Math.min(0, r.erReversionPct)).toFixed(1)}" y="${(y0 + rowH * 0.52).toFixed(1)}" width="${Math.abs(x(r.erReversionPct) - x(0)).toFixed(1)}" height="${(rowH * 0.32).toFixed(1)}" fill="#8fa9c4"/>`;
+        s += `<text x="${(x(r.erReversionPct) + 4).toFixed(1)}" y="${(y0 + rowH * 0.52 + rowH * 0.27).toFixed(1)}" ${txt}>${r.erReversionPct.toFixed(1)}%</text>`;
+      }
+      if (r.bondPct != null)
+        s += `<line x1="${x(r.bondPct).toFixed(1)}" y1="${(y0 + rowH * 0.1).toFixed(1)}" x2="${x(r.bondPct).toFixed(1)}" y2="${(y0 + rowH * 0.92).toFixed(1)}" stroke="#c0392b" stroke-width="2"/>`;
+    });
+    document.getElementById('regional-er-svg').innerHTML = s;
+
+    const j = data.jstReference;
+    const jr = j.rows.map(r => `${r.country} ${r.realReturnPct}%`).join(' · ');
+    document.getElementById('regional-er-legend').innerHTML = `
+      <span style="display:block;font-size:10.5px;color:var(--text-muted);line-height:1.5;max-width:820px;">
+        <strong style="color:#003a5c">■ E[R] at constant valuation</strong> ·
+        <strong style="color:#8fa9c4">■ E[R] if the CAPE moves to its reference in 10 years</strong> ·
+        <strong style="color:#c0392b">| local 10-year government yield</strong>.
+        For the US, prefer the FCF-based card above: buybacks make the dividend yield understate cash returned.
+        <br><strong>Historical reference, real total return ${j.period}:</strong> ${jr}. Source: ${j.attribution}
+        <br>CAPE: ${data.capeSnapshot.source}.
+        <br>${data.note || ''}
+      </span>`;
+  }
+
+  if (LD?.regionalExpectedReturn) renderRegionalER(LD.regionalExpectedReturn);
 
   // ── Factor vs World Cap-Weighted (live ETF prices) ──────────────────────
   // Same "one clearly-labeled line + methodology note" pattern as the SPY

@@ -1,5 +1,33 @@
 # market-dashboard
 
+## Regional expected-return snapshot — card on Long Term Summary, set up 2026-10-31
+
+`regional_expected_return.py` → `LD.regionalExpectedReturn`, rendered by
+`renderRegionalER()` (table + bars) after the Gordon card. USA, World ex USA,
+EM (USD) and Switzerland (CHF): E[R] = dividend yield + 1.5 % real growth
+(`REAL_GROWTH_PCT`, same for all) + expected inflation (Cleveland Fed 10y for
+USD, `CHF_INFLATION_PCT` = 1 % for CHF); reversion column = × (CAPE_ref /
+CAPE)^(1/10); local 10Y (US: multpl 10Y from the valuation card; CH: FRED
+IRLTLT01CHM156N) for the premium.
+- **Dividend yield**: MSCI index-data endpoint (`getLevelDataForGraph`,
+  GRTR vs STRD over 12 months; codes USA 984000, World ex USA 991000, EM
+  891800, Switzerland 975600). The user explicitly OK'd automated use on
+  2026-10-31 for this PERSONAL dashboard (reverses the earlier "not scraped"
+  note): one request per series per run, raw levels never committed
+  (`regional_expected_return_cache.json` is git-ignored and holds only the
+  derived yields), only derived figures published. MSCI now refuses dates
+  before 1997-01-01 (gross variants start 2000-12). Fallback: trailing-12m
+  ETF distributions via yfinance (IVV / EFA / EEM / EWL). Tested from the
+  browser only; first Python run will tell (`divYieldSource` shows which).
+- **CAPE**: hand-entered in `CAPE_SNAPSHOT` each quarter (Siblis /
+  Research Affiliates); Switzerland has no reference level → no reversion.
+- **Why no historical lines**: Gordon per country on the JST Macrohistory
+  Database (R6, 1870-2020) failed outside the US (trailing dividend growth
+  unstable, R² 0.0-0.3; Swiss series has 1926-59 gaps and implausible
+  years; some JST country returns are year-average based, e.g. USA 2018
+  +14 %). `JST_REFERENCE` keeps only derived 1960-2020 real returns, with
+  the CC BY-NC-SA 4.0 attribution — personal / non-commercial use only.
+
 ## Expected return (Gordon) vs realized — card on Long Term Summary, set up 2026-10-31
 
 Card "US Equities — Expected Return (Gordon) vs Realized Return", right after

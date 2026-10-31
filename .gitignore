@@ -3,3 +3,4 @@
 *.log
 hyperscaler_capex_cache.json
 hyperscaler_funding_cache.json
+valuation_yields_cache.json

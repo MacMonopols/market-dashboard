@@ -16,6 +16,7 @@ import requests
 from datetime import datetime, timezone, timedelta
 from hyperscaler_capex import fetch_hyperscaler_capex
 from hyperscaler_funding import calc_hyperscaler_funding
+from valuation_yields import calc_valuation_yields
 
 # ── Konfiguration ────────────────────────────────────────────────────────────
 
@@ -1932,6 +1933,18 @@ def main():
                            "capWeightedTicker": WORLD_CAPWEIGHTED_TICKER, "history": [],
                            "note": WORLD_SMALLCAP_METHODOLOGY_NOTE}
 
+    # 5i) US valuation yields: FCF yield (AHP method, FRED) vs Shiller earnings
+    #     yield vs 10Y — see valuation_yields.py
+    print("\nUS valuation yields (FCF yield / Shiller EY / 10Y) ...", end=" ", flush=True)
+    try:
+        valuation_yields = calc_valuation_yields()
+        fy = valuation_yields["fcfYield"]
+        print(f"OK FCF {fy[-1]['pct']:.2f}% ({fy[-1]['date']}), EY {valuation_yields['earningsYield'][-1]['pct']:.2f}%, "
+              f"10Y {valuation_yields['tenYear'][-1]['pct']:.2f}%" + (" [STALE]" if valuation_yields["stale"] else ""))
+    except Exception as e:
+        print(f"⚠ failed: {e}")
+        valuation_yields = None
+
     # 6) Output
     fetched_at = datetime.now().strftime("%d.%m.%Y %H:%M")
     out = {
@@ -1942,6 +1955,7 @@ def main():
         "longTermMarkets": lt_results,
         "worldMktCap":     world_mktcap,
         "usShareHistory":  us_share,
+        "valuationYields": valuation_yields,
         "mag7":            mag7,
         "hyperscalerCapex": hyperscaler_capex,
         "hyperscalerFunding": hyperscaler_funding,

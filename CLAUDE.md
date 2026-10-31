@@ -1,5 +1,44 @@
 # market-dashboard
 
+## US valuation yields — FCF yield vs Shiller earnings yield vs 10Y, set up 2026-10-31
+
+New card on `longterm.html` (after the US/Japan share chart), rendered by
+`renderValuationYields()` from `LD.valuationYields`, built by
+`calc_valuation_yields()` in the new module `valuation_yields.py`.
+Three yields on one % scale, each as long as free data allows:
+- **FCF yield of the whole US corporate sector** (listed + unlisted), quarterly
+  from 1952, rebuilt with the method of Atkeson, Heathcote & Perri, "A
+  Macroeconomic Perspective on Stock Market Valuation Ratios" (Minneapolis Fed
+  Staff Report 682 / NBER WP 34748, 2026): FCF = NIPA 1.14 GVA − compensation −
+  production taxes less subsidies − business transfers − corporate income tax −
+  Z.1 gross investment (nonfin. incl. inventories + financial), over Z.1 market
+  value of nonfinancial assets (nonfin. corp + domestic financial). 9 FRED
+  series, one request each (series IDs in the module docstring). Dated at the
+  quarter-end month.
+- **Shiller earnings yield** = 1 / CAPE, monthly from 1881, and the **10Y**
+  (Shiller long rate pre-1953, then GS10), both scraped from multpl.com tables
+  (Shiller's ie_data.xls changes URL each update and needs xlrd).
+- Cache: `valuation_yields_cache.json` (git-ignored), `stale: true` on fallback.
+- **Range buttons** (added 2026-10-31): 1 an / 3 ans / 5 ans / 10 ans / Depuis 1952
+  / All (`VALUATION_RANGES`, default All, last choice kept per viewer in
+  `localStorage.valuationRange`). `renderValuationYields()` sets headline figures
+  and buttons; `drawValuationYields(data, range)` redraws the SVG. Windows of
+  ≤ 10 years zoom the y-axis on the data (no forced 0 %), use quarterly x-ticks
+  under ~3.5 years, show FCF quarters as dots, and label the AHP published dot.
+
+**Validation (2026-10-31)**: rebuilt FCF yield = 3.11 % avg 1980Q2–81Q1 (paper
+3.10 %), 3.20 % avg 2021Q4–22Q3 (paper 3.07 %), mean since 1952 3.23 % (paper
+3.18 %). **But the recent level is higher**: 3.5 % at 2026Q1 vs the paper's
+published 2.59 %, and the paper's "sharp decline since 2023" is not visible
+in the rebuild. Most likely cause: the paper's FDI / residence-basis
+adjustment to enterprise value and the exact Z.1 investment lines
+(FA105019085 / FA105020005 / FA795013005, not on FRED). The published 2.59 %
+is therefore drawn as a red dot (`AHP_PUBLISHED`) and the chart note says the
+last two years are indicative. Update `AHP_PUBLISHED` if the authors publish
+a newer figure. An earlier chat summary quoted 3.6 % / 9.5 % / 4.6 % / 2.4 % / 3.64 %
+for this paper (probably the January 2026 staff-report vintage); the NBER
+revision used here gives 3.10 / 9.37 / 4.26 / 2.59 / 3.18 — use the latter.
+
 ## Unrecorded share splits on Yahoo — `fix_unrecorded_splits()`, set up 2026-10-30
 
 `Money Market GBP` (`CSH2.L`) showed YTD -99.6% because Yahoo applied a 250:1

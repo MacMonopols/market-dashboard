@@ -238,6 +238,19 @@
     }
     .back-btn:hover { background: #daeaf5; }
 
+    .range-btns { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 8px; }
+    .range-btn {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 9px;
+      cursor: pointer;
+    }
+    .range-btn:hover { background: #eef3f8; }
+    .range-btn.active { background: #003a5c; border-color: #003a5c; color: #fff; }
+
     /* Legend */
     .mktcap-legend {
       display: flex;
@@ -382,6 +395,31 @@
   <div class="spy-history-wrap">
     <svg id="us-share-history-svg" width="900" height="200" viewBox="0 0 900 200"></svg>
     <div class="spy-history-legend" id="us-share-history-legend"></div>
+  </div>
+</div>
+
+<!-- ── US valuation yields: FCF yield vs Shiller earnings yield vs 10Y (rendered by JS from live_data.js) ── -->
+<div class="mktcap-card" id="valuation-yields-card" style="display:none">
+  <div class="mktcap-title">US Equity Valuation — FCF Yield vs Earnings Yield vs 10Y Treasury</div>
+  <div class="mktcap-date" id="valuation-yields-date"></div>
+  <div class="mktcap-body" style="align-items:flex-start;gap:28px;flex-wrap:wrap;">
+    <div>
+      <div class="mktcap-pct" id="valuation-fcf-pct"></div>
+      <div class="mktcap-name">FCF yield, US corporate sector</div>
+    </div>
+    <div>
+      <div class="mktcap-pct" id="valuation-ey-pct" style="color:#b8922a"></div>
+      <div class="mktcap-name">Shiller earnings yield (1 / CAPE)</div>
+    </div>
+    <div>
+      <div class="mktcap-pct" id="valuation-10y-pct" style="color:#7f8c9d"></div>
+      <div class="mktcap-name">US 10-year yield</div>
+    </div>
+  </div>
+  <div class="spy-history-wrap">
+    <div class="range-btns" id="valuation-range-btns"></div>
+    <svg id="valuation-yields-svg" width="900" height="260" viewBox="0 0 900 260"></svg>
+    <div class="spy-history-legend" id="valuation-yields-legend"></div>
   </div>
 </div>
 
@@ -1016,6 +1054,152 @@
   }
 
   if (LD?.usShareHistory) renderUsShareHistory(LD.usShareHistory);
+
+  // ── US valuation yields (valuation_yields.py) ───────────────────────────
+  // Three yields on one % scale, as long as each series goes: Shiller
+  // earnings yield and 10Y from 1881 (monthly), FCF yield of the whole US
+  // corporate sector from 1952 (quarterly, Atkeson-Heathcote-Perri method
+  // rebuilt from FRED). Dashed = FCF mean since 1952; dot = the paper's
+  // own published latest value (our rebuild runs higher recently, see note).
+  const VALUATION_RANGES = [
+    { key: '1Y',  label: '1 an',  years: 1 },
+    { key: '3Y',  label: '3 ans', years: 3 },
+    { key: '5Y',  label: '5 ans', years: 5 },
+    { key: '10Y', label: '10 ans', years: 10 },
+    { key: 'FCF', label: 'Depuis 1952', fromFcf: true },
+    { key: 'ALL', label: 'All' },
+  ];
+
+  function renderValuationYields(data) {
+    if (!data || !data.fcfYield || data.fcfYield.length < 2) return;
+    document.getElementById('valuation-yields-card').style.display = '';
+    const fcf = data.fcfYield, ey = data.earningsYield || [], ten = data.tenYear || [];
+    const last = a => a.length ? a[a.length - 1] : null;
+    const qLabel = d => d.slice(0, 4) + ' Q' + Math.ceil(+d.slice(5, 7) / 3);
+    document.getElementById('valuation-yields-date').textContent =
+      `As of ${data.asOf}${data.stale ? ' (cached — live fetch failed)' : ''} · FCF yield to ${qLabel(last(fcf).date)} · Sources: FRED (BEA NIPA, Fed Z.1), multpl.com (Shiller data)`;
+    document.getElementById('valuation-fcf-pct').textContent = last(fcf).pct.toFixed(1) + '%';
+    if (ey.length) document.getElementById('valuation-ey-pct').textContent =
+      last(ey).pct.toFixed(1) + '%' + (data.capeLatest ? `  (CAPE ${(+data.capeLatest).toFixed(1)})` : '');
+    if (ten.length) document.getElementById('valuation-10y-pct').textContent = last(ten).pct.toFixed(2) + '%';
+
+    const btns = document.getElementById('valuation-range-btns');
+    let current = 'ALL';
+    try { current = localStorage.getItem('valuationRange') || 'ALL'; } catch (e) {}
+    if (!VALUATION_RANGES.some(r => r.key === current)) current = 'ALL';
+    btns.innerHTML = VALUATION_RANGES.map(r =>
+      `<button class="range-btn" data-range="${r.key}">${r.label.replace('1952', fcf[0].date.slice(0, 4))}</button>`).join('');
+    const select = key => {
+      current = key;
+      try { localStorage.setItem('valuationRange', key); } catch (e) {}
+      btns.querySelectorAll('.range-btn').forEach(b => b.classList.toggle('active', b.dataset.range === key));
+      drawValuationYields(data, VALUATION_RANGES.find(r => r.key === key));
+    };
+    btns.querySelectorAll('.range-btn').forEach(b => b.addEventListener('click', () => select(b.dataset.range)));
+    select(current);
+  }
+
+  function drawValuationYields(data, range) {
+    const t = d => Date.parse(d.length === 7 ? d + '-15' : d);
+    const fcfAll = data.fcfYield, eyAll = data.earningsYield || [], tenAll = data.tenYear || [];
+    const tEnd = Math.max(...fcfAll.concat(eyAll, tenAll).map(r => t(r.date)));
+    let tCut = -Infinity;
+    if (range.years) { const e = new Date(tEnd); e.setUTCFullYear(e.getUTCFullYear() - range.years); tCut = e.getTime(); }
+    if (range.fromFcf) tCut = t(fcfAll[0].date);
+    const cut = a => a.filter(r => t(r.date) >= tCut);
+    const fcf = cut(fcfAll), ey = cut(eyAll), ten = cut(tenAll);
+    const all = fcf.concat(ey, ten);
+    if (all.length < 2) return;
+
+    const t0 = range.years ? tCut : Math.min(...all.map(r => t(r.date)));
+    const t1 = tEnd;
+    const W = 900, H = 260, padL = 36, padR = 16, padT = 12, padB = 26;
+    const vals = all.map(r => r.pct);
+    if (data.fcfMeanPct != null && fcf.length) vals.push(data.fcfMeanPct);
+    const span = Math.max(...vals) - (range.years ? Math.min(...vals) : Math.min(0, ...vals));
+    const step = [0.5, 1, 2, 4, 5, 10].find(s => span / s <= 6) || 10;
+    const maxV = Math.ceil(Math.max(...vals) / step) * step;
+    // Short windows zoom on the data; long ones keep 0% as the floor
+    const minV = range.years ? Math.floor(Math.min(...vals) / step) * step
+                             : Math.min(0, Math.floor(Math.min(...vals) / step) * step);
+    const x = d => padL + (W - padL - padR) * ((t(d) - t0) / ((t1 - t0) || 1));
+    const xT = ms => padL + (W - padL - padR) * ((ms - t0) / ((t1 - t0) || 1));
+    const y = v => H - padB - (H - padT - padB) * ((v - minV) / ((maxV - minV) || 1));
+    const path = rows => rows.map((r, i) => (i === 0 ? 'M' : 'L') + x(r.date).toFixed(1) + ',' + y(r.pct).toFixed(1)).join(' ');
+
+    const cF = '#003a5c', cE = '#b8922a', cT = '#7f8c9d', cP = '#c0392b';
+    const txt = 'font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="#6b7a8d"';
+    let h = '';
+    h += `<line x1="${padL}" y1="${H - padB}" x2="${W - padR}" y2="${H - padB}" stroke="#dde3ea"/>`;
+    h += `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H - padB}" stroke="#dde3ea"/>`;
+    const dec = step < 1 ? 1 : 0;
+    for (let g = minV; g <= maxV + 1e-9; g += step) {
+      if (g > minV) h += `<line x1="${padL}" y1="${y(g).toFixed(1)}" x2="${W - padR}" y2="${y(g).toFixed(1)}" stroke="#b0bac6" stroke-dasharray="3,3" opacity="0.5"/>`;
+      h += `<text x="${padL - 6}" y="${y(g).toFixed(1)}" text-anchor="end" dominant-baseline="middle" ${txt}>${g.toFixed(dec)}%</text>`;
+    }
+    // X ticks: quarters for short ranges, else years at a step that fits
+    const spanY = (t1 - t0) / (365.25 * 864e5);
+    const tickAt = (ms, label) => {
+      const xx = xT(ms);
+      if (xx < padL - 0.5 || xx > W - padR + 0.5) return;
+      h += `<line x1="${xx.toFixed(1)}" y1="${H - padB}" x2="${xx.toFixed(1)}" y2="${H - padB + 3}" stroke="#b0bac6"/>`;
+      h += `<text x="${xx.toFixed(1)}" y="${H - 8}" text-anchor="middle" ${txt}>${label}</text>`;
+    };
+    const d0 = new Date(t0), d1 = new Date(t1);
+    if (spanY <= 3.5) {
+      const mNames = ['Jan', 'Apr', 'Jul', 'Oct'];
+      for (let yr = d0.getUTCFullYear(); yr <= d1.getUTCFullYear(); yr++)
+        for (let q = 0; q < 4; q++) {
+          if (spanY > 1.5 && q % 2) continue;
+          tickAt(Date.UTC(yr, q * 3, 1), `${mNames[q]} ${String(yr).slice(2)}`);
+        }
+    } else {
+      const yStep = [1, 2, 5, 10, 20].find(s => spanY / s <= 12) || 20;
+      for (let yr = Math.ceil(d0.getUTCFullYear() / yStep) * yStep; yr <= d1.getUTCFullYear(); yr += yStep)
+        tickAt(Date.UTC(yr, 0, 1), yr);
+    }
+    // Where the FCF series begins (only when it starts inside the window)
+    const fcfStartsInside = fcf.length && t(fcfAll[0].date) > t0 + 864e5 * 60;
+    const xs = fcf.length ? Math.max(padL, x(fcf[0].date)) : padL;
+    if (fcfStartsInside) {
+      h += `<line x1="${xs.toFixed(1)}" y1="${padT}" x2="${xs.toFixed(1)}" y2="${H - padB}" stroke="#b0bac6" stroke-dasharray="2,3"/>`;
+      h += `<text x="${(xs + 4).toFixed(1)}" y="${padT + 8}" ${txt}>FCF yield from ${fcfAll[0].date.slice(0, 4)}</text>`;
+    }
+    if (ten.length > 1) h += `<path d="${path(ten)}" fill="none" stroke="${cT}" stroke-width="1.3"/>`;
+    if (ey.length > 1)  h += `<path d="${path(ey)}"  fill="none" stroke="${cE}" stroke-width="1.5"/>`;
+    if (data.fcfMeanPct != null && fcf.length) {
+      const ym = y(data.fcfMeanPct).toFixed(1);
+      h += `<line x1="${xs.toFixed(1)}" y1="${ym}" x2="${W - padR}" y2="${ym}" stroke="${cF}" stroke-dasharray="5,3" opacity="0.6"/>`;
+      h += fcfStartsInside
+        ? `<text x="${(xs - 4).toFixed(1)}" y="${(+ym - 3)}" text-anchor="end" ${txt}>FCF mean ${data.fcfMeanPct.toFixed(2)}%</text>`
+        : `<text x="${W - padR - 2}" y="${(+ym + 11)}" text-anchor="end" ${txt}>FCF mean since ${fcfAll[0].date.slice(0, 4)}: ${data.fcfMeanPct.toFixed(2)}%</text>`;
+    }
+    if (fcf.length > 1) h += `<path d="${path(fcf)}" fill="none" stroke="${cF}" stroke-width="2"/>`;
+    // Quarterly FCF points are sparse on short windows: show them as dots
+    if (fcf.length && fcf.length <= 24)
+      fcf.forEach(r => { h += `<circle cx="${x(r.date).toFixed(1)}" cy="${y(r.pct).toFixed(1)}" r="2.5" fill="${cF}"/>`; });
+    const pub = data.ahpPublished;
+    if (pub && pub.date && t(pub.date) >= t0)
+    {
+      h += `<circle cx="${x(pub.date).toFixed(1)}" cy="${y(pub.pct).toFixed(1)}" r="3.5" fill="${cP}" stroke="#fff" stroke-width="1"/>`;
+      const right = x(pub.date) > W * 0.8;
+      if (range.years) h += `<text x="${(x(pub.date) + (right ? -6 : 6)).toFixed(1)}" y="${(y(pub.pct) + 12).toFixed(1)}" text-anchor="${right ? 'end' : 'start'}" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="${cP}">AHP published ${pub.pct}%</text>`;
+    }
+    document.getElementById('valuation-yields-svg').innerHTML = h;
+
+    const first = a => a.length ? a[0].date.slice(0, 4) : '—';
+    document.getElementById('valuation-yields-legend').innerHTML = `
+      <span style="display:block;font-size:10.5px;color:var(--text-muted);line-height:1.5;max-width:820px;">
+        <strong style="color:${cF}">━ FCF yield</strong> (US corporate sector, quarterly, from ${first(fcfAll)}) ·
+        <strong style="color:${cE}">━ Shiller earnings yield</strong> = 1 / CAPE (monthly, from ${first(eyAll)}) ·
+        <strong style="color:${cT}">━ US 10Y</strong> (monthly, from ${first(tenAll)}) ·
+        <span style="color:${cF}">╌ FCF mean since ${first(fcfAll)}</span>
+        ${pub ? ` · <strong style="color:${cP}">●</strong> latest value published by Atkeson, Heathcote &amp; Perri (${pub.pct}% at ${pub.date}; their mean ${pub.meanPct}%)` : ''}
+        <br>${data.note || ''}
+      </span>`;
+  }
+
+  if (LD?.valuationYields) renderValuationYields(LD.valuationYields);
 
   // ── Factor vs World Cap-Weighted (live ETF prices) ──────────────────────
   // Same "one clearly-labeled line + methodology note" pattern as the SPY

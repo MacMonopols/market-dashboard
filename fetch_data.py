@@ -16,7 +16,7 @@ import requests
 from datetime import datetime, timezone, timedelta
 from hyperscaler_capex import fetch_hyperscaler_capex
 from hyperscaler_funding import calc_hyperscaler_funding
-from valuation_yields import calc_valuation_yields
+from valuation_yields import get_valuation_raw, calc_valuation_yields, calc_expected_return
 
 # ── Konfiguration ────────────────────────────────────────────────────────────
 
@@ -1936,14 +1936,31 @@ def main():
     # 5i) US valuation yields: FCF yield (AHP method, FRED) vs Shiller earnings
     #     yield vs 10Y — see valuation_yields.py
     print("\nUS valuation yields (FCF yield / Shiller EY / 10Y) ...", end=" ", flush=True)
+    valuation_raw, valuation_stale = None, False
     try:
-        valuation_yields = calc_valuation_yields()
+        valuation_raw, valuation_stale = get_valuation_raw()
+        valuation_yields = calc_valuation_yields(valuation_raw, valuation_stale)
         fy = valuation_yields["fcfYield"]
         print(f"OK FCF {fy[-1]['pct']:.2f}% ({fy[-1]['date']}), EY {valuation_yields['earningsYield'][-1]['pct']:.2f}%, "
               f"10Y {valuation_yields['tenYear'][-1]['pct']:.2f}%" + (" [STALE]" if valuation_yields["stale"] else ""))
     except Exception as e:
         print(f"⚠ failed: {e}")
         valuation_yields = None
+
+    # 5j) Expected return (Gordon: yield + growth) vs realized 1/5/10-year return
+    print("Expected return (Gordon) vs realized ...", end=" ", flush=True)
+    try:
+        if valuation_raw is None:
+            raise ValueError("no valuation data")
+        expected_return = calc_expected_return(
+            valuation_raw, valuation_stale,
+            valuation_yields["fcfYield"] if valuation_yields else None)
+        ed, ef = expected_return["expectedDividend"], expected_return["expectedFcf"]
+        print(f"OK E[R] dividend {ed[-1]['pct']:.2f}% ({ed[-1]['date']}), FCF {ef[-1]['pct']:.2f}% ({ef[-1]['date']}), "
+              f"R² 10y div {expected_return['fitDividend']['10']['r2']} / FCF {expected_return['fitFcf']['10']['r2']}")
+    except Exception as e:
+        print(f"⚠ failed: {e}")
+        expected_return = None
 
     # 6) Output
     fetched_at = datetime.now().strftime("%d.%m.%Y %H:%M")
@@ -1956,6 +1973,7 @@ def main():
         "worldMktCap":     world_mktcap,
         "usShareHistory":  us_share,
         "valuationYields": valuation_yields,
+        "expectedReturn":  expected_return,
         "mag7":            mag7,
         "hyperscalerCapex": hyperscaler_capex,
         "hyperscalerFunding": hyperscaler_funding,

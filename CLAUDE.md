@@ -1,5 +1,32 @@
 # market-dashboard
 
+## Expected return (Gordon) vs realized — card on Long Term Summary, set up 2026-10-31
+
+Card "US Equities — Expected Return (Gordon) vs Realized Return", right after
+the valuation-yields card. `calc_expected_return()` in `valuation_yields.py`
+(→ `LD.expectedReturn`), rendered by `renderExpectedReturn()` /
+`drawExpectedReturn(data, h, range)`. FRED + multpl are fetched ONCE per run
+by `get_valuation_raw()` and shared with `calc_valuation_yields()`.
+- E[R] = yield × (1 + g) + g, strictly ex ante (trailing 10-year g):
+  - dividend version, monthly from 1881: S&P 500 dividend yield (multpl
+    dividend-YIELD table) + trailing 10y growth of nominal D = yield × price.
+    multpl's "S&P 500 Dividend" table is inflation-adjusted — don't use it.
+  - FCF version, quarterly from ~1957: corporate FCF yield (card above) +
+    trailing 10y growth of nominal corporate GVA (A451; aggregate FCF growth
+    is too erratic to use directly).
+- Realized: S&P 500 nominal total return (Shiller method, (P + D/12)/P_prev,
+  multpl price table) over the NEXT 1 / 5 / 10 years, annualized, plotted at
+  the start date; the current (partial) month is never used as an end point.
+- Buttons: horizon (Réalisé 1 an / 5 ans / 10 ans, default 10) and period
+  (10/20/30/50 ans, depuis FCF, All); choice kept in localStorage
+  (`erHorizon`, `erRange`). Headline shows R² of each version vs the selected
+  horizon (`fitFcf` / `fitDividend`), and the legend the mean realized −
+  expected gap (≈ multiple expansion).
+- Offline test on Shiller-mirror data (fake GVA): R² dividend version ≈ 3 % /
+  10 % / 9 % at 1 / 5 / 10 y — trailing dividend growth is noisy and buybacks
+  bias it down after the 1980s; the FCF version fits better. Overlapping
+  windows: ~14 independent 10-year periods since 1881, R² is indicative only.
+
 ## US valuation yields — FCF yield vs Shiller earnings yield vs 10Y, set up 2026-10-31
 
 New card on `longterm.html` (after the US/Japan share chart), rendered by

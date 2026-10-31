@@ -423,6 +423,32 @@
   </div>
 </div>
 
+<!-- ── Expected return (Gordon) vs realized return (rendered by JS from live_data.js) ── -->
+<div class="mktcap-card" id="expected-return-card" style="display:none">
+  <div class="mktcap-title">US Equities — Expected Return (Gordon) vs Realized Return</div>
+  <div class="mktcap-date" id="expected-return-date"></div>
+  <div class="mktcap-body" style="align-items:flex-start;gap:28px;flex-wrap:wrap;">
+    <div>
+      <div class="mktcap-pct" id="er-fcf-pct"></div>
+      <div class="mktcap-name">Expected return, FCF yield + growth</div>
+    </div>
+    <div>
+      <div class="mktcap-pct" id="er-div-pct" style="color:#b8922a"></div>
+      <div class="mktcap-name">Expected return, dividend yield + growth</div>
+    </div>
+    <div>
+      <div class="mktcap-pct" id="er-fit" style="color:#2a7f62"></div>
+      <div class="mktcap-name" id="er-fit-label">R² expected vs realized</div>
+    </div>
+  </div>
+  <div class="spy-history-wrap">
+    <div class="range-btns" id="er-horizon-btns"></div>
+    <div class="range-btns" id="er-range-btns"></div>
+    <svg id="expected-return-svg" width="900" height="280" viewBox="0 0 900 280"></svg>
+    <div class="spy-history-legend" id="expected-return-legend"></div>
+  </div>
+</div>
+
 <!-- ── World Value vs World Cap-Weighted (rendered by JS from live_data.js) ── -->
 <div class="mktcap-card" id="world-value-card" style="display:none">
   <div class="mktcap-title">World Value vs World Cap-Weighted</div>
@@ -1200,6 +1226,122 @@
   }
 
   if (LD?.valuationYields) renderValuationYields(LD.valuationYields);
+
+  // ── Expected return (Gordon) vs realized (valuation_yields.py) ──────────
+  // E[R] = yield × (1+g) + g with trailing-10y g (ex ante). Realized =
+  // S&P 500 total return over the NEXT h years, plotted at the start date.
+  // Two button rows: realized horizon (1/5/10y) and visible period.
+  const ER_HORIZONS = [{ key: '1', label: 'Réalisé 1 an' }, { key: '5', label: 'Réalisé 5 ans' }, { key: '10', label: 'Réalisé 10 ans' }];
+  const ER_RANGES = [
+    { key: '10Y', label: '10 ans', years: 10 },
+    { key: '20Y', label: '20 ans', years: 20 },
+    { key: '30Y', label: '30 ans', years: 30 },
+    { key: '50Y', label: '50 ans', years: 50 },
+    { key: 'FCF', label: 'Depuis FCF', fromFcf: true },
+    { key: 'ALL', label: 'All' },
+  ];
+
+  function renderExpectedReturn(data) {
+    if (!data || !data.expectedDividend || data.expectedDividend.length < 2) return;
+    document.getElementById('expected-return-card').style.display = '';
+    const ed = data.expectedDividend, ef = data.expectedFcf || [];
+    const last = a => a.length ? a[a.length - 1] : null;
+    document.getElementById('expected-return-date').textContent =
+      `As of ${data.asOf}${data.stale ? ' (cached — live fetch failed)' : ''} · Sources: multpl.com (Shiller data), FRED (BEA NIPA, Fed Z.1) · nominal, USD`;
+    if (ef.length) document.getElementById('er-fcf-pct').textContent =
+      last(ef).pct.toFixed(1) + '%';
+    document.getElementById('er-div-pct').textContent = last(ed).pct.toFixed(1) + '%';
+
+    const st = { h: '10', r: 'ALL' };
+    try { st.h = localStorage.getItem('erHorizon') || '10'; st.r = localStorage.getItem('erRange') || 'ALL'; } catch (e) {}
+    if (!ER_HORIZONS.some(o => o.key === st.h)) st.h = '10';
+    if (!ER_RANGES.some(o => o.key === st.r)) st.r = 'ALL';
+    const hB = document.getElementById('er-horizon-btns'), rB = document.getElementById('er-range-btns');
+    hB.innerHTML = ER_HORIZONS.map(o => `<button class="range-btn" data-k="${o.key}">${o.label}</button>`).join('');
+    rB.innerHTML = ER_RANGES.map(o => `<button class="range-btn" data-k="${o.key}">${
+      o.fromFcf && ef.length ? 'Depuis ' + ef[0].date.slice(0, 4) : o.label}</button>`).join('');
+    const redraw = () => {
+      try { localStorage.setItem('erHorizon', st.h); localStorage.setItem('erRange', st.r); } catch (e) {}
+      hB.querySelectorAll('.range-btn').forEach(b => b.classList.toggle('active', b.dataset.k === st.h));
+      rB.querySelectorAll('.range-btn').forEach(b => b.classList.toggle('active', b.dataset.k === st.r));
+      drawExpectedReturn(data, st.h, ER_RANGES.find(o => o.key === st.r));
+    };
+    hB.querySelectorAll('.range-btn').forEach(b => b.addEventListener('click', () => { st.h = b.dataset.k; redraw(); }));
+    rB.querySelectorAll('.range-btn').forEach(b => b.addEventListener('click', () => { st.r = b.dataset.k; redraw(); }));
+    redraw();
+  }
+
+  function drawExpectedReturn(data, h, range) {
+    const t = d => Date.parse(d + '-15');
+    const edAll = data.expectedDividend, efAll = data.expectedFcf || [], reAll = (data.realized || {})[h] || [];
+    const tEnd = Math.max(...edAll.concat(efAll).map(r => t(r.date)));
+    let tCut = -Infinity;
+    if (range.years) { const e = new Date(tEnd); e.setUTCFullYear(e.getUTCFullYear() - range.years); tCut = e.getTime(); }
+    if (range.fromFcf && efAll.length) tCut = t(efAll[0].date);
+    const cut = a => a.filter(r => t(r.date) >= tCut);
+    const ed = cut(edAll), ef = cut(efAll), re = cut(reAll);
+    const all = ed.concat(ef, re);
+    if (all.length < 2) return;
+
+    const t0 = Math.max(tCut, Math.min(...all.map(r => t(r.date)))), t1 = tEnd;
+    const W = 900, H = 280, padL = 38, padR = 16, padT = 12, padB = 26;
+    const vals = all.map(r => r.pct).concat([0]);
+    const lo = Math.min(...vals), hi = Math.max(...vals);
+    const step = [2, 5, 10, 20].find(s => (hi - lo) / s <= 8) || 20;
+    const minV = Math.floor(lo / step) * step, maxV = Math.ceil(hi / step) * step;
+    const x = d => padL + (W - padL - padR) * ((t(d) - t0) / ((t1 - t0) || 1));
+    const xT = ms => padL + (W - padL - padR) * ((ms - t0) / ((t1 - t0) || 1));
+    const y = v => H - padB - (H - padT - padB) * ((v - minV) / ((maxV - minV) || 1));
+    const path = rows => rows.map((r, i) => (i === 0 ? 'M' : 'L') + x(r.date).toFixed(1) + ',' + y(r.pct).toFixed(1)).join(' ');
+    const cF = '#003a5c', cD = '#b8922a', cR = '#2a7f62';
+    const txt = 'font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="#6b7a8d"';
+    let s = '';
+    s += `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H - padB}" stroke="#dde3ea"/>`;
+    for (let g = minV; g <= maxV + 1e-9; g += step) {
+      s += `<line x1="${padL}" y1="${y(g).toFixed(1)}" x2="${W - padR}" y2="${y(g).toFixed(1)}" stroke="${g === 0 ? '#8a96a5' : '#b0bac6'}" ${g === 0 ? '' : 'stroke-dasharray="3,3" opacity="0.5"'}/>`;
+      s += `<text x="${padL - 6}" y="${y(g).toFixed(1)}" text-anchor="end" dominant-baseline="middle" ${txt}>${g}%</text>`;
+    }
+    const spanY = (t1 - t0) / (365.25 * 864e5);
+    const yStep = [1, 2, 5, 10, 20].find(k => spanY / k <= 12) || 20;
+    for (let yr = Math.ceil(new Date(t0).getUTCFullYear() / yStep) * yStep; yr <= new Date(t1).getUTCFullYear(); yr += yStep) {
+      const xx = xT(Date.UTC(yr, 0, 1));
+      if (xx < padL || xx > W - padR) continue;
+      s += `<line x1="${xx.toFixed(1)}" y1="${H - padB}" x2="${xx.toFixed(1)}" y2="${H - padB + 3}" stroke="#b0bac6"/>`;
+      s += `<text x="${xx.toFixed(1)}" y="${H - 8}" text-anchor="middle" ${txt}>${yr}</text>`;
+    }
+    // Realized stops h years before today: mark the cut-off
+    if (re.length) {
+      const xe = x(re[re.length - 1].date);
+      if (xe < W - padR - 20) {
+        s += `<line x1="${xe.toFixed(1)}" y1="${padT}" x2="${xe.toFixed(1)}" y2="${H - padB}" stroke="${cR}" stroke-dasharray="2,3" opacity="0.6"/>`;
+        const lft = xe > W * 0.7;
+        s += `<text x="${(xe + (lft ? -4 : 4)).toFixed(1)}" y="${padT + 8}" text-anchor="${lft ? 'end' : 'start'}" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="${cR}">realized ${h}y ends ${re[re.length - 1].date.slice(0, 4)} (needs ${h}y of hindsight)</text>`;
+      }
+    }
+    if (re.length > 1) s += `<path d="${path(re)}" fill="none" stroke="${cR}" stroke-width="${h === '1' ? 1 : 1.6}" opacity="${h === '1' ? 0.75 : 1}"/>`;
+    if (ed.length > 1) s += `<path d="${path(ed)}" fill="none" stroke="${cD}" stroke-width="1.6"/>`;
+    if (ef.length > 1) s += `<path d="${path(ef)}" fill="none" stroke="${cF}" stroke-width="2"/>`;
+    document.getElementById('expected-return-svg').innerHTML = s;
+
+    const fd = (data.fitDividend || {})[h] || {}, ff = (data.fitFcf || {})[h] || {};
+    const pc = v => v == null ? '—' : (v * 100).toFixed(0) + '%';
+    document.getElementById('er-fit').textContent = `${pc(ff.r2)} / ${pc(fd.r2)}`;
+    document.getElementById('er-fit-label').textContent = `R² vs realized ${h}y: FCF / dividend version`;
+    const sg = v => v == null ? '—' : (v > 0 ? '+' : '') + v.toFixed(1) + ' pt';
+    const lF = efAll.length ? efAll[efAll.length - 1] : null, lD = edAll[edAll.length - 1];
+    document.getElementById('expected-return-legend').innerHTML = `
+      <span style="display:block;font-size:10.5px;color:var(--text-muted);line-height:1.5;max-width:820px;">
+        <strong style="color:${cF}">━ E[R] FCF</strong> = FCF yield × (1+g) + g, g = trailing ${data.growthYears}y growth of corporate value added
+        ${lF ? `(now ${lF.yieldPct}% + ${lF.growthPct}%)` : ''} ·
+        <strong style="color:${cD}">━ E[R] dividend</strong> = dividend yield × (1+g) + g, g = trailing ${data.growthYears}y dividend growth
+        (now ${lD.yieldPct}% + ${lD.growthPct}%) ·
+        <strong style="color:${cR}">━ Realized</strong> S&amp;P 500 total return over the next ${h} year${h === '1' ? '' : 's'}, annualized.
+        Average realized − expected over all periods: FCF ${sg(ff.meanGapPct)}, dividend ${sg(fd.meanGapPct)} (≈ multiple expansion).
+        <br>${data.note || ''}
+      </span>`;
+  }
+
+  if (LD?.expectedReturn) renderExpectedReturn(LD.expectedReturn);
 
   // ── Factor vs World Cap-Weighted (live ETF prices) ──────────────────────
   // Same "one clearly-labeled line + methodology note" pattern as the SPY

@@ -172,12 +172,15 @@ def _fetch_raw():
         time.sleep(1)                     # FRED blocks bursts
     raw["cape"] = _fetch_multpl_monthly(MULTPL_CAPE_URL)
     raw["tenYear"] = _fetch_multpl_monthly(MULTPL_10Y_URL)
+    raw["spPrice"] = _fetch_multpl_monthly(MULTPL_PRICE_URL)
+    raw["spDivYield"] = _fetch_multpl_monthly(MULTPL_DIVYIELD_URL)
     raw["fetchedAt"] = date.today().isoformat()
     return raw
 
 
-def calc_valuation_yields():
-    stale = False
+def get_valuation_raw():
+    """(raw, stale): live FRED + multpl data, or the last good cache. Shared by
+    calc_valuation_yields() and calc_expected_return() so FRED is hit once."""
     try:
         raw = _fetch_raw()
         try:
@@ -185,6 +188,7 @@ def calc_valuation_yields():
                 json.dump(raw, f)
         except OSError as e:
             print(f"  ⚠ could not write valuation cache: {e}")
+        return raw, False
     except Exception as e:
         try:
             with open(VALUATION_CACHE_PATH) as f:
@@ -192,8 +196,12 @@ def calc_valuation_yields():
         except (OSError, json.JSONDecodeError):
             raise e
         print(f"  ⚠ live valuation data failed ({e}) — using cache from {raw['fetchedAt']}")
-        stale = True
+        return raw, True
 
+
+def calc_valuation_yields(raw=None, stale=False):
+    if raw is None:
+        raw, stale = get_valuation_raw()
     f = raw["fred"]
     fcf = compute_fcf_yield({s: f[s] for s in NIPA_FLOWS_BN},
                             {s: f[s] for s in Z1_INVEST_M},
@@ -216,7 +224,144 @@ def calc_valuation_yields():
     }
 
 
+# ── Expected return (Gordon) vs realized return ──────────────────────────────
+#
+#   E[R]_t = Y_t · (1 + g_t) + g_t          (Gordon, D1 = D0·(1+g))
+#
+#   Dividend version (monthly, 1881 →): Y = S&P 500 trailing-12m dividend
+#     yield, g = trailing 10-year CAGR of the nominal dividend per share
+#     (D = yield × price). Ex ante: only data known at t.
+#   FCF version (quarterly, 1962 →): Y = corporate-sector FCF yield above,
+#     g = trailing 10-year CAGR of nominal corporate gross value added (NIPA
+#     A451). Aggregate FCF itself is too erratic (and sometimes near zero) to
+#     give a usable growth rate; AHP's model keeps FCF/GVA roughly
+#     mean-reverting, so GVA growth is the long-run FCF growth.
+#   Realized (monthly, 1871 →): S&P 500 nominal total return, dividends
+#     reinvested monthly (Shiller method: (P_t + D_t/12) / P_{t-1}),
+#     annualized over the NEXT 1, 5 and 10 years, plotted at the start date.
+
+MULTPL_PRICE_URL = "https://www.multpl.com/s-p-500-historical-prices/table/by-month"
+# NB: multpl's "S&P 500 Dividend" table is inflation-adjusted; the dividend
+# YIELD table is a plain nominal ratio, so nominal D = yield × price.
+MULTPL_DIVYIELD_URL = "https://www.multpl.com/s-p-500-dividend-yield/table/by-month"
+GVA_SERIES = "A451RC1Q027SBEA"
+GROWTH_YEARS = 10
+HORIZONS = (1, 5, 10)
+
+EXPECTED_RETURN_METHODOLOGY_NOTE = (
+    "Expected return = Gordon growth model, E[R] = yield × (1 + g) + g, using only data known at "
+    "each date. Dividend version: S&P 500 trailing dividend yield + trailing 10-year growth of the "
+    "nominal dividend (Shiller data via multpl.com). FCF version: US corporate-sector FCF yield "
+    "(card above) + trailing 10-year growth of nominal corporate gross value added (BEA, via FRED). "
+    "Realized = S&P 500 nominal total return over the NEXT 1, 5 or 10 years (dividends reinvested), "
+    "annualized and plotted at the start date, so the line stops h years before today. The gap "
+    "between realized and expected is mostly the change in valuation multiples, which Gordon "
+    "assumes away: large over 1 year, much smaller over 10. Since the 1980s buybacks have replaced "
+    "part of dividends, so the dividend version understates expected returns. Overlapping windows: "
+    "since 1881 there are only ~14 independent 10-year periods, so R² values are indicative. "
+    "Nominal, in USD; the FCF yield covers all US corporations, the realized return the S&P 500 only."
+)
+
+
+def _shift_month(ym, months):
+    y, m = int(ym[:4]), int(ym[5:7])
+    t = y * 12 + (m - 1) + months
+    return f"{t // 12}-{t % 12 + 1:02d}"
+
+
+def _r2(pairs):
+    n = len(pairs)
+    if n < 10:
+        return None
+    mx = sum(a for a, _ in pairs) / n
+    my = sum(b for _, b in pairs) / n
+    sxy = sum((a - mx) * (b - my) for a, b in pairs)
+    sxx = sum((a - mx) ** 2 for a, _ in pairs)
+    syy = sum((b - my) ** 2 for _, b in pairs)
+    return round(sxy * sxy / (sxx * syy), 3) if sxx and syy else None
+
+
+def compute_expected_return(price, div_yield, gva, fcf_yield):
+    """price / div_yield: {YYYY-MM: float} (yield in %), gva: {FRED date: $bn},
+    fcf_yield: [{date: YYYY-MM (quarter end), pct}] → dict of series."""
+    months = sorted(set(price) & set(div_yield))
+    div = {m: div_yield[m] / 100 * price[m] for m in months}
+
+    # Total-return index (monthly reinvestment of 1/12 of trailing dividends)
+    tr, level, prev = {}, 1.0, None
+    for m in months:
+        if prev is not None and _shift_month(prev, 1) == m:
+            level *= (price[m] + div[m] / 12) / price[prev]
+        tr[m] = level
+        prev = m
+    last_complete = months[-2] if len(months) > 1 else None   # current month is partial
+
+    realized = {}
+    for h in HORIZONS:
+        rows = []
+        for m in months:
+            end = _shift_month(m, 12 * h)
+            if end in tr and end <= last_complete:
+                rows.append({"date": m, "pct": round(100 * ((tr[end] / tr[m]) ** (1 / h) - 1), 2)})
+        realized[str(h)] = rows
+
+    er_div = []
+    for m in months:
+        base = _shift_month(m, -12 * GROWTH_YEARS)
+        if base in div and div[base] > 0 and m >= CAPE_START:
+            g = (div[m] / div[base]) ** (1 / GROWTH_YEARS) - 1
+            y = div_yield[m] / 100
+            er_div.append({"date": m, "pct": round(100 * (y * (1 + g) + g), 2),
+                           "yieldPct": round(100 * y, 2), "growthPct": round(100 * g, 2)})
+
+    gva_q = {_quarter_end_month(d): v for d, v in gva.items()}
+    er_fcf = []
+    for r in fcf_yield:
+        base = _shift_month(r["date"], -12 * GROWTH_YEARS)
+        if base in gva_q and gva_q[base] > 0:
+            g = (gva_q[r["date"]] / gva_q[base]) ** (1 / GROWTH_YEARS) - 1
+            y = r["pct"] / 100
+            er_fcf.append({"date": r["date"], "pct": round(100 * (y * (1 + g) + g), 2),
+                           "yieldPct": round(r["pct"], 2), "growthPct": round(100 * g, 2)})
+
+    def fit(expected):
+        out = {}
+        for h, rows in realized.items():
+            real = {r["date"]: r["pct"] for r in rows}
+            pairs = [(e["pct"], real[e["date"]]) for e in expected if e["date"] in real]
+            gap = [b - a for a, b in pairs]
+            out[h] = {"r2": _r2(pairs), "n": len(pairs),
+                      "meanGapPct": round(sum(gap) / len(gap), 2) if gap else None}
+        return out
+
+    return {
+        "expectedDividend": er_div,
+        "expectedFcf": er_fcf,
+        "realized": realized,
+        "fitDividend": fit(er_div),
+        "fitFcf": fit(er_fcf),
+        "growthYears": GROWTH_YEARS,
+    }
+
+
+def calc_expected_return(raw=None, stale=False, fcf_yield=None):
+    if raw is None:
+        raw, stale = get_valuation_raw()
+    if "spPrice" not in raw or "spDivYield" not in raw:
+        raise ValueError("cache predates the expected-return data (spPrice / spDivYield)")
+    if fcf_yield is None:
+        fcf_yield = calc_valuation_yields(raw, stale)["fcfYield"]
+    res = compute_expected_return(raw["spPrice"], raw["spDivYield"],
+                                  raw["fred"][GVA_SERIES], fcf_yield)
+    res.update({"asOf": raw["fetchedAt"], "stale": stale, "note": EXPECTED_RETURN_METHODOLOGY_NOTE})
+    return res
+
+
 if __name__ == "__main__":
-    res = calc_valuation_yields()
+    raw, stale = get_valuation_raw()
+    res = calc_valuation_yields(raw, stale)
     print(json.dumps({k: (v[-3:] if isinstance(v, list) else v) for k, v in res.items()
                       if k != "note"}, indent=1))
+    er = calc_expected_return(raw, stale, res["fcfYield"])
+    print("E[R] div", er["expectedDividend"][-1], "fcf", er["expectedFcf"][-1])
+    print("fit div", er["fitDividend"], "\nfit fcf", er["fitFcf"])

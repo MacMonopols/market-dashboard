@@ -20,6 +20,15 @@ by `get_valuation_raw()` and shared with `calc_valuation_yields()`.
     GDPDEF inflation before) → `expectedFcfSmooth`, from 1967. Reason: the
     trailing 10y nominal g was 6.4 % in 2026 (2021-23 inflation) and 2.9 % in
     2016 (post-2008 trough); the smoothed g gives ~4.7 % and ~3.9 %.
+  - FCF-yield reversion (purple, `expectedFcfReversion` / `fitFcfReversion`,
+    added 2026-10-31 after the user pointed out that CAPE scenarios contradict
+    the FCF thesis of the yields card): smoothed-g E[R] × (4q-avg FCF yield /
+    expanding mean since 1952)^(1/10), from 1967, strictly ex ante. Best fit
+    of all versions: R² vs realized 10y 0.59, mean gap −1.0 pt; it overshoots
+    at extremes (2000, 2009). `ahpToday`: same calc for today with the
+    published AHP yield 2.59 % → their 3.18 % mean (5.3 % vs 8.7 % with the
+    rebuild) — the gap between the two is the open question flagged on the
+    yields card. CAPE scenarios kept on the right-hand scale for contrast only.
   - CAPE-reversion scenarios (added 2026-10-31, `scenarios` / `fitScenarios`,
     `SCENARIO_CAPES = (30, 25)`): smoothed-g E[R] × (target/CAPE_t)^(1/10).
     Drawn ONLY as today's fan on a right-hand scale (with the 10Y from

@@ -441,6 +441,14 @@
       <div class="mktcap-name">Expected return, dividend yield + growth</div>
     </div>
     <div>
+      <div class="mktcap-pct" id="er-rev-pct" style="color:#6c5b9e"></div>
+      <div class="mktcap-name" id="er-rev-label">+ FCF yield reverting to its mean</div>
+    </div>
+    <div>
+      <div class="mktcap-pct" id="er-ahp-pct" style="color:#c0392b"></div>
+      <div class="mktcap-name" id="er-ahp-label">If AHP's published FCF yield is right</div>
+    </div>
+    <div>
       <div class="mktcap-pct" id="er-scen-pct" style="color:#5b7fa3"></div>
       <div class="mktcap-name" id="er-scen-label">If CAPE falls to 30 / 25 in 10 years</div>
     </div>
@@ -1267,6 +1275,17 @@
       document.getElementById('er-scen-label').textContent =
         `If CAPE goes from ${(+last(sc[scKeys[0]]).cape).toFixed(0)} to ${scKeys.join(' / ')} in ${data.scenarioYears || 10} years`;
     }
+    const rv = data.expectedFcfReversion || [];
+    if (rv.length) {
+      document.getElementById('er-rev-pct').textContent = last(rv).pct.toFixed(1) + '%';
+      document.getElementById('er-rev-label').textContent =
+        `+ FCF yield ${last(rv).yield4qPct}% → its mean ${last(rv).meanPct}% (${last(rv).reversionPct > 0 ? '+' : ''}${last(rv).reversionPct} pt/yr)`;
+    }
+    if (data.ahpToday) {
+      document.getElementById('er-ahp-pct').textContent = data.ahpToday.reversionPct.toFixed(1) + '%';
+      document.getElementById('er-ahp-label').textContent =
+        `With AHP's FCF yield ${data.ahpToday.yieldPct}% → their mean ${data.ahpToday.meanPct}%`;
+    }
     const ten = (valuation && valuation.tenYear) || [];
     data._tenNow = ten.length ? ten[ten.length - 1].pct : null;
     document.getElementById('er-div-pct').textContent = last(ed).pct.toFixed(1) + '%';
@@ -1292,6 +1311,7 @@
 
   function drawExpectedReturn(data, h, range) {
     const t = d => Date.parse(d + '-15');
+    const rvAll = data.expectedFcfReversion || [];
     const edAll = data.expectedDividend, efAll = data.expectedFcf || [], esAll = data.expectedFcfSmooth || [],
           reAll = (data.realized || {})[h] || [];
     const tEnd = Math.max(...edAll.concat(efAll).map(r => t(r.date)));
@@ -1299,15 +1319,16 @@
     if (range.years) { const e = new Date(tEnd); e.setUTCFullYear(e.getUTCFullYear() - range.years); tCut = e.getTime(); }
     if (range.fromFcf && efAll.length) tCut = t(efAll[0].date);
     const cut = a => a.filter(r => t(r.date) >= tCut);
-    const ed = cut(edAll), ef = cut(efAll), es = cut(esAll), re = cut(reAll);
-    const all = ed.concat(ef, es, re);
+    const ed = cut(edAll), ef = cut(efAll), es = cut(esAll), rv = cut(rvAll), re = cut(reAll);
+    const all = ed.concat(ef, es, rv, re);
     if (all.length < 2) return;
 
     const t0 = Math.max(tCut, Math.min(...all.map(r => t(r.date)))), t1 = tEnd;
     const scen = Object.keys(data.scenarios || {}).filter(k => (data.scenarios[k] || []).length).sort((a, b) => b - a);
     const W = 900, H = 280, padL = 38, padR = scen.length ? 132 : 16, padT = 12, padB = 26;
     const scenNow = scen.map(k => ({ k, r: data.scenarios[k][data.scenarios[k].length - 1] }));
-    const vals = all.map(r => r.pct).concat([0], scenNow.map(o => o.r.pct), data._tenNow != null ? [data._tenNow] : []);
+    const vals = all.map(r => r.pct).concat([0], scenNow.map(o => o.r.pct), data._tenNow != null ? [data._tenNow] : [],
+      data.ahpToday ? [data.ahpToday.reversionPct] : []);
     const lo = Math.min(...vals), hi = Math.max(...vals);
     const step = [2, 5, 10, 20].find(s => (hi - lo) / s <= 8) || 20;
     const minV = Math.floor(lo / step) * step, maxV = Math.ceil(hi / step) * step;
@@ -1344,12 +1365,15 @@
     if (ed.length > 1) s += `<path d="${path(ed)}" fill="none" stroke="${cD}" stroke-width="1.6"/>`;
     if (ef.length > 1) s += `<path d="${path(ef)}" fill="none" stroke="${cF}" stroke-width="1.6" opacity="0.55"/>`;
     if (es.length > 1) s += `<path d="${path(es)}" fill="none" stroke="${cF}" stroke-width="2.2" stroke-dasharray="6,3"/>`;
+    if (rv.length > 1) s += `<path d="${path(rv)}" fill="none" stroke="#6c5b9e" stroke-width="1.8"/>`;
     // Today's fan at the right edge: expected return at constant CAPE vs
     // CAPE-reversion scenarios, with the 10Y Treasury for comparison
     if (scenNow.length && esAll.length) {
       const xr = W - padR + 8, lS = esAll[esAll.length - 1];
-      const ticks = [{ v: lS.pct, label: `CAPE stays ${(+scenNow[0].r.cape).toFixed(0)}`, c: cF, w: 2.2 }]
-        .concat(scenNow.map((o, i) => ({ v: o.r.pct, label: `CAPE → ${o.k}`, c: i ? '#8fa9c4' : '#5b7fa3', w: 1.6 })));
+      const ticks = [{ v: lS.pct, label: 'constant valuation', c: cF, w: 2.2 }]
+        .concat(scenNow.map((o, i) => ({ v: o.r.pct, label: `CAPE ${(+o.r.cape).toFixed(0)} → ${o.k}`, c: i ? '#8fa9c4' : '#5b7fa3', w: 1.6 })));
+      if (rvAll.length) ticks.push({ v: rvAll[rvAll.length - 1].pct, label: 'FCF yield → mean', c: '#6c5b9e', w: 1.8 });
+      if (data.ahpToday) ticks.push({ v: data.ahpToday.reversionPct, label: 'AHP yield → mean', c: '#c0392b', w: 1.8 });
       if (data._tenNow != null) ticks.push({ v: data._tenNow, label: 'US 10Y', c: '#7f8c9d', w: 1.2, dash: true });
       s += `<line x1="${xr}" y1="${y(Math.max(...ticks.map(o => o.v))).toFixed(1)}" x2="${xr}" y2="${y(Math.min(...ticks.map(o => o.v))).toFixed(1)}" stroke="#b0bac6"/>`;
       let lastY = -1e9;
@@ -1362,10 +1386,10 @@
     }
     document.getElementById('expected-return-svg').innerHTML = s;
 
-    const fd = (data.fitDividend || {})[h] || {}, ff = (data.fitFcf || {})[h] || {}, fs = (data.fitFcfSmooth || {})[h] || {};
+    const fd = (data.fitDividend || {})[h] || {}, ff = (data.fitFcf || {})[h] || {}, fs = (data.fitFcfSmooth || {})[h] || {}, fr = (data.fitFcfReversion || {})[h] || {};
     const pc = v => v == null ? '—' : (v * 100).toFixed(0) + '%';
-    document.getElementById('er-fit').textContent = `${pc(fs.r2)} / ${pc(ff.r2)} / ${pc(fd.r2)}`;
-    document.getElementById('er-fit-label').textContent = `R² vs realized ${h}y: FCF smoothed g / FCF 10y g / dividend`;
+    document.getElementById('er-fit').textContent = `${pc(fr.r2)} / ${pc(fs.r2)} / ${pc(ff.r2)} / ${pc(fd.r2)}`;
+    document.getElementById('er-fit-label').textContent = `R² vs realized ${h}y: FCF + reversion / FCF smoothed g / FCF 10y g / dividend`;
     const sg = v => v == null ? '—' : (v > 0 ? '+' : '') + v.toFixed(1) + ' pt';
     const lF = efAll.length ? efAll[efAll.length - 1] : null, lD = edAll[edAll.length - 1],
           lS = esAll.length ? esAll[esAll.length - 1] : null;
@@ -1373,13 +1397,14 @@
       <span style="display:block;font-size:10.5px;color:var(--text-muted);line-height:1.5;max-width:820px;">
         ${lS ? `<strong style="color:${cF}">╌ E[R] FCF, smoothed g</strong> = FCF yield × (1+g) + g, g = ${data.realGrowthYears}y real growth of corporate value added
         + expected inflation (now ${lS.yieldPct}% + ${lS.growthPct}% = ${lS.realGrowthPct}% real + ${lS.inflPct}% inflation, from ${esAll[0].date.slice(0, 4)}) ·` : ''}
+        ${rvAll.length ? `<strong style="color:#6c5b9e">━ E[R] FCF + reversion</strong> = smoothed-g line × (FCF yield / its mean to date)^(1/10): adds the return from the FCF yield moving back to its historical average (from ${rvAll[0].date.slice(0, 4)}) ·` : ''}
         <strong style="color:${cF};opacity:0.7">━ E[R] FCF, trailing g</strong> = same yield, g = trailing ${data.growthYears}y nominal growth of corporate value added
         ${lF ? `(now ${lF.yieldPct}% + ${lF.growthPct}%)` : ''} ·
         <strong style="color:${cD}">━ E[R] dividend</strong> = dividend yield × (1+g) + g, g = trailing ${data.growthYears}y dividend growth
         (now ${lD.yieldPct}% + ${lD.growthPct}%) ·
         <strong style="color:${cR}">━ Realized</strong> S&amp;P 500 total return over the next ${h} year${h === '1' ? '' : 's'}, annualized.
-        ${scen.length ? `<strong style="color:#5b7fa3">Right-hand scale</strong>: today's smoothed-g expected return if the CAPE stays where it is, or falls to ${scen.join(' / ')} over ${data.scenarioYears || 10} years, vs the 10-year Treasury. ` : ''}
-        Average realized − expected over all periods: FCF smoothed ${sg(fs.meanGapPct)}, FCF trailing ${sg(ff.meanGapPct)}, dividend ${sg(fd.meanGapPct)} (≈ multiple expansion).
+        ${scen.length ? `<strong style="color:#5b7fa3">Right-hand scale</strong>, next ${data.scenarioYears || 10} years from today: smoothed-g expected return at constant valuation; with the FCF yield reverting to its mean (our rebuild, and the yield published by AHP); for contrast, the CAPE falling to ${scen.join(' / ')}; and the 10-year Treasury. ` : ''}
+        Average realized − expected over all periods: FCF + reversion ${sg(fr.meanGapPct)}, FCF smoothed ${sg(fs.meanGapPct)}, FCF trailing ${sg(ff.meanGapPct)}, dividend ${sg(fd.meanGapPct)} (≈ multiple expansion).
         <br>${data.note || ''}
       </span>`;
   }

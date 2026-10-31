@@ -263,6 +263,14 @@ REAL_GROWTH_YEARS = 20
 #   E[R]_scen = (1 + E[R]) · (target / CAPE_t)^(1/10) − 1
 SCENARIO_CAPES = (30, 25)
 SCENARIO_YEARS = 10
+# FCF-consistent reversion (the line that matches the thesis of the yields
+# card: the FCF yield, not the CAPE, is the stable valuation measure):
+#   E[R]_rev = (1 + E[R]_smooth) · (Ȳ_t / mean_t)^(1/10) − 1
+# Ȳ_t = 4-quarter average FCF yield, mean_t = average FCF yield from 1952 up
+# to t (expanding, so strictly ex ante), needs MIN_REVERSION_QUARTERS of
+# history. Tested 2026-10-31: R² vs realized 10y 0.59 (vs 0.45 without the
+# reversion term, 0.51 with a fixed CAPE target), mean gap −1.0 pt.
+MIN_REVERSION_QUARTERS = 40
 HORIZONS = (1, 5, 10)
 
 EXPECTED_RETURN_METHODOLOGY_NOTE = (
@@ -273,9 +281,11 @@ EXPECTED_RETURN_METHODOLOGY_NOTE = (
     "Dashed FCF line: same yield with a smoothed g = trailing 20-year real growth of corporate value "
     "added + expected inflation (Cleveland Fed 10-year, from 1982; trailing 10-year GDP-deflator "
     "inflation before), which strips out inflation bursts and slumps from the trailing nominal g. "
-    "Dotted lines: the same smoothed-g expected return if the Shiller CAPE moved from its level at "
-    "each date to 30 or 25 over the following 10 years (multiple-reversion scenarios); not a forecast "
-    "of the CAPE, a way to show what a given change in valuation does to the 10-year return. "
+    "Purple line: smoothed-g expected return plus the effect of the FCF yield (4-quarter average) "
+    "moving back to its own average since 1952 over 10 years, using only the history known at each "
+    "date — the valuation-reversion term consistent with the FCF reading of the yields card. "
+    "Right-hand scale, today only: the same with the yield published by Atkeson-Heathcote-Perri "
+    "(2.59 % → their 3.18 % mean), and, for contrast, a CAPE falling from its level to 30 or 25. "
     "Realized = S&P 500 nominal total return over the NEXT 1, 5 or 10 years (dividends reinvested), "
     "annualized and plotted at the start date, so the line stops h years before today. The gap "
     "between realized and expected is mostly the change in valuation multiples, which Gordon "
@@ -383,6 +393,21 @@ def compute_expected_return(price, div_yield, gva, fcf_yield, deflator=None, exp
                              "capePct": round(100 * (m - 1), 2), "cape": c})
             scenarios[str(target)] = rows
 
+    er_fcf_rev = []
+    ys = [(r["date"], r["pct"]) for r in fcf_yield]
+    smooth_by_date = {r["date"]: r for r in er_fcf_smooth}
+    for i, (d, _) in enumerate(ys):
+        base = smooth_by_date.get(d)
+        if base is None or i + 1 < MIN_REVERSION_QUARTERS:
+            continue
+        mean = sum(v for _, v in ys[:i + 1]) / (i + 1)
+        win = [v for _, v in ys[max(0, i - 3):i + 1]]
+        y4 = sum(win) / len(win)
+        m = (y4 / mean) ** (1 / SCENARIO_YEARS)
+        er_fcf_rev.append({"date": d, "pct": round(100 * ((1 + base["pct"] / 100) * m - 1), 2),
+                           "yield4qPct": round(y4, 2), "meanPct": round(mean, 2),
+                           "reversionPct": round(100 * (m - 1), 2)})
+
     def fit(expected):
         out = {}
         for h, rows in realized.items():
@@ -401,6 +426,8 @@ def compute_expected_return(price, div_yield, gva, fcf_yield, deflator=None, exp
         "fitDividend": fit(er_div),
         "fitFcf": fit(er_fcf),
         "fitFcfSmooth": fit(er_fcf_smooth),
+        "expectedFcfReversion": er_fcf_rev,
+        "fitFcfReversion": fit(er_fcf_rev),
         "scenarios": scenarios,
         "fitScenarios": {k: fit(v) for k, v in scenarios.items()},
         "scenarioYears": SCENARIO_YEARS,
@@ -420,6 +447,18 @@ def calc_expected_return(raw=None, stale=False, fcf_yield=None):
                                   raw["fred"][GVA_SERIES], fcf_yield,
                                   raw["fred"].get(DEFLATOR_SERIES), raw["fred"].get(EXPINF_SERIES),
                                   raw.get("cape"))
+    # Today's expected return if the PUBLISHED AHP FCF yield (2.59 %, below our
+    # rebuild) is right and reverts to the paper's own mean (3.18 %)
+    sm = res["expectedFcfSmooth"]
+    if sm:
+        g = sm[-1]["growthPct"] / 100
+        y0 = AHP_PUBLISHED["pct"] / 100
+        e0 = y0 * (1 + g) + g
+        m = (AHP_PUBLISHED["pct"] / AHP_PUBLISHED["meanPct"]) ** (1 / SCENARIO_YEARS)
+        res["ahpToday"] = {"yieldPct": AHP_PUBLISHED["pct"], "meanPct": AHP_PUBLISHED["meanPct"],
+                           "growthPct": sm[-1]["growthPct"],
+                           "constantPct": round(100 * e0, 2),
+                           "reversionPct": round(100 * ((1 + e0) * m - 1), 2)}
     res.update({"asOf": raw["fetchedAt"], "stale": stale, "note": EXPECTED_RETURN_METHODOLOGY_NOTE})
     return res
 

@@ -99,6 +99,8 @@ METHODOLOGY_NOTE = (
     "(hand-entered quarterly). Outside the US buybacks are smaller, so the dividend yield captures most of the "
     "cash returned; for the US it understates it — see the FCF-based card above for the US. A Gordon test per "
     "country on 1870-2020 data did not validate well outside the US, hence no historical lines here. "
+    "CHF view for USD regions: unhedged = relative PPP (CHF appreciates by the USD-CHF inflation gap); "
+    "hedged = minus the cost of a rolling USD→CHF hedge, proxied by the US-CH 10-year yield gap. "
     "Personal use; MSCI data are not redistributed, only derived figures shown."
 )
 
@@ -158,8 +160,12 @@ def _load_cache():
         return {}
 
 
-def calc_regional_expected_return(us_expected_inflation=None, us_10y=None):
-    """us_expected_inflation / us_10y: (date, pct) already fetched elsewhere, optional."""
+def calc_regional_expected_return(us_expected_inflation=None, us_10y=None, us_fcf=None):
+    """us_expected_inflation / us_10y: (date, pct) already fetched elsewhere, optional.
+    us_fcf: latest points of the FCF-based US expected return (valuation_yields.py):
+      {"smooth": expectedFcfSmooth[-1], "reversion": expectedFcfReversion[-1], "ahp": ahpToday}
+    → an extra "USA — FCF basis" row, since buybacks make the US dividend yield
+    understate the cash returned."""
     cache = _load_cache()
     new_cache = dict(cache)
     stale = []
@@ -185,6 +191,29 @@ def calc_regional_expected_return(us_expected_inflation=None, us_10y=None):
             bonds[b] = us_10y
         elif b not in bonds:
             bonds[b], _ = remember(b, lambda b=b: _fred_last(b))
+
+    # CHF conversion for regions measured in USD (added 2026-10-31):
+    #  - unhedged: relative PPP, the CHF appreciates by the inflation gap
+    #    E_chf = (1 + E_usd) · (1 + π_chf) / (1 + π_usd) − 1
+    #  - hedged: a 10-year rolling hedge costs/earns the expected short-rate
+    #    gap, proxied by the 10Y government yield gap (US 10Y − CH 10Y)
+    #    E_chf = (1 + E_usd) · (1 + y_ch) / (1 + y_us) − 1
+    us_infl_pct = us_expected_inflation[1] if us_expected_inflation else 2.4
+    ch_bond = bonds.get("IRLTLT01CHM156N")
+    us_bond = bonds.get("US10Y")
+
+    def to_chf(pct, cur, hedged):
+        if pct is None:
+            return None
+        if cur == "CHF":
+            return round(pct, 2)
+        if hedged:
+            if not (ch_bond and us_bond):
+                return None
+            f = (1 + ch_bond[1] / 100) / (1 + us_bond[1] / 100)
+        else:
+            f = (1 + CHF_INFLATION_PCT / 100) / (1 + us_infl_pct / 100)
+        return round(100 * ((1 + pct / 100) * f - 1), 2)
 
     rows = []
     for reg in REGIONS:
@@ -227,7 +256,38 @@ def calc_regional_expected_return(us_expected_inflation=None, us_10y=None):
             "valuationAdjPct": adj, "erReversionPct": er_rev,
             "bondLabel": reg["bondLabel"], "bondPct": bond[1] if bond else None,
             "bondAsOf": bond[0] if bond else None,
+            "erChfUnhedgedPct": to_chf(round(er, 2), reg["cur"], False),
+            "erRevChfUnhedgedPct": to_chf(er_rev, reg["cur"], False),
+            "erChfHedgedPct": to_chf(round(er, 2), reg["cur"], True),
+            "erRevChfHedgedPct": to_chf(er_rev, reg["cur"], True),
         })
+
+    if us_fcf and us_fcf.get("smooth"):
+        sm, rv, ahp = us_fcf["smooth"], us_fcf.get("reversion") or {}, us_fcf.get("ahp") or {}
+        row = {
+            "key": "USA_FCF", "label": "USA — FCF basis", "currency": "USD", "basis": "fcf",
+            "yieldLabel": "FCF yield",
+            "divYieldPct": sm["yieldPct"], "divYieldAsOf": sm["date"],
+            "divYieldSource": "US corporate FCF yield (BEA/Fed via FRED), Gordon y·(1+g)+g",
+            "realGrowthPct": sm.get("realGrowthPct"), "inflationPct": sm.get("inflPct"),
+            "inflationSource": "Cleveland Fed 10y expected inflation",
+            "erConstantPct": sm["pct"],
+            "cape": None, "capeRef": None,
+            "capeRefLabel": (f"FCF yield {rv['yield4qPct']}% vs its mean {rv['meanPct']}%" if rv else None),
+            "valuationAdjPct": rv.get("reversionPct"), "erReversionPct": rv.get("pct"),
+            "ahpPct": ahp.get("reversionPct"),
+            "ahpLabel": (f"with AHP's published FCF yield {ahp.get('yieldPct')}% → {ahp.get('meanPct')}%" if ahp else None),
+            "bondLabel": "US 10Y", "bondPct": us_bond[1] if us_bond else None,
+            "bondAsOf": us_bond[0] if us_bond else None,
+        }
+        row["erChfUnhedgedPct"] = to_chf(row["erConstantPct"], "USD", False)
+        row["erRevChfUnhedgedPct"] = to_chf(row["erReversionPct"], "USD", False)
+        row["erChfHedgedPct"] = to_chf(row["erConstantPct"], "USD", True)
+        row["erRevChfHedgedPct"] = to_chf(row["erReversionPct"], "USD", True)
+        row["ahpChfUnhedgedPct"] = to_chf(row["ahpPct"], "USD", False)
+        row["ahpChfHedgedPct"] = to_chf(row["ahpPct"], "USD", True)
+        i = next((k for k, r in enumerate(rows) if r["key"] == "USA"), -1)
+        rows.insert(i + 1, row)
 
     try:
         with open(CACHE_PATH, "w") as f:
@@ -240,6 +300,9 @@ def calc_regional_expected_return(us_expected_inflation=None, us_10y=None):
         "stale": stale,
         "regions": rows,
         "capeSnapshot": {"asOf": CAPE_SNAPSHOT["asOf"], "source": CAPE_SNAPSHOT["source"]},
+        "chf": {"usInflationPct": round(us_infl_pct, 2), "chInflationPct": CHF_INFLATION_PCT,
+                "us10yPct": us_bond[1] if us_bond else None, "ch10yPct": ch_bond[1] if ch_bond else None,
+                "ch10yAsOf": ch_bond[0] if ch_bond else None},
         "jstReference": JST_REFERENCE,
         "note": METHODOLOGY_NOTE,
     }

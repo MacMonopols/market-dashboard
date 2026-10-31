@@ -1,5 +1,18 @@
 # market-dashboard
 
+## Expected Return tab — `expected-return.html`, set up 2026-10-31
+
+The three valuation / expected-return cards (US valuation yields, Gordon
+expected vs realized, regional snapshot) were MOVED from `longterm.html` to
+a new page `expected-return.html` ("Expected Return" in the nav of all four
+pages). Same CSS (copied from longterm.html's <style>), same `live_data.js`
+keys; the render functions moved verbatim. Sections below that say "card on
+Long Term Summary" now live on this page. The regional table also has a
+shaded **"USA — FCF basis"** row (`basis: "fcf"`, built from
+`expectedFcfSmooth` / `expectedFcfReversion` / `ahpToday` passed by
+fetch_data.py as `us_fcf`), with the AHP variant shown in red under the
+reversion and CHF columns.
+
 ## Regional expected-return snapshot — card on Long Term Summary, set up 2026-10-31
 
 `regional_expected_return.py` → `LD.regionalExpectedReturn`, rendered by
@@ -19,6 +32,13 @@ IRLTLT01CHM156N) for the premium.
   before 1997-01-01 (gross variants start 2000-12). Fallback: trailing-12m
   ETF distributions via yfinance (IVV / EFA / EEM / EWL). Tested from the
   browser only; first Python run will tell (`divYieldSource` shows which).
+- **CHF view** (added 2026-10-31): for USD regions, unhedged = relative PPP
+  (× (1 + 1 % CHF inflation) / (1 + US expected inflation)), hedged = × (1 +
+  CH 10Y) / (1 + US 10Y) as the long-run cost of a rolling hedge (10Y gap
+  used instead of the 3m gap — US TB3MS 3.94 % vs CH 3m −0.04 % in Sept
+  2026 — because the horizon is 10 years). Table columns + bar-chart toggle
+  (Local currency / In CHF unhedged / hedged, `localStorage.regionalErView`);
+  in CHF views the red tick is the CH 10Y for every region.
 - **CAPE**: hand-entered in `CAPE_SNAPSHOT` each quarter (Siblis /
   Research Affiliates); Switzerland has no reference level → no reversion.
 - **Why no historical lines**: Gordon per country on the JST Macrohistory

@@ -1974,7 +1974,12 @@ def main():
         if valuation_yields and valuation_yields.get("tenYear"):
             t = valuation_yields["tenYear"][-1]
             us_10y = (t["date"], t["pct"])
-        regional_er = calc_regional_expected_return(us_infl, us_10y)
+        us_fcf = None
+        if expected_return and expected_return.get("expectedFcfSmooth"):
+            us_fcf = {"smooth": expected_return["expectedFcfSmooth"][-1],
+                      "reversion": (expected_return.get("expectedFcfReversion") or [None])[-1],
+                      "ahp": expected_return.get("ahpToday")}
+        regional_er = calc_regional_expected_return(us_infl, us_10y, us_fcf)
         print("OK " + ", ".join(f"{r['key']} {r['erConstantPct']:.1f}% (DY {r['divYieldPct']}%, {r['divYieldSource']})"
                                  for r in regional_er["regions"]))
     except Exception as e:

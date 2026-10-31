@@ -174,6 +174,9 @@ def _fetch_raw():
     raw["tenYear"] = _fetch_multpl_monthly(MULTPL_10Y_URL)
     raw["spPrice"] = _fetch_multpl_monthly(MULTPL_PRICE_URL)
     raw["spDivYield"] = _fetch_multpl_monthly(MULTPL_DIVYIELD_URL)
+    for sid in (DEFLATOR_SERIES, EXPINF_SERIES):
+        raw["fred"][sid] = _fetch_fred_series(sid)
+        time.sleep(1)
     raw["fetchedAt"] = date.today().isoformat()
     return raw
 
@@ -246,6 +249,14 @@ MULTPL_PRICE_URL = "https://www.multpl.com/s-p-500-historical-prices/table/by-mo
 MULTPL_DIVYIELD_URL = "https://www.multpl.com/s-p-500-dividend-yield/table/by-month"
 GVA_SERIES = "A451RC1Q027SBEA"
 GROWTH_YEARS = 10
+# Smoothed g for a third line: trailing 20y REAL growth of corporate GVA
+# (deflated by the GDP deflator) + expected inflation (Cleveland Fed 10-year
+# expected inflation from 1982; before that, trailing 10y GDP-deflator
+# inflation as an adaptive-expectations proxy). Removes the inflation burst
+# of 2021-23 (and the post-2008 trough) from the trailing nominal g.
+DEFLATOR_SERIES = "GDPDEF"
+EXPINF_SERIES = "EXPINF10YR"
+REAL_GROWTH_YEARS = 20
 HORIZONS = (1, 5, 10)
 
 EXPECTED_RETURN_METHODOLOGY_NOTE = (
@@ -253,6 +264,9 @@ EXPECTED_RETURN_METHODOLOGY_NOTE = (
     "each date. Dividend version: S&P 500 trailing dividend yield + trailing 10-year growth of the "
     "nominal dividend (Shiller data via multpl.com). FCF version: US corporate-sector FCF yield "
     "(card above) + trailing 10-year growth of nominal corporate gross value added (BEA, via FRED). "
+    "Dashed FCF line: same yield with a smoothed g = trailing 20-year real growth of corporate value "
+    "added + expected inflation (Cleveland Fed 10-year, from 1982; trailing 10-year GDP-deflator "
+    "inflation before), which strips out inflation bursts and slumps from the trailing nominal g. "
     "Realized = S&P 500 nominal total return over the NEXT 1, 5 or 10 years (dividends reinvested), "
     "annualized and plotted at the start date, so the line stops h years before today. The gap "
     "between realized and expected is mostly the change in valuation multiples, which Gordon "
@@ -281,7 +295,7 @@ def _r2(pairs):
     return round(sxy * sxy / (sxx * syy), 3) if sxx and syy else None
 
 
-def compute_expected_return(price, div_yield, gva, fcf_yield):
+def compute_expected_return(price, div_yield, gva, fcf_yield, deflator=None, expinf=None):
     """price / div_yield: {YYYY-MM: float} (yield in %), gva: {FRED date: $bn},
     fcf_yield: [{date: YYYY-MM (quarter end), pct}] → dict of series."""
     months = sorted(set(price) & set(div_yield))
@@ -324,6 +338,29 @@ def compute_expected_return(price, div_yield, gva, fcf_yield):
             er_fcf.append({"date": r["date"], "pct": round(100 * (y * (1 + g) + g), 2),
                            "yieldPct": round(r["pct"], 2), "growthPct": round(100 * g, 2)})
 
+    er_fcf_smooth = []
+    if deflator and expinf:
+        defl_q = {_quarter_end_month(d): v for d, v in deflator.items()}
+        # monthly expectations, read at the quarter-end month
+        exp_m = {d[:7]: v for d, v in expinf.items()}
+        for r in fcf_yield:
+            q = r["date"]
+            b_real = _shift_month(q, -12 * REAL_GROWTH_YEARS)
+            b_inf = _shift_month(q, -12 * GROWTH_YEARS)
+            if not all(k in gva_q and k in defl_q for k in (q, b_real)) or b_inf not in defl_q:
+                continue
+            real_g = ((gva_q[q] / defl_q[q]) / (gva_q[b_real] / defl_q[b_real])) ** (1 / REAL_GROWTH_YEARS) - 1
+            if q in exp_m:
+                infl, src = exp_m[q] / 100, "expected"
+            else:
+                infl, src = (defl_q[q] / defl_q[b_inf]) ** (1 / GROWTH_YEARS) - 1, "trailing"
+            g = (1 + real_g) * (1 + infl) - 1
+            y = r["pct"] / 100
+            er_fcf_smooth.append({"date": q, "pct": round(100 * (y * (1 + g) + g), 2),
+                                  "yieldPct": round(r["pct"], 2), "growthPct": round(100 * g, 2),
+                                  "realGrowthPct": round(100 * real_g, 2), "inflPct": round(100 * infl, 2),
+                                  "inflSource": src})
+
     def fit(expected):
         out = {}
         for h, rows in realized.items():
@@ -337,9 +374,12 @@ def compute_expected_return(price, div_yield, gva, fcf_yield):
     return {
         "expectedDividend": er_div,
         "expectedFcf": er_fcf,
+        "expectedFcfSmooth": er_fcf_smooth,
         "realized": realized,
         "fitDividend": fit(er_div),
         "fitFcf": fit(er_fcf),
+        "fitFcfSmooth": fit(er_fcf_smooth),
+        "realGrowthYears": REAL_GROWTH_YEARS,
         "growthYears": GROWTH_YEARS,
     }
 
@@ -352,7 +392,8 @@ def calc_expected_return(raw=None, stale=False, fcf_yield=None):
     if fcf_yield is None:
         fcf_yield = calc_valuation_yields(raw, stale)["fcfYield"]
     res = compute_expected_return(raw["spPrice"], raw["spDivYield"],
-                                  raw["fred"][GVA_SERIES], fcf_yield)
+                                  raw["fred"][GVA_SERIES], fcf_yield,
+                                  raw["fred"].get(DEFLATOR_SERIES), raw["fred"].get(EXPINF_SERIES))
     res.update({"asOf": raw["fetchedAt"], "stale": stale, "note": EXPECTED_RETURN_METHODOLOGY_NOTE})
     return res
 
@@ -364,4 +405,5 @@ if __name__ == "__main__":
                       if k != "note"}, indent=1))
     er = calc_expected_return(raw, stale, res["fcfYield"])
     print("E[R] div", er["expectedDividend"][-1], "fcf", er["expectedFcf"][-1])
-    print("fit div", er["fitDividend"], "\nfit fcf", er["fitFcf"])
+    print("smooth", er["expectedFcfSmooth"][-1])
+    print("fit div", er["fitDividend"], "\nfit fcf", er["fitFcf"], "\nfit smooth", er["fitFcfSmooth"])

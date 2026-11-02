@@ -421,6 +421,36 @@
   </div>
 </div>
 
+<!-- ── US equity fund flows, cumulative by year (rendered by JS from live_data.js) ── -->
+<div class="mktcap-card" id="fund-flows-card" style="display:none">
+  <div class="mktcap-title">US Mutual Funds + ETFs — Net Equity Purchases, Cumulative by Year</div>
+  <div class="mktcap-date" id="fund-flows-date"></div>
+  <div class="mktcap-body" style="align-items:flex-start;gap:28px;flex-wrap:wrap;">
+    <div>
+      <div class="mktcap-pct" id="ff-ytd" style="color:#e67e22"></div>
+      <div class="mktcap-name" id="ff-ytd-label"></div>
+    </div>
+    <div>
+      <div class="mktcap-pct" id="ff-ann" style="color:#e67e22"></div>
+      <div class="mktcap-name" id="ff-ann-label"></div>
+    </div>
+    <div>
+      <div class="mktcap-pct" id="ff-rec-bn"></div>
+      <div class="mktcap-name" id="ff-rec-bn-label"></div>
+    </div>
+    <div>
+      <div class="mktcap-pct" id="ff-rec-pct"></div>
+      <div class="mktcap-name" id="ff-rec-pct-label"></div>
+    </div>
+  </div>
+  <div class="spy-history-wrap">
+    <div class="range-btns" id="ff-unit-btns"></div>
+    <div class="range-btns" id="ff-range-btns"></div>
+    <svg id="fund-flows-svg" width="900" height="270" viewBox="0 0 900 270"></svg>
+    <div class="spy-history-legend" id="fund-flows-legend"></div>
+  </div>
+</div>
+
 <div class="footer" id="footer"></div>
 
 <script>document.write('<script src="live_data.js?' + Date.now() + '" onerror="window.LIVE_DATA=null"><\/script>');</script>
@@ -851,6 +881,130 @@
   }
 
   if (LD?.regionalExpectedReturn) renderRegionalER(LD.regionalExpectedReturn);
+
+  // ── US equity fund flows (fund_flows.py) ────────────────────────────────
+  // BofA/EPFR-style "cumulative flows by year": each year restarts at 0.
+  // Fed Z.1 net equity purchases by mutual funds + ETFs, quarterly. Two
+  // button rows: unit ($bn / % of market value at the start of the year)
+  // and visible period. The current year is extended to its annualized pace.
+  const FF_UNITS = [{ key: 'bn', label: '$bn' }, { key: 'pct', label: '% of market cap' }];
+  const FF_RANGES = [
+    { key: '10Y', label: '10 ans', years: 10 },
+    { key: '20Y', label: '20 ans', years: 20 },
+    { key: '40Y', label: '40 ans', years: 40 },
+    { key: 'ALL', label: 'All' },
+  ];
+
+  function renderFundFlows(data) {
+    if (!data || !data.years || data.years.length < 2) return;
+    document.getElementById('fund-flows-card').style.display = '';
+    const Y = data.years, cur = Y[Y.length - 1];
+    const qLabel = d => d.slice(0, 4) + ' Q' + Math.ceil(+d.slice(5, 7) / 3);
+    const bn = v => (v >= 0 ? '+' : '−') + '$' + Math.abs(v).toFixed(0) + 'bn';
+    document.getElementById('fund-flows-date').textContent =
+      `As of ${data.asOf}${data.stale ? ' (cached — live fetch failed)' : ''} · data to ${qLabel(data.lastQuarter)} · Source: Fed Financial Accounts Z.1 (F.224), via FRED`;
+    const partial = cur.quarters < 4;
+    document.getElementById('ff-ytd').textContent = bn(cur.totalBn);
+    document.getElementById('ff-ytd-label').textContent =
+      `${cur.year}${partial ? ` to Q${cur.quarters}` : ''} (ETF ${bn(cur.etfBn)}, mutual funds ${bn(cur.mfBn)})`;
+    document.getElementById('ff-ann').textContent = bn(cur.annualizedBn) + `  (${cur.annualizedPct.toFixed(2)}%)`;
+    document.getElementById('ff-ann-label').textContent = `${cur.year}${partial ? ' annualized' : ''}, $ and % of market cap`;
+    if (data.recordBn) {
+      document.getElementById('ff-rec-bn').textContent = bn(data.recordBn.totalBn);
+      document.getElementById('ff-rec-bn-label').textContent = `Record full year in $ (${data.recordBn.year}, ${data.recordBn.totalPct.toFixed(2)}%)`;
+    }
+    if (data.recordPct) {
+      document.getElementById('ff-rec-pct').textContent = data.recordPct.totalPct.toFixed(2) + '%';
+      document.getElementById('ff-rec-pct-label').textContent = `Record full year in % of cap (${data.recordPct.year}, ${bn(data.recordPct.totalBn)})`;
+    }
+
+    let unit = 'bn', range = '10Y';
+    try { unit = localStorage.getItem('ffUnit') || 'bn'; range = localStorage.getItem('ffRange') || '10Y'; } catch (e) {}
+    if (!FF_UNITS.some(u => u.key === unit)) unit = 'bn';
+    if (!FF_RANGES.some(r => r.key === range)) range = '10Y';
+    const ub = document.getElementById('ff-unit-btns'), rb = document.getElementById('ff-range-btns');
+    ub.innerHTML = FF_UNITS.map(u => `<button class="range-btn" data-k="${u.key}">${u.label}</button>`).join('');
+    rb.innerHTML = FF_RANGES.map(r => `<button class="range-btn" data-k="${r.key}">${r.label}</button>`).join('');
+    const redraw = () => {
+      try { localStorage.setItem('ffUnit', unit); localStorage.setItem('ffRange', range); } catch (e) {}
+      ub.querySelectorAll('.range-btn').forEach(b => b.classList.toggle('active', b.dataset.k === unit));
+      rb.querySelectorAll('.range-btn').forEach(b => b.classList.toggle('active', b.dataset.k === range));
+      drawFundFlows(data, unit, FF_RANGES.find(r => r.key === range));
+    };
+    ub.querySelectorAll('.range-btn').forEach(b => b.addEventListener('click', () => { unit = b.dataset.k; redraw(); }));
+    rb.querySelectorAll('.range-btn').forEach(b => b.addEventListener('click', () => { range = b.dataset.k; redraw(); }));
+    redraw();
+  }
+
+  function drawFundFlows(data, unit, range) {
+    const all = data.years, cur = all[all.length - 1];
+    const years = range.years ? all.filter(y => y.year > cur.year - range.years) : all;
+    const pctView = unit === 'pct';
+    // Components in % use the same start-of-year market value as the total
+    const val = (p, y, k) => pctView ? 100 * p[k] / y.startCapBn : p[k];
+    const showParts = years.length <= 20;          // ETF / MF lines only when readable
+    const t = d => Date.parse(d + '-28');
+    const t0 = Date.UTC(years[0].year, 0, 1) - 864e5 * 31, t1 = Date.UTC(cur.year + 1, 0, 15);
+    const annEnd = pctView ? cur.annualizedPct : cur.annualizedBn;
+    const vals = [0, annEnd];
+    years.forEach(y => y.path.forEach(p => {
+      vals.push(val(p, y, 'totalBn'));
+      if (showParts) vals.push(val(p, y, 'etfBn'), val(p, y, 'mfBn'));
+    }));
+    const W = 900, H = 270, padL = 46, padR = 16, padT = 14, padB = 26;
+    const span = Math.max(...vals) - Math.min(...vals);
+    const steps = pctView ? [0.1, 0.25, 0.5, 1, 2] : [50, 100, 200, 250, 500, 1000];
+    const step = steps.find(s => span / s <= 7) || steps[steps.length - 1];
+    const maxV = Math.ceil(Math.max(...vals) / step) * step, minV = Math.floor(Math.min(...vals) / step) * step;
+    const xT = ms => padL + (W - padL - padR) * ((ms - t0) / (t1 - t0));
+    const x = d => xT(t(d));
+    const y = v => H - padB - (H - padT - padB) * ((v - minV) / ((maxV - minV) || 1));
+    const txt = 'font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="#6b7a8d"';
+    const fmt = v => pctView ? v.toFixed(step < 0.5 ? 2 : 1) + '%' : (v < 0 ? '−' : '') + '$' + Math.abs(v) + 'bn';
+    let h = '';
+    for (let g = minV; g <= maxV + 1e-9; g += step) {
+      h += `<line x1="${padL}" y1="${y(g).toFixed(1)}" x2="${W - padR}" y2="${y(g).toFixed(1)}" stroke="${Math.abs(g) < 1e-9 ? '#6b7a8d' : '#b0bac6'}" ${Math.abs(g) < 1e-9 ? '' : 'stroke-dasharray="3,3" opacity="0.5"'}/>`;
+      h += `<text x="${padL - 6}" y="${y(g).toFixed(1)}" text-anchor="end" dominant-baseline="middle" ${txt}>${fmt(+g.toFixed(4))}</text>`;
+    }
+    const yStep = [1, 2, 5, 10].find(s => years.length / s <= 14) || 10;
+    years.forEach(yr => {
+      if (yr.year % yStep) return;
+      const xx = xT(Date.UTC(yr.year, 0, 1));
+      h += `<line x1="${xx.toFixed(1)}" y1="${H - padB}" x2="${xx.toFixed(1)}" y2="${H - padB + 3}" stroke="#b0bac6"/>`;
+      h += `<text x="${xx.toFixed(1)}" y="${H - 8}" text-anchor="middle" ${txt}>${yStep === 1 ? "'" + String(yr.year).slice(2) : yr.year}</text>`;
+    });
+    const cTot = '#003a5c', cCur = '#e67e22', cEtf = '#2a7f62', cMf = '#c0392b';
+    const path = (yr, k) => yr.path.map((p, i) => (i ? 'L' : 'M') + x(p.date).toFixed(1) + ',' + y(val(p, yr, k)).toFixed(1)).join(' ');
+    years.forEach(yr => {
+      const isCur = yr === cur;
+      if (showParts) {
+        h += `<path d="${path(yr, 'etfBn')}" fill="none" stroke="${cEtf}" stroke-width="1" stroke-dasharray="3,2" opacity="0.7"/>`;
+        h += `<path d="${path(yr, 'mfBn')}" fill="none" stroke="${cMf}" stroke-width="1" stroke-dasharray="3,2" opacity="0.7"/>`;
+      }
+      h += `<path d="${path(yr, 'totalBn')}" fill="none" stroke="${isCur ? cCur : cTot}" stroke-width="${isCur ? 2.4 : 1.8}"/>`;
+      if (years.length <= 20) yr.path.slice(1).forEach(p =>
+        h += `<circle cx="${x(p.date).toFixed(1)}" cy="${y(val(p, yr, 'totalBn')).toFixed(1)}" r="${isCur ? 2.6 : 1.8}" fill="${isCur ? cCur : cTot}"/>`);
+    });
+    // Current year: dashed to its annualized pace at year end
+    if (cur.quarters < 4) {
+      const lp = cur.path[cur.path.length - 1];
+      const xe = x(`${cur.year}-12`), ye = y(annEnd);
+      h += `<line x1="${x(lp.date).toFixed(1)}" y1="${y(val(lp, cur, 'totalBn')).toFixed(1)}" x2="${xe.toFixed(1)}" y2="${ye.toFixed(1)}" stroke="${cCur}" stroke-width="1.6" stroke-dasharray="4,3"/>`;
+      h += `<circle cx="${xe.toFixed(1)}" cy="${ye.toFixed(1)}" r="3" fill="#fff" stroke="${cCur}" stroke-width="1.5"/>`;
+      h += `<text x="${(xe - 6).toFixed(1)}" y="${(ye - 8).toFixed(1)}" text-anchor="end" font-family="Helvetica Neue,Arial,sans-serif" font-size="10" font-weight="600" fill="${cCur}">${fmt(+annEnd.toFixed(pctView ? 2 : 0))} '${String(cur.year).slice(2)} ann.</text>`;
+    }
+    document.getElementById('fund-flows-svg').innerHTML = h;
+
+    document.getElementById('fund-flows-legend').innerHTML = `
+      <span style="display:block;font-size:10.5px;color:var(--text-muted);line-height:1.5;max-width:820px;">
+        <strong style="color:${cTot}">━ Mutual funds + ETFs</strong>, cumulative within each year (restarts at 0 every January) ·
+        <strong style="color:${cCur}">━ ${cur.year}</strong>${cur.quarters < 4 ? ` (to Q${cur.quarters}; <span style="color:${cCur}">╌</span> = annualized pace)` : ''}
+        ${showParts ? ` · <span style="color:${cEtf}">╌ ETFs</span> · <span style="color:${cMf}">╌ mutual funds</span>` : ' · ETF / mutual fund split shown on 10- and 20-year views'}
+        <br>${data.note || ''}
+      </span>`;
+  }
+
+  if (LD?.fundFlows) renderFundFlows(LD.fundFlows);
 
 })();
 </script>

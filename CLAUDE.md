@@ -1,5 +1,32 @@
 # market-dashboard
 
+## US equity fund flows by year — card on Expected Return, set up 2026-11-02
+
+Last card on `expected-return.html`, inspired by BofA's "Chart 10: Inflows
+to US stocks annualizing record $739bn in '26" (EPFR data). `fund_flows.py`
+(`calc_fund_flows()` → `LD.fundFlows`), rendered by `renderFundFlows()` /
+`drawFundFlows(data, unit, range)`: cumulative flow restarting at 0 each
+January, current year extended (dashed) to its annualized pace, ETF and
+mutual fund components as thin dashed lines on 10/20-year views. Buttons:
+$bn / % of market cap (`localStorage.ffUnit`) and 10/20/40 ans/All
+(`ffRange`).
+- **Source = Fed Z.1 F.224 via FRED**, not EPFR (paid) or ICI: ICI's weekly
+  flow pages and `combined_flows_data_YYYY.xls` return 403 (Akamai) to any
+  script, checked 2026-11-02; the browser only gets 2025-2026 files anyway.
+  Do NOT try to get around that block. Series: `BOGZ1FA653064100Q` (mutual
+  funds) + `BOGZ1FA563064100Q` (ETFs) net purchases of corporate equities,
+  $m SAAR (quarter = /4); `BOGZ1LM893064105Q` all corporate equities level
+  for the % view (start-of-year value). From 1952, cache
+  `fund_flows_cache.json` (git-ignored).
+- **Not the same measure as EPFR**: fund purchases, not investor flows; all
+  mutual funds (incl. hybrid), US + foreign equities; ~1 quarter lag. 2021
+  matches well (+$417bn vs BofA ~400) but 2025 is −$115bn vs BofA ~+550:
+  mutual fund outflows of −$1.07tn (Q3 2025 alone −$2.1tn SAAR), most likely
+  money moving to collective investment trusts / direct holdings, which Z.1
+  does not offset here. Flagged in the note.
+- At 2026 Q2: +$250bn YTD, +$501bn annualized (0.46 % of cap) — the
+  fastest pace in $, but the record in % of cap is 1996 (2.70 %).
+
 ## Expected Return tab — `expected-return.html`, set up 2026-10-31
 
 The three valuation / expected-return cards (US valuation yields, Gordon

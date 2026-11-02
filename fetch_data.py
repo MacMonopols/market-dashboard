@@ -18,6 +18,7 @@ from hyperscaler_capex import fetch_hyperscaler_capex
 from hyperscaler_funding import calc_hyperscaler_funding
 from valuation_yields import get_valuation_raw, calc_valuation_yields, calc_expected_return
 from regional_expected_return import calc_regional_expected_return
+from fund_flows import calc_fund_flows
 
 # ── Konfiguration ────────────────────────────────────────────────────────────
 
@@ -1986,6 +1987,17 @@ def main():
         print(f"⚠ failed: {e}")
         regional_er = None
 
+    # 5l) US equity fund flows: mutual funds + ETFs net equity purchases (Fed Z.1), cumulative by year
+    print("US equity fund flows (Z.1) ...", end=" ", flush=True)
+    try:
+        fund_flows = calc_fund_flows()
+        fy = fund_flows["years"][-1]
+        print(f"OK {fy['year']} YTD {fy['totalBn']:+.0f}bn to {fund_flows['lastQuarter']} "
+              f"(ann. {fy['annualizedBn']:+.0f}bn, {fy['annualizedPct']:.2f}% of cap)" + (" [STALE]" if fund_flows["stale"] else ""))
+    except Exception as e:
+        print(f"⚠ failed: {e}")
+        fund_flows = None
+
     # 6) Output
     fetched_at = datetime.now().strftime("%d.%m.%Y %H:%M")
     out = {
@@ -1999,6 +2011,7 @@ def main():
         "valuationYields": valuation_yields,
         "expectedReturn":  expected_return,
         "regionalExpectedReturn": regional_er,
+        "fundFlows":       fund_flows,
         "mag7":            mag7,
         "hyperscalerCapex": hyperscaler_capex,
         "hyperscalerFunding": hyperscaler_funding,

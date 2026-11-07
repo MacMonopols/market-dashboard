@@ -327,6 +327,21 @@
     table.ls-entrants th:first-child, table.ls-entrants td:first-child { text-align:left; }
     table.ls-entrants th { color:var(--text-muted); font-weight:600; border-bottom:1px solid var(--border); }
     .ls-note { display:block; font-size:10.5px; color:var(--text-muted); line-height:1.5; max-width:860px; margin-top:8px; }
+    /* ── Periodic table of asset-class returns (CHF) ── */
+    .pt-wrap { overflow-x:auto; margin-top:6px; }
+    .pt-grid { display:grid; gap:2px; background:#bfbfbf; padding:2px; min-width:860px; }
+    .pt-head { font-size:12px; font-weight:700; text-align:center; color:#222; padding:3px 0 2px; }
+    .pt-head.ytd { background:#003a5c; color:#fff; }
+    .pt-head small { display:block; font-size:9px; font-weight:500; opacity:.85; }
+    .pt-cell { text-align:center; padding:3px 2px; line-height:1.2; display:flex; flex-direction:column; justify-content:center; }
+    .pt-cell .l { display:block; font-size:9.5px; font-weight:600; line-height:1.15; }
+    .pt-cell .v { display:block; font-size:11px; font-weight:700; }
+    .pt-cell.ytd { box-shadow: inset 0 0 0 2px rgba(0,58,92,.55); }
+    .pt-grid.hl .pt-cell { opacity:.25; }
+    .pt-grid.hl .pt-cell.on { opacity:1; }
+    .pt-legend { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:2px 16px; margin-top:10px; font-size:10.5px; color:var(--text); }
+    .pt-legend span.sw { display:inline-block; width:10px; height:10px; border:1px solid #999; vertical-align:-1px; margin-right:6px; }
+    .pt-legend .src { color:var(--text-muted); }
 
     /* ── Footer ──────────────────────────────────────────────── */
     .footer {
@@ -355,6 +370,15 @@
   <a href="expected-return.html">Expected Return</a>
   <a href="hyperscaler-capex.html">Hyperscaler Capex</a>
   <a href="https://market-vol-dashboard.streamlit.app" target="_blank" rel="noopener">Vol &amp; Options ↗</a>
+</div>
+
+<!-- ── Periodic table of annual asset-class returns in CHF (periodic_table.py) ── -->
+<div class="mktcap-card" id="pt-card" style="display:none">
+  <div class="mktcap-title">Annual Returns of Major Asset Classes in Swiss Francs</div>
+  <div class="mktcap-date" id="pt-date"></div>
+  <div class="pt-wrap"><div class="pt-grid" id="pt-grid"></div></div>
+  <div class="pt-legend" id="pt-legend"></div>
+  <span class="ls-note" id="pt-note"></span>
 </div>
 
 <!-- ── World Market Capitalisation (rendered by JS from live_data.js) ──── -->
@@ -1212,6 +1236,49 @@
   }
 
   if (LD?.largestStocks) renderLargestStocks(LD.largestStocks);
+
+
+  // ── Periodic table of asset-class returns in CHF (10 full years + YTD) ──
+  function renderPeriodicTable(pt) {
+    const cols = pt.columns, n = cols.length, grid = document.getElementById("pt-grid");
+    const fmt = v => v == null ? "—" : (v < 0 ? "−" : "") + Math.abs(v).toFixed(1) + "%";
+    const asOf = new Date(pt.asOf + "T00:00:00");
+    const asOfTxt = asOf.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    grid.style.gridTemplateColumns = `repeat(${n}, minmax(78px, 1fr))`;
+    let h = cols.map(c => `<div class="pt-head${c.ytd ? " ytd" : ""}">${c.year}${c.ytd ? `<small>YTD · ${asOfTxt}</small>` : ""}</div>`).join("");
+    const ranked = cols.map((c, i) => pt.assets.slice().sort((a, b) =>
+      (b.ret[i] ?? -Infinity) - (a.ret[i] ?? -Infinity)));
+    for (let r = 0; r < pt.assets.length; r++) {
+      for (let i = 0; i < n; i++) {
+        const a = ranked[i][r];
+        h += `<div class="pt-cell${cols[i].ytd ? " ytd" : ""}" data-k="${a.key}" title="${a.label} ${cols[i].year}${cols[i].ytd ? " YTD" : ""}: ${fmt(a.ret[i])}"
+                   style="background:${a.bg};color:${a.fg}"><span class="l">${a.label}</span><span class="v">${fmt(a.ret[i])}</span></div>`;
+      }
+    }
+    grid.innerHTML = h;
+    // hover / tap an asset class to follow it across the years
+    const setHl = k => {
+      grid.classList.toggle("hl", !!k);
+      grid.querySelectorAll(".pt-cell").forEach(el => el.classList.toggle("on", el.dataset.k === k));
+    };
+    let pinned = null;
+    grid.addEventListener("mouseover", e => { const c = e.target.closest(".pt-cell"); if (c && !pinned) setHl(c.dataset.k); });
+    grid.addEventListener("mouseleave", () => { if (!pinned) setHl(null); });
+    grid.addEventListener("click", e => {
+      const c = e.target.closest(".pt-cell"); if (!c) return;
+      pinned = pinned === c.dataset.k ? null : c.dataset.k; setHl(pinned || c.dataset.k);
+    });
+    document.getElementById("pt-legend").innerHTML = pt.assets.slice().sort((a, b) => a.label.localeCompare(b.label))
+      .map(a => `<div><span class="sw" style="background:${a.bg}"></span><b>${a.label}</b> <span class="src">· ${a.source}</span></div>`).join("");
+    const y0 = cols[0].year, y1 = cols[n - 2].year;
+    document.getElementById("pt-date").textContent =
+      `${y0}–${y1} calendar years + ${cols[n - 1].year} year to date (as of ${asOfTxt}) · ranked highest to lowest · hover or tap an asset class to follow it`
+      + (pt.stale ? " · ⚠ live update failed, cached values" : "");
+    document.getElementById("pt-note").textContent = pt.note;
+    document.getElementById("pt-card").style.display = "";
+  }
+
+  if (LD?.periodicTable) renderPeriodicTable(LD.periodicTable);
 
 
   // ── Factor vs World Cap-Weighted (live ETF prices) ──────────────────────

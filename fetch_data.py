@@ -1906,6 +1906,17 @@ def main():
         print(f"  ⚠ largest stocks failed: {e}")
         largest_stocks = None
 
+    # 5e3) Periodic table of annual asset-class returns in CHF, last 10 full
+    #      years + YTD (periodic_table.py)
+    print("\nPeriodic table of asset-class returns (CHF, 10y + YTD) ...")
+    try:
+        from periodic_table import calc_periodic_table
+        periodic_table = calc_periodic_table()
+        print(f"  → as of {periodic_table['asOf']}" + (" (stale cache)" if periodic_table.get("stale") else ""))
+    except Exception as e:
+        print(f"  ⚠ periodic table failed: {e}")
+        periodic_table = None
+
     # 5f) World Value Factor vs World Cap-Weighted (live ETF prices, IWVL vs SWDA)
     next_step7 = next_step6 + 1
     print(f"\n[{next_step7}] World Value vs World Cap-Weighted ({WORLD_VALUE_TICKER} vs {WORLD_CAPWEIGHTED_TICKER})")
@@ -2037,6 +2048,7 @@ def main():
         "acwiCountryWeights": acwi_country_weights,
         "spyTop10":        spy_top10,
         "largestStocks":   largest_stocks,
+        "periodicTable":   periodic_table,
         "worldValue":      world_value,
         "worldQuality":    world_quality,
         "worldSmallCap":   world_smallcap,

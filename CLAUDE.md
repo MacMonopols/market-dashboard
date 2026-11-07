@@ -1,5 +1,33 @@
 # market-dashboard
 
+## Periodic table of asset-class returns in CHF — card on Long Term Summary, set up 2026-11-07
+
+First card on `longterm.html` (before the World Market Cap donut): annual
+total returns in CHF of 18 asset classes, last 10 full calendar years + the
+current year to date, each column ranked high → low; hover/tap follows one
+asset class. Update of Hinder Asset Management's "Jahresrenditen der
+Hauptanlageklassen in Schweizer Franken 2010-2020" PDF (same classes and
+colours, labels in English). `periodic_table.py` (`calc_periodic_table()` →
+`LD.periodicTable`), rendered by `renderPeriodicTable()`.
+- **Free proxies, not the original paid indices**: ETF total returns from
+  Yahoo (`auto_adjust=True`, year-end = last close of the year), ticker per
+  class in `ASSETS`; Swiss equities = SPI TR from
+  `data/spi_six_tr_monthly.csv`, chained with `CHSPI.SW` after its last
+  month; money market = FRED `IR3TIB01{US,EZ,CH}M156N` 3-month rates
+  compounded monthly (last rate carried forward, partial month prorated —
+  the EZ series stops 2026-01) + FX move.
+- **FX**: year-ends from FRED H.10 (`DEXSZUS`, EURCHF = DEXSZUS × DEXUSEU);
+  Yahoo's `USDCHF=X` / `EURCHF=X` year-end closes were off by up to 1 pt. The
+  YTD end point uses Yahoo's latest FX (H.10 lags ~1 week; both agree ~0.1 %).
+- **Validation vs the 2020 PDF (2016-2020 overlap)**: most cells within ±1 pt.
+  Swiss Bonds = `CSBGC0.SW` (7-15y) is 1-2 pt off — no free all-maturity Swiss
+  govt series; CSBGC7 / CHESG / a yield model were worse. The PDF itself looks
+  odd for 2019 RE Europe and EM bonds. US equities use SPY (EUSA is
+  equal-weighted).
+- Cache `periodic_table_cache.json` (git-ignored), `stale: true` on fallback.
+- A static PDF version (2016-2025, no YTD) was made for the user at
+  `~/Downloads/Periodic_Table_2016-2025.pdf` (Swift/CoreGraphics, outside the repo).
+
 ## Largest US stocks (Dimensional "Large and in Charge") — 3 cards on Long Term Summary, set up 2026-11-07
 
 Three cards on `longterm.html` (before World Value), after Dimensional's

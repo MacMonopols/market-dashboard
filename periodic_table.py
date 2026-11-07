@@ -15,8 +15,9 @@ Barclays, UBS CMCI...); this uses free proxies:
 - money market = monthly 3-month interbank rates (OECD via FRED), compounded,
   missing recent months carried forward, plus the currency move vs CHF;
 - FX = Federal Reserve H.10 noon rates via FRED at each year-end (Yahoo's
-  USDCHF=X / EURCHF=X year-end closes were off by up to 1 pt); the YTD end
-  point uses Yahoo's latest FX close because H.10 lags about a week.
+  USDCHF=X / EURCHF=X year-end closes were off by up to 1 pt); the YTD column
+  uses Yahoo FX at both ends (H.10 lags about a week), the same way as the
+  YTD Dashboard (fetch_data.calc_chf_returns), so same-ticker rows match it.
 
 Checked against the original table on the 2016-2020 overlap: most cells
 within +/-1 pt. Swiss bonds use the 7-15y segment (CSBGC0.SW) because no
@@ -162,7 +163,13 @@ def _compute(today=None):
                 if pd.isna(p0) or pd.isna(p1):
                     return None
                 g = float(p1) / float(p0)
-            g *= fx_at(ccy, y_end) / fx_at(ccy, y - 1)
+            if y == cur and ccy != "CHF":
+                # YTD: Yahoo FX at both ends (as on the YTD Dashboard), not
+                # FRED year-end vs Yahoo now — mixing sources cost ~0.3 pt
+                fx_pair = "USDCHF=X" if ccy == "USD" else "EURCHF=X"
+                g *= fx_now[ccy] / float(ye[fx_pair].loc[y - 1])
+            else:
+                g *= fx_at(ccy, y_end) / fx_at(ccy, y - 1)
             return round((g - 1) * 100, 1)
         except (KeyError, IndexError):
             return None

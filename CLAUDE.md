@@ -1,8 +1,23 @@
 # market-dashboard
 
+## YTD Dashboard switched from weekly to daily closes — set up 2026-11-07
+
+Found while checking the periodic table's YTD column against the YTD
+Dashboard: `batch_fetch()` / `fetch_weekly()` used Yahoo weekly bars, which
+are stamped with the Monday but carry the week's LAST close. The "last point
+before 1 Jan" in `calc_chf_returns()` was therefore the bar of Mon 29 Dec
+2025, i.e. the close of Fri 2 Jan 2026, so every YTD skipped the first
+trading day (EEM 9.83 % instead of 12.27 %, SPY 12.35 vs 11.92; Swiss rows
+were unaffected because 2 Jan is a SIX holiday). The last weekly FX close was
+also stale (USDCHF 0.820 vs 0.815 daily). Both now download `interval="1d"`
+(names kept); 52W low/high and 30d use daily points too, so they moved a
+little (e.g. EEM 52W high 28.6 → 33.5). The Mag7 cap-weighted calc reuses the
+same series (positional alignment still holds within one batch).
+
 ## Periodic table of asset-class returns in CHF — card on Long Term Summary, set up 2026-11-07
 
-First card on `longterm.html` (before the World Market Cap donut): annual
+Last card on `longterm.html` (after the returns table, moved there at the
+user's request the same day): annual
 total returns in CHF of 18 asset classes, last 10 full calendar years + the
 current year to date, each column ranked high → low; hover/tap follows one
 asset class. Update of Hinder Asset Management's "Jahresrenditen der
@@ -18,7 +33,12 @@ colours, labels in English). `periodic_table.py` (`calc_periodic_table()` →
   the EZ series stops 2026-01) + FX move.
 - **FX**: year-ends from FRED H.10 (`DEXSZUS`, EURCHF = DEXSZUS × DEXUSEU);
   Yahoo's `USDCHF=X` / `EURCHF=X` year-end closes were off by up to 1 pt. The
-  YTD end point uses Yahoo's latest FX (H.10 lags ~1 week; both agree ~0.1 %).
+  YTD column uses Yahoo FX at BOTH ends (H.10 lags ~1 week), like the YTD
+  Dashboard: rows with the same ticker as the dashboard (SPY, EEM, EWJ, EPP,
+  VNQ, IPRP.AS) then match it within 0.1 pt. Other rows differ because the
+  proxy differs on purpose (original Hinder indices): Swiss RE SRECHA vs
+  SRFCHA, commodities CCUSAS vs ICOM, Eurozone EZU vs FEZ, EM bonds EMB (USD)
+  vs EMLC (local), US bonds GOVT vs AGG, money market rates vs BIL/EXVM/CSBGC3.
 - **Validation vs the 2020 PDF (2016-2020 overlap)**: most cells within ±1 pt.
   Swiss Bonds = `CSBGC0.SW` (7-15y) is 1-2 pt off — no free all-maturity Swiss
   govt series; CSBGC7 / CHESG / a yield model were worse. The PDF itself looks

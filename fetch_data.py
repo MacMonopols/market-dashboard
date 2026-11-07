@@ -1306,7 +1306,7 @@ def calc_mag7_cap_weighted(member_series, fx_data):
       calc_mag7() world-market-cap section, which is unrelated to this
       YTD-tab metric.
 
-    member_series: dict {ticker: [(ts, price), ...]} in USD, weekly — the
+    member_series: dict {ticker: [(ts, price), ...]} in USD, daily — the
                     same series already fetched for SUB_MARKETS["Magnificent 7"].
     fx_data:       dict {ccy: [(ts, fx), ...] or None} — same as used by
                     calc_chf_returns() elsewhere in this file.
@@ -1351,7 +1351,7 @@ def calc_mag7_cap_weighted(member_series, fx_data):
 
     # Combine into one weighted series. All members were batch-downloaded
     # together (single yf.download call per SUB_MARKETS group), so their
-    # weekly timestamps line up positionally; align on the shortest series
+    # daily timestamps line up positionally; align on the shortest series
     # as a safety margin.
     length = min(len(rets) for _, _, rets in weighted)
     combined = []
@@ -1480,9 +1480,16 @@ def annualized_return(chf_series, years):
     return round(ann * 100, 2)
 
 def fetch_weekly(ticker):
-    """Lädt 1 Jahr Wochendaten. Gibt Liste [(timestamp_int, close_float)] zurück."""
+    """Lädt 1 Jahr Tagesschlusskurse. Gibt Liste [(timestamp_int, close_float)] zurück.
+
+    Daily, not weekly (changed 2026-11-07): Yahoo stamps a weekly bar with its
+    Monday but gives it the week's LAST close, so the "last bar before 1 Jan"
+    carried the first trading day of the new year (2 Jan 2026) and every YTD
+    figure skipped that day (EEM: 9.8 % instead of 12.3 %). The last weekly FX
+    close was also stale (USDCHF 0.820 vs 0.815 daily). The function name is
+    kept for its callers."""
     try:
-        df = yf.download(ticker, period="1y", interval="1wk",
+        df = yf.download(ticker, period="1y", interval="1d",
                          progress=False, auto_adjust=True)
         if df.empty:
             return None
@@ -1572,7 +1579,7 @@ def closest_fx(fx_series, ts):
 def calc_chf_returns(etf_series, fx_series):
     """
     Berechnet YTD, 52W-Tief und 52W-Hoch in CHF.
-    Referenzpunkt: letzter Wochenschluss VOR dem 1. Januar YTD_YEAR.
+    Referenzpunkt: letzter Tagesschluss VOR dem 1. Januar YTD_YEAR.
     fx_series = None bedeutet ETF ist bereits in CHF notiert.
     """
     cutoff = int(YTD_START.timestamp())
@@ -1598,7 +1605,7 @@ def calc_chf_returns(etf_series, fx_series):
     curr_chf = curr_etf * curr_fx
     ytd = round((curr_chf / start_chf - 1) * 100, 2)
 
-    # 30-day return: find closest weekly close ~30 days before current
+    # 30-day return: find closest daily close ~30 days before current
     thirty_days_ago = curr_ts - 30 * 24 * 3600
     before_30d = [(t, c) for t, c in etf_series if t <= thirty_days_ago]
     if before_30d:
@@ -1629,7 +1636,8 @@ def batch_fetch(tickers_ccys):
 
     print(f"  Lade {len(unique)} Ticker …", end=" ", flush=True)
     try:
-        df = yf.download(unique, period="1y", interval="1wk",
+        # daily closes, see fetch_weekly() for why not weekly bars
+        df = yf.download(unique, period="1y", interval="1d",
                          progress=False, auto_adjust=True, group_by="ticker")
     except Exception as e:
         print(f"Fehler: {e}")

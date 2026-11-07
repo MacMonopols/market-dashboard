@@ -400,6 +400,13 @@ ETF_HOLDINGS_SOURCES = {
         "ishares_url": "https://www.ishares.com/us/products/239600/ishares-msci-acwi-etf/latest-holdings.csv",
         "ishares_params": {},
     },
+    # ITOT (S&P Total Market, ~2,500 US stocks): universe for the
+    # "largest US stocks" cards (largest_stocks.py), added 2026-11-07.
+    "ITOT": {
+        "primary": "ishares",
+        "ishares_url": "https://www.ishares.com/us/products/239724/ishares-core-sp-total-us-stock-market-etf/latest-holdings.csv",
+        "ishares_params": {},
+    },
     "SPY": {
         "primary": "ssga",
         "ssga_url": "https://www.ssga.com/us/en/individual/library-content/products/fund-data/etfs/us/holdings-daily-us-en-spy.xlsx",
@@ -1887,6 +1894,18 @@ def main():
         spy_top10 = {"asOf": None, "source": None, "top10": [], "history": [],
                      "historyNote": SPY_TOP10_HISTORY_METHODOLOGY_NOTE}
 
+    # 5e2) Largest US stocks — Dimensional "Large and in Charge" 1927-2019 +
+    #      own reconstruction to today (largest_stocks.py)
+    print("\nLargest US stocks (top 1/5/10 weight, Big Board, excess return) ...")
+    try:
+        from largest_stocks import calc_largest_stocks
+        largest_stocks = calc_largest_stocks(fetch_etf_holdings)
+        t = largest_stocks["recon"]["today"]
+        print(f"  → top10 today {t['top10']}%" if t else "  ⚠ no live holdings, Dimensional data only")
+    except Exception as e:
+        print(f"  ⚠ largest stocks failed: {e}")
+        largest_stocks = None
+
     # 5f) World Value Factor vs World Cap-Weighted (live ETF prices, IWVL vs SWDA)
     next_step7 = next_step6 + 1
     print(f"\n[{next_step7}] World Value vs World Cap-Weighted ({WORLD_VALUE_TICKER} vs {WORLD_CAPWEIGHTED_TICKER})")
@@ -2017,6 +2036,7 @@ def main():
         "hyperscalerFunding": hyperscaler_funding,
         "acwiCountryWeights": acwi_country_weights,
         "spyTop10":        spy_top10,
+        "largestStocks":   largest_stocks,
         "worldValue":      world_value,
         "worldQuality":    world_quality,
         "worldSmallCap":   world_smallcap,

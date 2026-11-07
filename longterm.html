@@ -311,6 +311,23 @@
       margin-top: 8px;
     }
 
+    /* ── Largest US stocks (Dimensional "Large and in Charge") ── */
+    .ls-seg { display:inline-flex; gap:4px; margin:0 0 10px; flex-wrap:wrap; }
+    .ls-board-wrap { overflow-x:auto; margin-top:6px; }
+    table.ls-board { border-collapse:collapse; font-size:10.5px; min-width:860px; width:100%; }
+    table.ls-board th { font-size:11px; color:var(--hinder-blue); padding:4px 3px; text-align:left; border-bottom:1px solid var(--border); }
+    table.ls-board td { padding:2px 3px; white-space:nowrap; }
+    table.ls-board td.rk { color:var(--text-muted); width:16px; text-align:right; padding-right:6px; }
+    table.ls-board .chip { display:inline-block; padding:1px 6px; border-radius:9px; line-height:1.45; }
+    table.ls-board .chip.once { color:var(--text-muted); border:1px solid #d3dae2; background:transparent; }
+    table.ls-board tr.share td { border-top:1px solid var(--border); font-weight:700; color:var(--hinder-blue); padding-top:6px; font-size:11.5px; }
+    table.ls-board th.live, table.ls-board td.live { background:#f2f7fa; }
+    table.ls-entrants { border-collapse:collapse; font-size:11px; margin-top:10px; }
+    table.ls-entrants th, table.ls-entrants td { padding:3px 10px 3px 0; text-align:right; }
+    table.ls-entrants th:first-child, table.ls-entrants td:first-child { text-align:left; }
+    table.ls-entrants th { color:var(--text-muted); font-weight:600; border-bottom:1px solid var(--border); }
+    .ls-note { display:block; font-size:10.5px; color:var(--text-muted); line-height:1.5; max-width:860px; margin-top:8px; }
+
     /* ── Footer ──────────────────────────────────────────────── */
     .footer {
       max-width: 960px;
@@ -397,6 +414,34 @@
     <svg id="us-share-history-svg" width="900" height="200" viewBox="0 0 900 200"></svg>
     <div class="spy-history-legend" id="us-share-history-legend"></div>
   </div>
+</div>
+
+<!-- ── Largest US stocks: weight, Big Board, excess return (rendered by JS from live_data.js) ── -->
+<div class="mktcap-card" id="ls-weight-card" style="display:none">
+  <div class="mktcap-title">Weight of the Largest Stocks in the US Stock Market, 1927–today</div>
+  <div class="mktcap-date" id="ls-weight-date"></div>
+  <div class="mktcap-body" style="align-items:flex-start;gap:28px;flex-wrap:wrap;" id="ls-weight-kpis"></div>
+  <div class="spy-history-wrap">
+    <svg id="ls-weight-svg" width="900" height="260" viewBox="0 0 900 260"></svg>
+    <div class="spy-history-legend" id="ls-weight-legend"></div>
+  </div>
+</div>
+
+<div class="mktcap-card" id="ls-board-card" style="display:none">
+  <div class="mktcap-title">Big Board — Largest 10 US Stocks at the Start of Each Decade</div>
+  <div class="mktcap-date" id="ls-board-date"></div>
+  <div class="ls-board-wrap"><table class="ls-board" id="ls-board"></table></div>
+  <span class="ls-note" id="ls-board-note"></span>
+</div>
+
+<div class="mktcap-card" id="ls-excess-card" style="display:none">
+  <div class="mktcap-title">Power Down — Excess Return After Joining the 10 Largest US Stocks</div>
+  <div class="mktcap-date" id="ls-excess-date"></div>
+  <div class="spy-history-wrap" style="border-top:none;margin-top:0;padding-top:0;">
+    <svg id="ls-excess-svg" width="900" height="240" viewBox="0 0 900 240"></svg>
+  </div>
+  <div style="overflow-x:auto;"><table class="ls-entrants" id="ls-entrants"></table></div>
+  <span class="ls-note" id="ls-excess-note"></span>
 </div>
 
 <!-- ── World Value vs World Cap-Weighted (rendered by JS from live_data.js) ── -->
@@ -1030,6 +1075,143 @@
   }
 
   if (LD?.usShareHistory) renderUsShareHistory(LD.usShareHistory);
+
+  // ── Largest US stocks (Dimensional "Large and in Charge", extended) ──────
+  // 1927–2019 = values read off Dimensional's charts; 2009→ = own
+  // reconstruction from ITOT holdings + prices (largest_stocks.py).
+  const LS_COLORS = { top1: '#9aa3ad', top5: '#5fd3b8', top10: '#1f7a8c' };
+  const LS_TXT = 'font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="#6b7a8d"';
+
+  function renderLargestStocks(ls) {
+    if (!ls || !ls.dimensional) return;
+    const dim = ls.dimensional, rc = ls.recon || {};
+    const yearly = rc.yearly || [], today = rc.today;
+    const srcLink = `<a href="${ls.sourceUrl}" target="_blank" rel="noopener" style="color:inherit">Dimensional (Jun 2020)</a>`;
+
+    // ── 1) weight of the largest 1 / 5 / 10 ──
+    document.getElementById('ls-weight-card').style.display = '';
+    document.getElementById('ls-weight-date').innerHTML =
+      `1927–2019: ${srcLink}, CRSP · 2009–${today ? today.date : 'today'}: own reconstruction from iShares ITOT holdings + Yahoo prices` +
+      (rc.stale ? ' · <strong style="color:#c0392b">stale: last cached reconstruction</strong>' : '');
+    const dimRows = dim.weights.map(r => ({ x: r[0], top1: r[1], top5: r[2], top10: r[3] }));
+    const recRows = yearly.map(r => ({ x: r.year, top1: r.top1, top5: r.top5, top10: r.top10 }));
+    if (today) {
+      const d = new Date(today.date);
+      recRows.push({ x: d.getUTCFullYear() + d.getUTCMonth() / 12, top1: today.top1, top5: today.top5, top10: today.top10, today: true });
+    }
+    const peak = dimRows.reduce((a, r) => r.top10 > a.top10 ? r : a, dimRows[0]);
+    const kpi = (v, lbl, col) => `<div><div class="mktcap-pct" style="color:${col}">${v}</div><div class="mktcap-name">${lbl}</div></div>`;
+    document.getElementById('ls-weight-kpis').innerHTML = today
+      ? kpi(today.top10.toFixed(1) + '%', 'Largest 10 today', LS_COLORS.top10)
+        + kpi(today.top5.toFixed(1) + '%', 'Largest 5 today', '#2fae93')
+        + kpi(today.top1.toFixed(1) + '%', `Largest stock today (${today.top10List[0].name})`, '#6b7a8d')
+        + kpi(peak.top10.toFixed(1) + '%', `Record, largest 10 (${peak.x})`, '#6b7a8d')
+      : '';
+
+    const W = 900, H = 260, padL = 36, padR = 14, padT = 10, padB = 24;
+    const x0 = 1927, x1 = Math.max(2027, ...recRows.map(r => r.x));
+    const maxV = Math.ceil(Math.max(40, ...recRows.map(r => r.top10)) / 5) * 5;
+    const x = v => padL + (W - padL - padR) * (v - x0) / (x1 - x0);
+    const y = v => H - padB - (H - padT - padB) * v / maxV;
+    const path = (rows, k) => rows.map((r, i) => (i ? 'L' : 'M') + x(r.x).toFixed(1) + ',' + y(r[k]).toFixed(1)).join(' ');
+    let g = '';
+    for (let v = 0; v <= maxV; v += 5) {
+      g += `<line x1="${padL}" y1="${y(v).toFixed(1)}" x2="${W - padR}" y2="${y(v).toFixed(1)}" stroke="${v ? '#b0bac6' : '#dde3ea'}" ${v ? 'stroke-dasharray="3,3" opacity="0.5"' : ''}/>`;
+      g += `<text x="${padL - 6}" y="${y(v).toFixed(1)}" text-anchor="end" dominant-baseline="middle" ${LS_TXT}>${v}%</text>`;
+    }
+    for (let yr = 1930; yr <= x1; yr += 10)
+      g += `<text x="${x(yr).toFixed(1)}" y="${H - 8}" text-anchor="middle" ${LS_TXT}>${yr}</text>`;
+    // overlap band
+    if (recRows.length) g += `<rect x="${x(recRows[0].x).toFixed(1)}" y="${padT}" width="${(x(2019) - x(recRows[0].x)).toFixed(1)}" height="${H - padT - padB}" fill="#eef2f5" opacity="0.6"/>`;
+    ['top1', 'top5', 'top10'].forEach(k => {
+      g += `<path d="${path(dimRows, k)}" fill="none" stroke="${LS_COLORS[k]}" stroke-width="1.8"/>`;
+      if (recRows.length > 1) g += `<path d="${path(recRows, k)}" fill="none" stroke="${LS_COLORS[k]}" stroke-width="1.8" stroke-dasharray="5,3"/>`;
+      if (today) {
+        const r = recRows[recRows.length - 1];
+        g += `<circle cx="${x(r.x).toFixed(1)}" cy="${y(r[k]).toFixed(1)}" r="3.5" fill="${LS_COLORS[k]}"/>`;
+        g += `<text x="${(x(r.x) - 6).toFixed(1)}" y="${(y(r[k]) - 7).toFixed(1)}" text-anchor="end" font-family="Helvetica Neue,Arial,sans-serif" font-size="10" font-weight="700" fill="${LS_COLORS[k]}">${r[k].toFixed(1)}%</text>`;
+      }
+    });
+    document.getElementById('ls-weight-svg').innerHTML = g;
+    const sw = (c, dash) => `<span style="display:inline-block;width:20px;vertical-align:middle;border-top:2px ${dash ? 'dashed' : 'solid'} ${c}"></span>`;
+    document.getElementById('ls-weight-legend').innerHTML = `<span class="ls-note">
+      ${sw(LS_COLORS.top10)} Largest 10 &nbsp; ${sw(LS_COLORS.top5)} Largest 5 &nbsp; ${sw(LS_COLORS.top1)} Largest stock &nbsp;·&nbsp;
+      solid = Dimensional (year-end, read off their chart) · ${sw('#6b7a8d', true)} dashed = reconstruction (year-end ${recRows.length ? recRows[0].x : ''}–${yearly.length ? yearly[yearly.length - 1].year : ''}, dot = today);
+      shaded = overlap where both exist.<br>${ls.note || ''}</span>`;
+
+    // ── 2) Big Board ──
+    document.getElementById('ls-board-card').style.display = '';
+    const cols = dim.decades.map(d => ({ year: d.year, names: d.names, share: d.sharePct, live: false }));
+    if (today) cols.push({ year: today.date.slice(0, 4) + ' (today)', names: today.top10List.map(e => e.name), share: today.top10, live: true });
+    const counts = {};
+    cols.forEach(c => c.names.forEach(n => counts[n] = (counts[n] || 0) + 1));
+    const multi = Object.keys(counts).filter(n => counts[n] > 1);
+    const pal = ['#1f7a8c', '#7f8c8d', '#003a5c', '#8a8a2e', '#b5d334', '#e67e22', '#c0392b', '#8e44ad', '#16a085',
+                 '#d35400', '#2c3e50', '#27ae60', '#a0522d', '#5dade2', '#c71585', '#b8922a', '#2e86c1', '#6c3483', '#117a65', '#922b21'];
+    const colorOf = {}; multi.forEach((n, i) => colorOf[n] = pal[i % pal.length]);
+    const chip = n => colorOf[n]
+      ? `<span class="chip" style="background:${colorOf[n]};color:#fff">${n}</span>`
+      : `<span class="chip once">${n}</span>`;
+    let t = '<tr><th></th>' + cols.map(c => `<th class="${c.live ? 'live' : ''}">${c.year}</th>`).join('') + '</tr>';
+    for (let r = 0; r < 10; r++)
+      t += `<tr><td class="rk">${r + 1}</td>` + cols.map(c => `<td class="${c.live ? 'live' : ''}">${c.names[r] ? chip(c.names[r]) : ''}</td>`).join('') + '</tr>';
+    t += '<tr class="share"><td class="rk"></td>' + cols.map(c => `<td class="${c.live ? 'live' : ''}">${c.share.toFixed(1)}%</td>`).join('') + '</tr>';
+    document.getElementById('ls-board').innerHTML = t;
+    document.getElementById('ls-board-date').innerHTML =
+      `1930–2020: ${srcLink} (start of decade = previous year-end, CRSP, one share class per company) · last column: live from iShares ITOT holdings, share classes merged`;
+    document.getElementById('ls-board-note').innerHTML =
+      `Bottom row = combined weight of the 10 in the whole US market. Coloured = in the top 10 in more than one column, grey outline = once.
+       Names and order for 1930–2020 are transcribed from Dimensional's bump chart; before 1980 ranks 5–10 may be a place off.
+       The ${today ? today.date.slice(0, 4) : 'today'} column uses float-adjusted weights (S&amp;P Total Market) instead of CRSP full market cap — close but not identical.`;
+
+    // ── 3) Excess return after joining the top 10 ──
+    document.getElementById('ls-excess-card').style.display = '';
+    const rex = rc.excess || [], ents = rc.entrants || [];
+    document.getElementById('ls-excess-date').innerHTML =
+      `Annualized return in excess of the market after first becoming one of the 10 largest US stocks · 1927–2019: ${srcLink} · ${(rc.startYear || 2009) + 1}–today: own reconstruction vs VTI`;
+    const groups = dim.excess.map(d => ({ years: d.years, dim: d.pct, rec: (rex.find(e => e.years === d.years) || {}) }));
+    const EW = 900, EH = 240, eL = 50, eR = 14, eT = 18, eB = 34;
+    const vals = groups.flatMap(gp => [gp.dim, gp.rec.pct, gp.rec.median].filter(v => v != null));
+    const lo = Math.min(-2, Math.floor(Math.min(...vals))), hi = Math.max(1, Math.ceil(Math.max(...vals)));
+    const ey = v => eT + (EH - eT - eB) * (hi - v) / (hi - lo);
+    const gw = (EW - eL - eR) / groups.length, bw = Math.min(70, gw / 4);
+    const cDim = '#1f7a8c', cRec = '#b8922a';
+    let e = '';
+    for (let v = lo; v <= hi; v += (hi - lo > 8 ? 2 : 1)) {
+      e += `<line x1="${eL}" y1="${ey(v).toFixed(1)}" x2="${EW - eR}" y2="${ey(v).toFixed(1)}" stroke="${v === 0 ? '#6b7a8d' : '#b0bac6'}" ${v === 0 ? '' : 'stroke-dasharray="3,3" opacity="0.5"'}/>`;
+      e += `<text x="${eL - 6}" y="${ey(v).toFixed(1)}" text-anchor="end" dominant-baseline="middle" ${LS_TXT}>${v > 0 ? '+' : ''}${v}%</text>`;
+    }
+    const bar = (cx, v, col, lbl) => {
+      if (v == null) return `<text x="${cx}" y="${ey(0) - 6}" text-anchor="middle" ${LS_TXT}>n/a</text>`;
+      const yT = Math.min(ey(v), ey(0)), h = Math.abs(ey(v) - ey(0));
+      return `<rect x="${(cx - bw / 2).toFixed(1)}" y="${yT.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(h, 1).toFixed(1)}" fill="${col}" rx="2"/>` +
+        `<text x="${cx}" y="${(v >= 0 ? ey(v) - 5 : ey(v) + 12).toFixed(1)}" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="10.5" font-weight="700" fill="${col}">${v > 0 ? '+' : ''}${v.toFixed(1)}%</text>` +
+        (lbl ? `<text x="${cx}" y="${EH - eB + 26}" text-anchor="middle" ${LS_TXT}>${lbl}</text>` : '');
+    };
+    groups.forEach((gp, i) => {
+      const cx = eL + gw * (i + 0.5);
+      e += bar(cx - bw * 0.6, gp.dim, cDim, '1927–2019');
+      e += bar(cx + bw * 0.6, gp.rec.pct ?? null, cRec, gp.rec.n ? `since ${(rc.startYear || 2009) + 1}, n = ${gp.rec.n}` : 'since 2010');
+      if (gp.rec.median != null)
+        e += `<line x1="${(cx + bw * 0.6 - bw / 2 - 3).toFixed(1)}" y1="${ey(gp.rec.median).toFixed(1)}" x2="${(cx + bw * 0.6 + bw / 2 + 3).toFixed(1)}" y2="${ey(gp.rec.median).toFixed(1)}" stroke="#003a5c" stroke-width="2"/>`;
+      e += `<text x="${cx}" y="${EH - eB + 13}" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="11" font-weight="700" fill="#1a2533">${gp.years} years</text>`;
+    });
+    document.getElementById('ls-excess-svg').innerHTML = e;
+    const fmt = v => v == null ? '<span style="color:#bbb">—</span>' : `<span style="color:${v >= 0 ? '#2e7d4f' : '#c0392b'}">${v > 0 ? '+' : ''}${v.toFixed(1)}%</span>`;
+    document.getElementById('ls-entrants').innerHTML = ents.length
+      ? '<tr><th>Joined the top 10 (year-end)</th><th>Rank</th><th>3 years</th><th>5 years</th><th>10 years</th></tr>' +
+        ents.map(r => `<tr><td>${r.name} (${r.year})</td><td>${r.rank}</td><td>${fmt(r.ex3)}</td><td>${fmt(r.ex5)}</td><td>${fmt(r.ex10)}</td></tr>`).join('')
+      : '';
+    document.getElementById('ls-excess-note').innerHTML =
+      `<strong style="color:${cDim}">■</strong> Dimensional, 1927–2019 (average over all first-time entrants) ·
+       <strong style="color:${cRec}">■</strong> reconstruction: equal-weighted average of the entrants below, annualized total return minus VTI's
+       over the next 3 / 5 / 10 full calendar years; <strong style="color:#003a5c">━</strong> = median.
+       Entrant = in the top 10 at a year-end after ${rc.startYear || 2009}, not in the top 10 at any earlier year-end since then and not in one of Dimensional's
+       earlier decade lists. The sample is tiny and dominated by single names (Nvidia, Boeing, Amazon) — read it as an anecdote, not a
+       contradiction of the 93-year result. Past performance is not a guarantee of future results.`;
+  }
+
+  if (LD?.largestStocks) renderLargestStocks(LD.largestStocks);
 
 
   // ── Factor vs World Cap-Weighted (live ETF prices) ──────────────────────

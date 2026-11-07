@@ -1,5 +1,36 @@
 # market-dashboard
 
+## Largest US stocks (Dimensional "Large and in Charge") — 3 cards on Long Term Summary, set up 2026-11-07
+
+Three cards on `longterm.html` (before World Value), after Dimensional's
+article https://www.dimensional.com/us-en/insights/large-and-in-charge-giant-firms-atop-market-is-nothing-new
+(Jun 2020, CRSP data): weight of the largest 1/5/10 stocks 1927–2019, the
+"Big Board" (top 10 at the start of each decade) and "Power Down" (excess
+return after joining the top 10: +0.7 / −1.1 / −1.5 % at 3/5/10 y).
+`largest_stocks.py` (`calc_largest_stocks(fetch_etf_holdings)` →
+`LD.largestStocks`), rendered by `renderLargestStocks()`.
+- **Dimensional values are hand-transcribed** from their charts
+  (`DIMENSIONAL_WEIGHTS` / `_DECADES` / `_EXCESS`); CRSP is paid. Pre-1980
+  ranks 5–10 in the bump chart may be a place off.
+- **Extension to today = own reconstruction**: universe = iShares `ITOT`
+  holdings (S&P Total Market, ~2,500 rows, new `ETF_HOLDINGS_SOURCES`
+  entry), share classes merged by name; company cap at t ∝ today's weight ×
+  price(t)/price(today), total market ∝ VTI; year-end, from 2009
+  (`START_YEAR`). 2005–08 was unusable: constant share counts put Citigroup
+  at ~7 % in 2005 (2009 bank/AIG dilution). On the 2009–2019 overlap the
+  reconstruction is ~1–2 pt BELOW Dimensional (2019 top 10: 19.2 vs 21.7)
+  — survivorship + float vs full cap. Today's point = holdings weights
+  directly.
+- **Entrants** (reconstruction bars): in the top 10 at a year-end, never at
+  an earlier year-end since 2009 and not in any Dimensional decade list up
+  to that year; excess = annualized total return minus VTI over 3/5/10 full
+  years. Tiny sample (n = 7 / 5 / 2), dominated by Nvidia, Amazon, Boeing —
+  the note says to read it as an anecdote.
+- Cache `largest_stocks_cache.json` (7 days, git-ignored); requires the
+  ishares source with ≥ 1000 holdings, otherwise the cards are skipped.
+- At 2026-11-07: top 10 = 35.4 %, top 5 = 27.0 %, Apple 7.2 % — just under
+  the 1931 record (37.8 %). Reconstruction bars: +2.4 / +1.6 / +8.6 % (mean).
+
 ## US equity fund flows by year — card on Expected Return, set up 2026-11-02
 
 Last card on `expected-return.html`, inspired by BofA's "Chart 10: Inflows

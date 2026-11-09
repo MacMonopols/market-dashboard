@@ -1,5 +1,27 @@
 # market-dashboard
 
+## Developed-market country returns, ranked — last card on Long Term Summary, set up 2026-11-09
+
+After Dimensional's "Annual returns for developed markets, ranked
+(2006–2025)" (image from the user): 22 MSCI developed countries (no Israel,
+like the source), one column per calendar year from 2006 + current-year YTD,
+ranked high → low, cells = ISO3 code + return, hover/tap (or legend click)
+follows a country; legend = annualized return over the full years. Toggle
+In USD / In CHF (`localStorage.ctCcy`, default CHF). `country_returns.py`
+(`calc_country_returns()` → `LD.countryReturns`), `renderCountryReturns()`.
+- **Source = MSCI country indices NETR** via the same `getLevelDataForGraph`
+  endpoint as the regional E[R] card (user OK from 2026-10-31 applies), in
+  USD and in CHF directly (MSCI's own FX), no own conversion. Codes are
+  "9" + ISO numeric + "00", except Germany 928000 and Singapore 998100
+  (found via `indexmaster/description/indexes?...&index_scope=Country`).
+  `index_codes` accepts only ONE code per request.
+- **Validated**: USD annualized 2006–2025 matches Dimensional's legend for
+  all 22 countries to 0.1 pt (USA 10.4 … PRT 0.3), 2006/2025 column order
+  identical.
+- Cache `country_returns_cache.json` (git-ignored) holds only derived annual
+  returns: full years are fetched once (44 monthly requests, ~60 s), then
+  each run only the YTD (44 daily requests since the last year-end, ~30 s).
+
 ## YTD Dashboard switched from weekly to daily closes — set up 2026-11-07
 
 Found while checking the periodic table's YTD column against the YTD

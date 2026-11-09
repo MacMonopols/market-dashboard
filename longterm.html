@@ -342,6 +342,17 @@
     .pt-legend { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:2px 16px; margin-top:10px; font-size:10.5px; color:var(--text); }
     .pt-legend span.sw { display:inline-block; width:10px; height:10px; border:1px solid #999; vertical-align:-1px; margin-right:6px; }
     .pt-legend .src { color:var(--text-muted); }
+    /* ── Developed-market country returns (country_returns.py) ── */
+    .ct-grid { min-width:900px; }
+    .ct-grid .pt-head { font-size:10.5px; }
+    .ct-grid .pt-cell { padding:2px 1px; cursor:pointer; }
+    .ct-grid .pt-cell .l { font-size:9.5px; font-weight:700; }
+    .ct-grid .pt-cell .v { font-size:8.5px; font-weight:500; opacity:.9; }
+    .ct-legend { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:2px 16px; margin-top:10px; font-size:11px; color:var(--text); }
+    .ct-legend div { display:flex; align-items:center; gap:6px; cursor:pointer; }
+    .ct-legend .code { display:inline-block; min-width:30px; text-align:center; font-size:9.5px; font-weight:700; padding:1px 2px; }
+    .ct-legend .ann { margin-left:auto; font-weight:700; }
+    .ct-legend-title { font-size:10.5px; font-weight:700; color:var(--text-muted); margin-top:12px; text-transform:uppercase; letter-spacing:.03em; }
 
     /* ── Footer ──────────────────────────────────────────────── */
     .footer {
@@ -523,6 +534,17 @@
   <div class="pt-wrap"><div class="pt-grid" id="pt-grid"></div></div>
   <div class="pt-legend" id="pt-legend"></div>
   <span class="ls-note" id="pt-note"></span>
+</div>
+
+<!-- ── Annual returns of developed equity markets, ranked (country_returns.py) ── -->
+<div class="mktcap-card" id="ct-card" style="display:none">
+  <div class="mktcap-title">Annual Returns of Developed Equity Markets, Ranked</div>
+  <div class="mktcap-date" id="ct-date"></div>
+  <div class="range-btns" id="ct-ccy"></div>
+  <div class="pt-wrap"><div class="pt-grid ct-grid" id="ct-grid"></div></div>
+  <div class="ct-legend-title" id="ct-legend-title"></div>
+  <div class="ct-legend" id="ct-legend"></div>
+  <span class="ls-note" id="ct-note"></span>
 </div>
 
 <div class="footer" id="footer"></div>
@@ -1279,6 +1301,61 @@
   }
 
   if (LD?.periodicTable) renderPeriodicTable(LD.periodicTable);
+
+
+  // ── Developed equity markets, annual returns ranked (MSCI net, USD / CHF) ──
+  function renderCountryReturns(ct) {
+    const cols = ct.columns, n = cols.length, grid = document.getElementById("ct-grid");
+    const fmt = v => v == null ? "—" : (v < 0 ? "−" : "") + Math.abs(v).toFixed(1) + "%";
+    const asOfTxt = new Date(ct.asOf + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    let ccy = "CHF";
+    try { const s = localStorage.getItem("ctCcy"); if (ct.currencies.includes(s)) ccy = s; } catch (e) {}
+    let pinned = null;
+    const setHl = k => {
+      grid.classList.toggle("hl", !!k);
+      grid.querySelectorAll(".pt-cell").forEach(el => el.classList.toggle("on", el.dataset.k === k));
+    };
+    function draw() {
+      grid.style.gridTemplateColumns = `repeat(${n}, minmax(40px, 1fr))`;
+      let h = cols.map(c => `<div class="pt-head${c.ytd ? " ytd" : ""}">${c.year}${c.ytd ? "<small>YTD</small>" : ""}</div>`).join("");
+      const ranked = cols.map((c, i) => ct.countries.slice().sort((a, b) =>
+        (b.ret[ccy][i] ?? -Infinity) - (a.ret[ccy][i] ?? -Infinity)));
+      for (let r = 0; r < ct.countries.length; r++) {
+        for (let i = 0; i < n; i++) {
+          const a = ranked[i][r];
+          h += `<div class="pt-cell${cols[i].ytd ? " ytd" : ""}" data-k="${a.key}" title="${a.label} ${cols[i].year}${cols[i].ytd ? " YTD" : ""}: ${fmt(a.ret[ccy][i])} (${ccy})"
+                     style="background:${a.bg};color:${a.fg}"><span class="l">${a.key}</span><span class="v">${fmt(a.ret[ccy][i])}</span></div>`;
+        }
+      }
+      grid.innerHTML = h;
+      setHl(pinned);
+      document.getElementById("ct-ccy").innerHTML = ct.currencies.map(c =>
+        `<button class="range-btn${c === ccy ? " active" : ""}" data-c="${c}">In ${c}</button>`).join("");
+      document.getElementById("ct-legend-title").textContent =
+        `Annualized returns ${cols[0].year}–${cols[n - 2].year} (${ccy})`;
+      document.getElementById("ct-legend").innerHTML = ct.countries.slice()
+        .sort((a, b) => (b.annualized[ccy] ?? -99) - (a.annualized[ccy] ?? -99))
+        .map(a => `<div data-k="${a.key}"><span class="code" style="background:${a.bg};color:${a.fg}">${a.key}</span>${a.label}<span class="ann">${fmt(a.annualized[ccy])}</span></div>`).join("");
+    }
+    document.getElementById("ct-ccy").addEventListener("click", e => {
+      const b = e.target.closest("button"); if (!b) return;
+      ccy = b.dataset.c; try { localStorage.setItem("ctCcy", ccy); } catch (err) {}
+      draw();
+    });
+    grid.addEventListener("mouseover", e => { const c = e.target.closest(".pt-cell"); if (c && !pinned) setHl(c.dataset.k); });
+    grid.addEventListener("mouseleave", () => { if (!pinned) setHl(null); });
+    const toggle = k => { pinned = pinned === k ? null : k; setHl(pinned); };
+    grid.addEventListener("click", e => { const c = e.target.closest(".pt-cell"); if (c) toggle(c.dataset.k); });
+    document.getElementById("ct-legend").addEventListener("click", e => { const c = e.target.closest("[data-k]"); if (c) toggle(c.dataset.k); });
+    draw();
+    document.getElementById("ct-date").textContent =
+      `${cols[0].year}–${cols[n - 2].year} calendar years + ${cols[n - 1].year} year to date (as of ${asOfTxt}) · MSCI country indices, net dividends · ranked highest to lowest · hover or tap a country to follow it`
+      + (ct.stale ? " · ⚠ live update failed, cached values" : "");
+    document.getElementById("ct-note").textContent = ct.note;
+    document.getElementById("ct-card").style.display = "";
+  }
+
+  if (LD?.countryReturns) renderCountryReturns(LD.countryReturns);
 
 
   // ── Factor vs World Cap-Weighted (live ETF prices) ──────────────────────

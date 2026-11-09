@@ -8,3 +8,4 @@ regional_expected_return_cache.json
 fund_flows_cache.json
 largest_stocks_cache.json
 periodic_table_cache.json
+country_returns_cache.json

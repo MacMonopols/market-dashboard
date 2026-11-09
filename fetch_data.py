@@ -1925,6 +1925,17 @@ def main():
         print(f"  ⚠ periodic table failed: {e}")
         periodic_table = None
 
+    # 5e4) Annual returns of the 22 developed equity markets, ranked
+    #      (MSCI country indices, net, USD + CHF; country_returns.py)
+    print("\nDeveloped-market country returns (MSCI net, USD/CHF) ...")
+    try:
+        from country_returns import calc_country_returns
+        country_returns = calc_country_returns()
+        print(f"  → as of {country_returns['asOf']}" + (" (stale cache)" if country_returns.get("stale") else ""))
+    except Exception as e:
+        print(f"  ⚠ country returns failed: {e}")
+        country_returns = None
+
     # 5f) World Value Factor vs World Cap-Weighted (live ETF prices, IWVL vs SWDA)
     next_step7 = next_step6 + 1
     print(f"\n[{next_step7}] World Value vs World Cap-Weighted ({WORLD_VALUE_TICKER} vs {WORLD_CAPWEIGHTED_TICKER})")
@@ -2057,6 +2068,7 @@ def main():
         "spyTop10":        spy_top10,
         "largestStocks":   largest_stocks,
         "periodicTable":   periodic_table,
+        "countryReturns":  country_returns,
         "worldValue":      world_value,
         "worldQuality":    world_quality,
         "worldSmallCap":   world_smallcap,

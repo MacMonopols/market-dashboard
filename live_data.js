@@ -59992,7 +59992,7 @@ const LIVE_DATA = {
       {
         "date": "1984-03",
         "pct": 22.15,
-        "yield4qPct": 5.5,
+        "yield4qPct": 5.49,
         "meanPct": 2.8,
         "reversionPct": 6.97
       },
@@ -76814,25 +76814,6 @@ const LIVE_DATA = {
             "debtIssuanceTTM": 0,
             "debtRepaymentTTM": 9396000000,
             "netDebtIssuanceTTM": -9396000000
-          },
-          {
-            "periodEnd": "2026-09-26",
-            "revenueTTM": 478834000000,
-            "capexTTM": 9041000000,
-            "ocfTTM": 145097000000,
-            "daTTM": 13423000000,
-            "capexPctSalesTTM": 1.89,
-            "fcfPctSalesTTM": 28.41,
-            "capexMinusDaTTM": -4382000000,
-            "capexToOcfTTM": 6.23,
-            "ebitdaTTM": 171486000000,
-            "longTermDebt": 68208000000,
-            "cashAndEquivalents": 36305000000,
-            "netDebt": 31903000000,
-            "netDebtToEbitdaTTM": 0.19,
-            "debtIssuanceTTM": 0,
-            "debtRepaymentTTM": 12396000000,
-            "netDebtIssuanceTTM": -12396000000
           }
         ],
         "debtFlows": [
@@ -77255,12 +77236,6 @@ const LIVE_DATA = {
             "debtIssuanceTTM": 0,
             "debtRepaymentTTM": 9396000000,
             "netDebtIssuanceTTM": -9396000000
-          },
-          {
-            "periodEnd": "2026-09-26",
-            "debtIssuanceTTM": 0,
-            "debtRepaymentTTM": 12396000000,
-            "netDebtIssuanceTTM": -12396000000
           }
         ]
       },
@@ -82073,8 +82048,8 @@ const LIVE_DATA = {
         {
           "year": 2009,
           "top1": 2.55,
-          "top5": 8.92,
-          "top10": 14.93,
+          "top5": 8.93,
+          "top10": 15.01,
           "names": [
             "Exxon",
             "Microsoft",
@@ -82091,8 +82066,8 @@ const LIVE_DATA = {
         {
           "year": 2010,
           "top1": 2.37,
-          "top5": 8.02,
-          "top10": 13.99,
+          "top5": 8.06,
+          "top10": 14.05,
           "names": [
             "Exxon",
             "Microsoft",
@@ -82100,8 +82075,8 @@ const LIVE_DATA = {
             "Apple",
             "Alphabet",
             "AT&T",
-            "Verizon",
             "P&G",
+            "Verizon",
             "Berkshire Hathaway",
             "Johnson & Johnson"
           ]
@@ -82109,26 +82084,26 @@ const LIVE_DATA = {
         {
           "year": 2011,
           "top1": 2.78,
-          "top5": 9.06,
-          "top10": 15.51,
+          "top5": 9.1,
+          "top10": 15.6,
           "names": [
             "Exxon",
-            "Chevron",
             "Apple",
+            "Chevron",
             "Microsoft",
             "Alphabet",
             "Verizon",
             "IBM",
+            "P&G",
             "AT&T",
-            "Johnson & Johnson",
-            "P&G"
+            "Johnson & Johnson"
           ]
         },
         {
           "year": 2012,
           "top1": 2.49,
-          "top5": 8.65,
-          "top10": 14.73,
+          "top5": 8.68,
+          "top10": 14.8,
           "names": [
             "Exxon",
             "Apple",
@@ -82138,15 +82113,15 @@ const LIVE_DATA = {
             "Verizon",
             "AT&T",
             "IBM",
-            "Johnson & Johnson",
-            "Berkshire Hathaway"
+            "Berkshire Hathaway",
+            "Johnson & Johnson"
           ]
         },
         {
           "year": 2013,
           "top1": 2.22,
-          "top5": 8.2,
-          "top10": 13.75,
+          "top5": 8.23,
+          "top10": 13.81,
           "names": [
             "Exxon",
             "Alphabet",
@@ -82162,35 +82137,35 @@ const LIVE_DATA = {
         },
         {
           "year": 2014,
-          "top1": 1.95,
-          "top5": 8.18,
-          "top10": 13.34,
+          "top1": 1.97,
+          "top5": 8.23,
+          "top10": 13.39,
           "names": [
             "Apple",
             "Exxon",
             "Microsoft",
-            "Alphabet",
             "Berkshire Hathaway",
+            "Alphabet",
             "Johnson & Johnson",
             "Chevron",
             "P&G",
             "Verizon",
-            "Intel"
+            "AT&T"
           ]
         },
         {
           "year": 2015,
-          "top1": 2.03,
-          "top5": 9.15,
-          "top10": 14.59,
+          "top1": 2.06,
+          "top5": 9.2,
+          "top10": 14.66,
           "names": [
             "Microsoft",
             "Alphabet",
             "Apple",
             "Amazon",
             "Exxon",
-            "Johnson & Johnson",
             "Berkshire Hathaway",
+            "Johnson & Johnson",
             "Meta",
             "Verizon",
             "P&G"
@@ -82198,15 +82173,15 @@ const LIVE_DATA = {
         },
         {
           "year": 2016,
-          "top1": 2.06,
-          "top5": 9.08,
-          "top10": 14.87,
+          "top1": 2.09,
+          "top5": 9.14,
+          "top10": 14.94,
           "names": [
             "Microsoft",
             "Apple",
             "Alphabet",
-            "Exxon",
             "Amazon",
+            "Exxon",
             "Berkshire Hathaway",
             "Johnson & Johnson",
             "Meta",
@@ -82216,9 +82191,9 @@ const LIVE_DATA = {
         },
         {
           "year": 2017,
-          "top1": 2.38,
-          "top5": 10.39,
-          "top10": 16.31,
+          "top1": 2.42,
+          "top5": 10.45,
+          "top10": 16.39,
           "names": [
             "Microsoft",
             "Apple",
@@ -82234,9 +82209,9 @@ const LIVE_DATA = {
         },
         {
           "year": 2018,
-          "top1": 3.04,
-          "top5": 12.09,
-          "top10": 17.69,
+          "top1": 3.08,
+          "top5": 12.19,
+          "top10": 17.79,
           "names": [
             "Microsoft",
             "Amazon",
@@ -82252,9 +82227,9 @@ const LIVE_DATA = {
         },
         {
           "year": 2019,
-          "top1": 3.68,
-          "top5": 13.55,
-          "top10": 19.08,
+          "top1": 3.73,
+          "top5": 13.65,
+          "top10": 19.2,
           "names": [
             "Microsoft",
             "Apple",
@@ -82265,14 +82240,14 @@ const LIVE_DATA = {
             "JP Morgan",
             "Johnson & Johnson",
             "Visa",
-            "Intel"
+            "P&G"
           ]
         },
         {
           "year": 2020,
-          "top1": 5.11,
-          "top5": 17.9,
-          "top10": 23.52,
+          "top1": 5.16,
+          "top5": 17.99,
+          "top10": 23.61,
           "names": [
             "Apple",
             "Microsoft",
@@ -82288,9 +82263,9 @@ const LIVE_DATA = {
         },
         {
           "year": 2021,
-          "top1": 5.51,
-          "top5": 19.71,
-          "top10": 25.83,
+          "top1": 5.57,
+          "top5": 19.79,
+          "top10": 25.91,
           "names": [
             "Apple",
             "Microsoft",
@@ -82306,9 +82281,9 @@ const LIVE_DATA = {
         },
         {
           "year": 2022,
-          "top1": 5.09,
-          "top5": 16.18,
-          "top10": 21.72,
+          "top1": 5.15,
+          "top5": 16.33,
+          "top10": 21.91,
           "names": [
             "Apple",
             "Microsoft",
@@ -82318,15 +82293,15 @@ const LIVE_DATA = {
             "UnitedHealth",
             "Exxon",
             "Johnson & Johnson",
-            "Chevron",
-            "JP Morgan"
+            "JP Morgan",
+            "P&G"
           ]
         },
         {
           "year": 2023,
-          "top1": 6.08,
-          "top5": 21.2,
-          "top10": 28.01,
+          "top1": 6.15,
+          "top5": 21.31,
+          "top10": 28.09,
           "names": [
             "Apple",
             "Microsoft",
@@ -82342,27 +82317,27 @@ const LIVE_DATA = {
         },
         {
           "year": 2024,
-          "top1": 6.48,
-          "top5": 25.2,
-          "top10": 34.08,
+          "top1": 6.54,
+          "top5": 25.24,
+          "top10": 34.07,
           "names": [
             "Apple",
-            "Nvidia",
             "Microsoft",
+            "Nvidia",
             "Amazon",
             "Alphabet",
             "Meta",
-            "Tesla",
             "Broadcom",
+            "Tesla",
             "Berkshire Hathaway",
             "JP Morgan"
           ]
         },
         {
           "year": 2025,
-          "top1": 6.92,
+          "top1": 6.76,
           "top5": 27.09,
-          "top10": 36.55,
+          "top10": 36.48,
           "names": [
             "Nvidia",
             "Apple",

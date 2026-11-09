@@ -10,8 +10,9 @@ regional_expected_return.py uses; automated use OK'd by the user on
 2026-10-31 for this personal dashboard). One request per series per run;
 raw index levels are never stored or committed — the cache
 (country_returns_cache.json, git-ignored) holds only the derived annual
-returns, so full years are fetched once and only the YTD is refreshed
-(one daily request per country and currency).
+returns. The YTD column runs only to the last completed quarter-end, so
+MSCI is queried once per quarter (one month-end request per country and
+currency) and every other run is served from the cache.
 
 MSCI index codes are "9" + ISO 3166 numeric + "00" except Germany (928000,
 old West-German code) and Singapore (998100).
@@ -62,7 +63,7 @@ CACHE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "country_r
 
 NOTE = (
     "MSCI country indices (standard: large + mid cap), net dividends reinvested, in US dollars or Swiss "
-    "francs, ranked from highest to lowest in each column; the last column is the current year to date. "
+    "francs, ranked from highest to lowest in each column; the last column is the current year to the last quarter-end. "
     "Same data and layout as Dimensional's \"Annual returns for developed markets, ranked\" chart, extended "
     "with the current year. Annualized figures are geometric means over the full calendar years shown. "
     "Source: MSCI (index levels not redistributed, only derived returns shown). Past performance is not a "
@@ -88,23 +89,28 @@ def _levels(code, cur, start, freq):
             time.sleep(0.25)
 
 
-def _annual(code, cur, last_full):
-    """{year: % return} for FIRST_YEAR..last_full from month-end levels."""
-    ye = {}
-    for d, v in _levels(code, cur, f"{FIRST_YEAR - 1}1201", "END_OF_MONTH"):
-        if d[4:6] == "12":
-            ye[int(d[:4])] = v
-    return {str(y): round((ye[y] / ye[y - 1] - 1) * 100, 2)
-            for y in range(FIRST_YEAR, last_full + 1) if y in ye and y - 1 in ye}
+def _year_returns(code, cur, last_full, ytd_end):
+    """{year: % return} for FIRST_YEAR..last_full plus "ytd" (last year-end to
+    ytd_end, a quarter-end "YYYYMM"), from one month-end request."""
+    lv = _levels(code, cur, f"{FIRST_YEAR - 1}1201", "END_OF_MONTH")
+    ye = {int(d[:4]): v for d, v in lv if d[4:6] == "12"}
+    out = {str(y): round((ye[y] / ye[y - 1] - 1) * 100, 2)
+           for y in range(FIRST_YEAR, last_full + 1) if y in ye and y - 1 in ye}
+    if ytd_end:
+        q = [v for d, v in lv if d[:6] == ytd_end]
+        if not q or last_full not in ye:
+            raise ValueError(f"MSCI {code} {cur}: no level for {ytd_end}")
+        out["ytd"] = round((q[-1] / ye[last_full] - 1) * 100, 2)
+    return out
 
 
-def _ytd(code, cur, cur_year):
-    lv = _levels(code, cur, f"{cur_year - 1}1224", "DAILY")
-    base = [v for d, v in lv if d < f"{cur_year}0101"]
-    if not base:
-        raise ValueError(f"MSCI {code} {cur}: no year-end level")
-    d1, v1 = lv[-1]
-    return round((v1 / base[-1] - 1) * 100, 2), f"{d1[:4]}-{d1[4:6]}-{d1[6:]}"
+def _last_quarter_end(today):
+    """Last completed quarter-end of the current year as (YYYYMM, ISO date), or None in Q1."""
+    m = (today.month - 1) // 3 * 3
+    if m == 0:
+        return None
+    last_day = {3: 31, 6: 30, 9: 30}[m]
+    return f"{today.year}{m:02d}", f"{today.year}-{m:02d}-{last_day}"
 
 
 def _load_cache():
@@ -126,55 +132,46 @@ def calc_country_returns(today=None):
     today = today or date.today()
     cur_year, last_full = today.year, today.year - 1
     years = list(range(FIRST_YEAR, last_full + 1))
+    lq = _last_quarter_end(today)
+    period = lq[1] if lq else str(last_full)          # what the cache must cover
     cache = _load_cache() or {}
-    annual = cache.get("annual") or {}
     stale = False
 
-    # full calendar years: fetched once, then served from the cache
-    need_full = any(str(last_full) not in annual.get(f"{k}_{c}", {})
-                    for k, *_ in COUNTRIES for c in CURRENCIES)
-    if need_full:
+    if cache.get("period") == period and cache.get("annual"):
+        annual = cache["annual"]                      # nothing new since the last quarter-end
+    else:
         try:
-            annual = {f"{k}_{c}": _annual(code, c, last_full)
+            annual = {f"{k}_{c}": _year_returns(code, c, last_full, lq[0] if lq else None)
                       for k, _, code, *_ in COUNTRIES for c in CURRENCIES}
+            try:
+                with open(CACHE_PATH, "w") as f:
+                    json.dump({"period": period, "annual": annual}, f)
+            except OSError as e:
+                print(f"  ⚠ could not write country returns cache: {e}")
         except Exception as e:
-            if not annual:
+            if not cache.get("annual"):
                 raise
-            print(f"  ⚠ MSCI annual returns failed ({e}) — using cached years")
-            stale = True
+            print(f"  ⚠ MSCI fetch failed ({e}) — using cache up to {cache.get('period')}")
+            annual, period, stale = cache["annual"], cache["period"], True
+            lq = (None, period) if len(period) == 10 and period[:4] == str(cur_year) else None
 
-    # current year to date: refreshed every run
-    ytd, as_of = {}, None
-    try:
-        for k, _, code, *_ in COUNTRIES:
-            for c in CURRENCIES:
-                ytd[f"{k}_{c}"], d = _ytd(code, c, cur_year)
-                as_of = min(as_of, d) if as_of else d
-    except Exception as e:
-        if cache.get("ytdYear") != cur_year:
-            raise
-        print(f"  ⚠ MSCI YTD failed ({e}) — using cached YTD from {cache.get('asOf')}")
-        ytd, as_of, stale = cache["ytd"], cache["asOf"], True
-
-    try:
-        with open(CACHE_PATH, "w") as f:
-            json.dump({"annual": annual, "ytd": ytd, "ytdYear": cur_year, "asOf": as_of}, f)
-    except OSError as e:
-        print(f"  ⚠ could not write country returns cache: {e}")
-
-    cols = [{"year": y, "ytd": False} for y in years] + [{"year": cur_year, "ytd": True}]
+    with_ytd = lq is not None
+    cols = [{"year": y, "ytd": False} for y in years]
+    if with_ytd:
+        cols.append({"year": cur_year, "ytd": True})
     countries = []
     for k, name, code, bg, fg in COUNTRIES:
         row = {"key": k, "label": name, "bg": bg, "fg": fg, "ret": {}, "annualized": {}}
         for c in CURRENCIES:
             a = annual.get(f"{k}_{c}", {})
             vals = [a.get(str(y)) for y in years]
-            row["ret"][c] = [None if v is None else round(v, 1) for v in vals] + [
-                None if ytd.get(f"{k}_{c}") is None else round(ytd[f"{k}_{c}"], 1)]
+            row["ret"][c] = [None if v is None else round(v, 1) for v in vals]
+            if with_ytd:
+                row["ret"][c].append(None if a.get("ytd") is None else round(a["ytd"], 1))
             row["annualized"][c] = _annualized(vals) if all(v is not None for v in vals) else None
         countries.append(row)
-    return {"asOf": as_of, "columns": cols, "currencies": list(CURRENCIES),
-            "countries": countries, "note": NOTE, "stale": stale}
+    return {"asOf": lq[1] if with_ytd else f"{last_full}-12-31", "columns": cols,
+            "currencies": list(CURRENCIES), "countries": countries, "note": NOTE, "stale": stale}
 
 
 if __name__ == "__main__":

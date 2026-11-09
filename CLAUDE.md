@@ -18,9 +18,13 @@ In USD / In CHF (`localStorage.ctCcy`, default CHF). `country_returns.py`
 - **Validated**: USD annualized 2006–2025 matches Dimensional's legend for
   all 22 countries to 0.1 pt (USA 10.4 … PRT 0.3), 2006/2025 column order
   identical.
-- Cache `country_returns_cache.json` (git-ignored) holds only derived annual
-  returns: full years are fetched once (44 monthly requests, ~60 s), then
-  each run only the YTD (44 daily requests since the last year-end, ~30 s).
+- **YTD only up to the last completed quarter-end** (user's request
+  2026-11-09, to save run time): one month-end request per country and
+  currency (44, ~33 s) once per quarter, every other run is served from
+  `country_returns_cache.json` (git-ignored, keyed by `period` = quarter-end
+  date, holds only derived returns) in ~0.1 s. In Q1 there is no YTD column.
+  The YTD can therefore differ a lot from the YTD Dashboard (e.g. NLD
+  +32.7 % to 30 Sep vs +15.8 % on 6 Nov 2026).
 
 ## YTD Dashboard switched from weekly to daily closes — set up 2026-11-07
 

@@ -1308,6 +1308,7 @@
     const cols = ct.columns, n = cols.length, grid = document.getElementById("ct-grid");
     const fmt = v => v == null ? "—" : (v < 0 ? "−" : "") + Math.abs(v).toFixed(1) + "%";
     const asOfTxt = new Date(ct.asOf + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    const hasYtd = cols[n - 1].ytd, lastFull = cols[hasYtd ? n - 2 : n - 1].year;
     let ccy = "CHF";
     try { const s = localStorage.getItem("ctCcy"); if (ct.currencies.includes(s)) ccy = s; } catch (e) {}
     let pinned = null;
@@ -1317,7 +1318,8 @@
     };
     function draw() {
       grid.style.gridTemplateColumns = `repeat(${n}, minmax(40px, 1fr))`;
-      let h = cols.map(c => `<div class="pt-head${c.ytd ? " ytd" : ""}">${c.year}${c.ytd ? "<small>YTD</small>" : ""}</div>`).join("");
+      const qTxt = new Date(ct.asOf + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+      let h = cols.map(c => `<div class="pt-head${c.ytd ? " ytd" : ""}">${c.year}${c.ytd ? `<small>to ${qTxt}</small>` : ""}</div>`).join("");
       const ranked = cols.map((c, i) => ct.countries.slice().sort((a, b) =>
         (b.ret[ccy][i] ?? -Infinity) - (a.ret[ccy][i] ?? -Infinity)));
       for (let r = 0; r < ct.countries.length; r++) {
@@ -1332,7 +1334,7 @@
       document.getElementById("ct-ccy").innerHTML = ct.currencies.map(c =>
         `<button class="range-btn${c === ccy ? " active" : ""}" data-c="${c}">In ${c}</button>`).join("");
       document.getElementById("ct-legend-title").textContent =
-        `Annualized returns ${cols[0].year}–${cols[n - 2].year} (${ccy})`;
+        `Annualized returns ${cols[0].year}–${lastFull} (${ccy})`;
       document.getElementById("ct-legend").innerHTML = ct.countries.slice()
         .sort((a, b) => (b.annualized[ccy] ?? -99) - (a.annualized[ccy] ?? -99))
         .map(a => `<div data-k="${a.key}"><span class="code" style="background:${a.bg};color:${a.fg}">${a.key}</span>${a.label}<span class="ann">${fmt(a.annualized[ccy])}</span></div>`).join("");
@@ -1349,7 +1351,7 @@
     document.getElementById("ct-legend").addEventListener("click", e => { const c = e.target.closest("[data-k]"); if (c) toggle(c.dataset.k); });
     draw();
     document.getElementById("ct-date").textContent =
-      `${cols[0].year}–${cols[n - 2].year} calendar years + ${cols[n - 1].year} year to date (as of ${asOfTxt}) · MSCI country indices, net dividends · ranked highest to lowest · hover or tap a country to follow it`
+      `${cols[0].year}–${lastFull} calendar years` + (hasYtd ? ` + ${cols[n - 1].year} year to date up to the last quarter-end (${asOfTxt}, updated quarterly)` : "") + ` · MSCI country indices, net dividends · ranked highest to lowest · hover or tap a country to follow it`
       + (ct.stale ? " · ⚠ live update failed, cached values" : "");
     document.getElementById("ct-note").textContent = ct.note;
     document.getElementById("ct-card").style.display = "";

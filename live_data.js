@@ -84495,7 +84495,7 @@ const LIVE_DATA = {
     "note": "WSML tracks the MSCI World Small Cap Index — the small-cap segment of the MSCI World Investable Market Index (IMI), a genuine size-based index rather than a large-cap 'size factor' tilt. No SIX-listed version of this fund exists, so WSML.L (LSE) is used instead — still the same fund provider (BlackRock/iShares) and USD share class as SWDA.SW, avoiding any FX/domicile mismatch in the ratio. SWDA (iShares Core MSCI World) is the standard cap-weighted parent index used here as the benchmark."
   },
   "countryReturns": {
-    "asOf": "2026-11-06",
+    "asOf": "2026-09-30",
     "columns": [
       {
         "year": 2006,
@@ -84614,7 +84614,7 @@ const LIVE_DATA = {
             14.8,
             1.2,
             14.7,
-            12.8
+            10.3
           ],
           "CHF": [
             21.2,
@@ -84637,7 +84637,7 @@ const LIVE_DATA = {
             4.4,
             9.0,
             0.3,
-            16.8
+            16.3
           ]
         },
         "annualized": {
@@ -84672,7 +84672,7 @@ const LIVE_DATA = {
             17.2,
             18.3,
             77.6,
-            17.4
+            26.6
           ],
           "CHF": [
             26.5,
@@ -84695,7 +84695,7 @@ const LIVE_DATA = {
             6.6,
             27.4,
             55.2,
-            21.6
+            33.5
           ]
         },
         "annualized": {
@@ -84730,7 +84730,7 @@ const LIVE_DATA = {
             5.9,
             8.5,
             36.4,
-            17.5
+            9.5
           ],
           "CHF": [
             26.6,
@@ -84753,7 +84753,7 @@ const LIVE_DATA = {
             -3.6,
             16.9,
             19.2,
-            21.6
+            15.4
           ]
         },
         "annualized": {
@@ -84788,7 +84788,7 @@ const LIVE_DATA = {
             15.4,
             11.9,
             36.5,
-            11.9
+            9.0
           ],
           "CHF": [
             9.1,
@@ -84811,7 +84811,7 @@ const LIVE_DATA = {
             5.0,
             20.5,
             19.3,
-            15.8
+            14.8
           ]
         },
         "annualized": {
@@ -84846,7 +84846,7 @@ const LIVE_DATA = {
             31.2,
             -12.9,
             -13.5,
-            -0.8
+            -8.6
           ],
           "CHF": [
             28.5,
@@ -84869,7 +84869,7 @@ const LIVE_DATA = {
             19.4,
             -6.2,
             -24.4,
-            2.7
+            -3.6
           ]
         },
         "annualized": {
@@ -84904,7 +84904,7 @@ const LIVE_DATA = {
             -5.6,
             -7.3,
             57.2,
-            5.1
+            12.4
           ],
           "CHF": [
             20.4,
@@ -84927,7 +84927,7 @@ const LIVE_DATA = {
             -14.1,
             -0.2,
             37.4,
-            8.8
+            18.5
           ]
         },
         "annualized": {
@@ -84962,7 +84962,7 @@ const LIVE_DATA = {
             21.4,
             -5.3,
             28.4,
-            -2.6
+            -2.9
           ],
           "CHF": [
             24.6,
@@ -84985,7 +84985,7 @@ const LIVE_DATA = {
             10.4,
             1.9,
             12.3,
-            0.8
+            2.4
           ]
         },
         "annualized": {
@@ -85020,7 +85020,7 @@ const LIVE_DATA = {
             23.0,
             10.2,
             36.3,
-            0.2
+            -0.4
           ],
           "CHF": [
             25.9,
@@ -85043,7 +85043,7 @@ const LIVE_DATA = {
             11.9,
             18.7,
             19.1,
-            3.8
+            5.0
           ]
         },
         "annualized": {
@@ -85078,7 +85078,7 @@ const LIVE_DATA = {
             -14.8,
             0.1,
             34.8,
-            10.3
+            5.6
           ],
           "CHF": [
             20.7,
@@ -85101,7 +85101,7 @@ const LIVE_DATA = {
             -22.5,
             7.8,
             17.9,
-            14.2
+            11.3
           ]
         },
         "annualized": {
@@ -85136,7 +85136,7 @@ const LIVE_DATA = {
             24.4,
             14.0,
             57.2,
-            10.4
+            11.6
           ],
           "CHF": [
             36.0,
@@ -85159,7 +85159,7 @@ const LIVE_DATA = {
             13.1,
             22.8,
             37.5,
-            14.3
+            17.6
           ]
         },
         "annualized": {
@@ -85194,7 +85194,7 @@ const LIVE_DATA = {
             37.1,
             11.2,
             55.5,
-            6.8
+            10.7
           ],
           "CHF": [
             22.7,
@@ -85217,7 +85217,7 @@ const LIVE_DATA = {
             24.7,
             19.8,
             36.0,
-            10.6
+            16.7
           ]
         },
         "annualized": {
@@ -85252,7 +85252,7 @@ const LIVE_DATA = {
             20.3,
             8.3,
             24.6,
-            8.8
+            22.7
           ],
           "CHF": [
             -1.6,
@@ -85275,7 +85275,7 @@ const LIVE_DATA = {
             9.4,
             16.6,
             8.9,
-            12.6
+            29.3
           ]
         },
         "annualized": {
@@ -85310,7 +85310,7 @@ const LIVE_DATA = {
             25.8,
             1.4,
             36.9,
-            15.8
+            32.7
           ],
           "CHF": [
             21.7,
@@ -85333,7 +85333,7 @@ const LIVE_DATA = {
             14.5,
             9.2,
             19.6,
-            19.9
+            39.8
           ]
         },
         "annualized": {
@@ -85368,7 +85368,7 @@ const LIVE_DATA = {
             6.1,
             -1.5,
             -0.5,
-            11.5
+            11.4
           ],
           "CHF": [
             8.0,
@@ -85391,7 +85391,7 @@ const LIVE_DATA = {
             -3.5,
             6.1,
             -13.0,
-            15.4
+            17.4
           ]
         },
         "annualized": {
@@ -85426,7 +85426,7 @@ const LIVE_DATA = {
             5.9,
             -4.3,
             34.0,
-            27.9
+            25.8
           ],
           "CHF": [
             34.4,
@@ -85449,7 +85449,7 @@ const LIVE_DATA = {
             -3.7,
             3.1,
             17.1,
-            32.5
+            32.6
           ]
         },
         "annualized": {
@@ -85484,7 +85484,7 @@ const LIVE_DATA = {
             7.5,
             -25.2,
             37.0,
-            17.8
+            23.0
           ],
           "CHF": [
             36.5,
@@ -85507,7 +85507,7 @@ const LIVE_DATA = {
             -2.2,
             -19.4,
             19.7,
-            22.0
+            29.7
           ]
         },
         "annualized": {
@@ -85542,7 +85542,7 @@ const LIVE_DATA = {
             5.3,
             32.2,
             32.4,
-            9.4
+            23.5
           ],
           "CHF": [
             35.9,
@@ -85565,7 +85565,7 @@ const LIVE_DATA = {
             -4.2,
             42.4,
             15.7,
-            13.3
+            30.2
           ]
         },
         "annualized": {
@@ -85600,7 +85600,7 @@ const LIVE_DATA = {
             31.9,
             9.8,
             82.4,
-            9.7
+            12.6
           ],
           "CHF": [
             38.3,
@@ -85623,7 +85623,7 @@ const LIVE_DATA = {
             20.0,
             18.2,
             59.5,
-            13.6
+            18.6
           ]
         },
         "annualized": {
@@ -85658,7 +85658,7 @@ const LIVE_DATA = {
             23.9,
             -3.7,
             36.5,
-            6.9
+            3.1
           ],
           "CHF": [
             32.8,
@@ -85681,7 +85681,7 @@ const LIVE_DATA = {
             12.7,
             3.7,
             19.3,
-            10.7
+            8.7
           ]
         },
         "annualized": {
@@ -85716,7 +85716,7 @@ const LIVE_DATA = {
             15.7,
             -2.0,
             33.5,
-            10.0
+            1.3
           ],
           "CHF": [
             18.0,
@@ -85739,7 +85739,7 @@ const LIVE_DATA = {
             5.3,
             5.5,
             16.7,
-            13.9
+            6.8
           ]
         },
         "annualized": {
@@ -85774,7 +85774,7 @@ const LIVE_DATA = {
             14.1,
             7.5,
             35.1,
-            9.9
+            8.2
           ],
           "CHF": [
             21.0,
@@ -85797,7 +85797,7 @@ const LIVE_DATA = {
             3.8,
             15.8,
             18.1,
-            13.8
+            14.1
           ]
         },
         "annualized": {
@@ -85832,7 +85832,7 @@ const LIVE_DATA = {
             26.5,
             24.6,
             17.3,
-            8.1
+            12.3
           ],
           "CHF": [
             6.2,
@@ -85855,7 +85855,7 @@ const LIVE_DATA = {
             15.1,
             34.1,
             2.6,
-            12.0
+            18.4
           ]
         },
         "annualized": {
@@ -85864,7 +85864,7 @@ const LIVE_DATA = {
         }
       }
     ],
-    "note": "MSCI country indices (standard: large + mid cap), net dividends reinvested, in US dollars or Swiss francs, ranked from highest to lowest in each column; the last column is the current year to date. Same data and layout as Dimensional's \"Annual returns for developed markets, ranked\" chart, extended with the current year. Annualized figures are geometric means over the full calendar years shown. Source: MSCI (index levels not redistributed, only derived returns shown). Past performance is not a guide to future returns.",
+    "note": "MSCI country indices (standard: large + mid cap), net dividends reinvested, in US dollars or Swiss francs, ranked from highest to lowest in each column; the last column is the current year to the last quarter-end. Same data and layout as Dimensional's \"Annual returns for developed markets, ranked\" chart, extended with the current year. Annualized figures are geometric means over the full calendar years shown. Source: MSCI (index levels not redistributed, only derived returns shown). Past performance is not a guide to future returns.",
     "stale": false
   }
 };

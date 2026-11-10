@@ -1,5 +1,24 @@
 # market-dashboard
 
+## Cost of trying to time the market — last card on Long Term Summary, set up 2026-11-10
+
+After Dimensional's Quick Take PDF "The Cost of Trying to Time the Market"
+(https://my.dimensional.com/chmedia/307835/source/download/the-cost-of-trying-to-time-the-market.pdf,
+MKT-62880 06/26): $1,000 in the Russell 3000 from 2001, fully invested vs
+missing the best 5 / 21 / 63 / 126 consecutive trading days (held in cash at
+0 %). `market_timing.py` (`calc_market_timing()` → `LD.marketTiming`),
+`renderMarketTiming()`; bars + red step line like the source. Views
+(`localStorage.mtView`, default Dimensional): **Dimensional 2001–2025**
+(values hand-transcribed in `DIMENSIONAL`), **2001–today in USD** and **in
+CHF** (iShares Russell 3000 ETF `IWV`, Yahoo, × FRED `DEXSZUS`, Yahoo
+`USDCHF=X` after FRED's last day). Cache `market_timing_cache.json`.
+- **Validation**: IWV on 2001–2025 gives the SAME four best-period end dates
+  as Dimensional, values ~3–4 % lower (8,072 vs 8,360) = fund fees; shown in
+  the note. ^SP500TR would be closer in level (8,284) but is the wrong index.
+- In CHF the best month / 3 / 6 months fall in 2011–12 (franc cap), not 2020 / 2009.
+- At 2026-11-10: USD 8,951 → 7,550 / 7,124 / 6,291 / 5,822; CHF 4,553 →
+  3,850 / 3,643 / 3,241 / 2,982.
+
 ## Developed-market country returns, ranked — last card on Long Term Summary, set up 2026-11-09
 
 After Dimensional's "Annual returns for developed markets, ranked

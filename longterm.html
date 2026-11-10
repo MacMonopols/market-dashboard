@@ -326,6 +326,8 @@
     table.ls-entrants th, table.ls-entrants td { padding:3px 10px 3px 0; text-align:right; }
     table.ls-entrants th:first-child, table.ls-entrants td:first-child { text-align:left; }
     table.ls-entrants th { color:var(--text-muted); font-weight:600; border-bottom:1px solid var(--border); }
+    .mt-wrap svg { display:block; width:100%; height:auto; }
+    .mt-sum { font-size:12px; color:var(--text); margin:2px 0 10px; line-height:1.5; }
     .ls-note { display:block; font-size:10.5px; color:var(--text-muted); line-height:1.5; max-width:860px; margin-top:8px; }
     /* ── Periodic table of asset-class returns (CHF) ── */
     .pt-wrap { overflow-x:auto; margin-top:6px; }
@@ -545,6 +547,16 @@
   <div class="ct-legend-title" id="ct-legend-title"></div>
   <div class="ct-legend" id="ct-legend"></div>
   <span class="ls-note" id="ct-note"></span>
+</div>
+
+<!-- ── Cost of trying to time the market (market_timing.py) ── -->
+<div class="mktcap-card" id="mt-card" style="display:none">
+  <div class="mktcap-title">The Cost of Trying to Time the Market</div>
+  <div class="mktcap-date" id="mt-date"></div>
+  <div class="range-btns" id="mt-views"></div>
+  <div class="mt-sum" id="mt-sum"></div>
+  <div class="mt-wrap"><svg id="mt-svg" viewBox="0 0 900 340"></svg></div>
+  <span class="ls-note" id="mt-note"></span>
 </div>
 
 <div class="footer" id="footer"></div>
@@ -1358,6 +1370,73 @@
   }
 
   if (LD?.countryReturns) renderCountryReturns(LD.countryReturns);
+
+
+  // ── Cost of trying to time the market (Dimensional + own IWV update) ──
+  function renderMarketTiming(mt) {
+    const views = mt.views;
+    let key = "dim";
+    try { const s = localStorage.getItem("mtView"); if (views.some(v => v.key === s)) key = s; } catch (e) {}
+    const F = 'font-family="Helvetica Neue,Arial,sans-serif"';
+    const d = iso => new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    const money = (v, c) => (c === "CHF" ? "CHF " : "$") + Math.round(v).toLocaleString("en-US").replace(/,/g, "'");
+    const btnLabel = v => v.key === "dim" ? "Dimensional 2001–2025" : `2001–today in ${v.ccy}`;
+    function draw() {
+      const v = views.find(x => x.key === key), c = v.ccy;
+      const W = 900, H = 340, padL = 20, padR = 20, padT = 64, padB = 58, base = H - padB;
+      const bars = [{ label: `${v.start.slice(0, 4)}–${v.end.slice(0, 4)}`, sub: "Fully invested", value: v.total, full: true }]
+        .concat(v.missed.map(m => ({ label: m.label, sub: "Ending " + d(m.end), value: m.value, m })));
+      const max = Math.max(...bars.map(b => b.value));
+      const y = val => base - (base - padT) * val / max;
+      const slot = (W - padL - padR) / (bars.length + 1), bw = Math.min(86, slot * 0.6);
+      const cx = i => padL + slot * (i === 0 ? 0.5 : i + 1);
+      const cols = ["#0a7f86", "#2c8e93", "#4aa1a1", "#69b6b1", "#86ccb8"];
+      let h = `<line x1="${padL}" y1="${base}" x2="${W - padR}" y2="${base}" stroke="#dde3ea"/>`;
+      // red step line along the bar tops
+      let path = `M${cx(0) - bw / 2},${y(bars[0].value)} L${cx(0) + bw / 2},${y(bars[0].value)}`;
+      for (let i = 1; i < bars.length; i++) {
+        const xPrev = i === 1 ? cx(0) + bw / 2 : cx(i - 1) + bw / 2;
+        path += ` L${xPrev},${y(bars[i].value)} L${cx(i) + bw / 2},${y(bars[i].value)}`;
+      }
+      bars.forEach((b, i) => {
+        const x = cx(i) - bw / 2, yt = y(b.value);
+        const tip = b.full ? `Fully invested: ${money(b.value, c)}`
+          : `Missed the best ${b.m.days} trading days (${b.label.toLowerCase()}) ending ${d(b.m.end)}${b.m.periodReturn != null ? ` (+${b.m.periodReturn.toFixed(1)}% in that run)` : ""}: ${money(b.value, c)}`;
+        h += `<rect x="${x}" y="${yt}" width="${bw}" height="${base - yt}" fill="${cols[i]}"><title>${tip}</title></rect>`;
+        h += `<text x="${cx(i)}" y="${yt - 8}" text-anchor="middle" ${F} font-size="15" fill="#1a2533">${money(b.value, c)}</text>`;
+        if (!b.full) {
+          const pct = (b.value / v.total - 1) * 100;
+          h += `<text x="${cx(i)}" y="${padT - 40}" text-anchor="middle" ${F} font-size="12" font-weight="700" fill="#1a2533">${b.label}</text>`;
+          h += `<text x="${cx(i)}" y="${padT - 24}" text-anchor="middle" ${F} font-size="11" fill="#c0392b">${pct.toFixed(0).replace("-", "−")}%</text>`;
+        }
+        h += `<text x="${cx(i)}" y="${base + 18}" text-anchor="middle" ${F} font-size="11" fill="#1a2533">${b.label}</text>`;
+        h += `<text x="${cx(i)}" y="${base + 33}" text-anchor="middle" ${F} font-size="10" fill="#6b7a8d">${b.sub}</text>`;
+      });
+      h += `<path d="${path}" fill="none" stroke="#E04822" stroke-width="2"/>`;
+      h += `<text x="${cx(0) + bw / 2 + 14}" y="${y(bars[1].value) - 22}" ${F} font-size="12" font-weight="700" fill="#E04822">But if you missed</text>`;
+      h += `<text x="${cx(0) + bw / 2 + 14}" y="${y(bars[1].value) - 8}" ${F} font-size="12" font-weight="700" fill="#E04822">the best…</text>`;
+      document.getElementById("mt-svg").innerHTML = h;
+      const w = v.missed[0], q = v.missed[2];
+      document.getElementById("mt-sum").innerHTML =
+        `${money(1000, c)} invested at the start of ${v.start.slice(0, 4)} grows to <b>${money(v.total, c)}</b> by ${d(v.end)}`
+        + (v.annualized != null ? ` (${v.annualized.toFixed(1)}% a year)` : "")
+        + `. Miss the best week and it is <b>${money(w.value, c)}</b>; miss the best three months and it is <b>${money(q.value, c)}</b>.`;
+      document.getElementById("mt-date").textContent = `${v.label} · total return, ${d(v.start)} – ${d(v.end)} · source: ${v.source}`
+        + (mt.stale && v.key !== "dim" ? " · ⚠ live update failed, cached values" : "");
+      document.getElementById("mt-views").innerHTML = views.map(x =>
+        `<button class="range-btn${x.key === key ? " active" : ""}" data-k="${x.key}">${btnLabel(x)}</button>`).join("");
+    }
+    document.getElementById("mt-views").addEventListener("click", e => {
+      const b = e.target.closest("button"); if (!b) return;
+      key = b.dataset.k; try { localStorage.setItem("mtView", key); } catch (err) {}
+      draw();
+    });
+    draw();
+    document.getElementById("mt-note").textContent = mt.note;
+    document.getElementById("mt-card").style.display = "";
+  }
+
+  if (LD?.marketTiming) renderMarketTiming(LD.marketTiming);
 
 
   // ── Factor vs World Cap-Weighted (live ETF prices) ──────────────────────

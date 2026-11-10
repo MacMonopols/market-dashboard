@@ -1936,6 +1936,17 @@ def main():
         print(f"  ⚠ country returns failed: {e}")
         country_returns = None
 
+    # 5e5) Cost of trying to time the market (Dimensional, Russell 3000;
+    #      own update with IWV in USD / CHF; market_timing.py)
+    print("\nCost of trying to time the market (IWV, USD/CHF) ...")
+    try:
+        from market_timing import calc_market_timing
+        market_timing = calc_market_timing()
+        print(f"  → as of {market_timing['asOf']}" + (" (stale cache)" if market_timing.get("stale") else ""))
+    except Exception as e:
+        print(f"  ⚠ market timing failed: {e}")
+        market_timing = None
+
     # 5f) World Value Factor vs World Cap-Weighted (live ETF prices, IWVL vs SWDA)
     next_step7 = next_step6 + 1
     print(f"\n[{next_step7}] World Value vs World Cap-Weighted ({WORLD_VALUE_TICKER} vs {WORLD_CAPWEIGHTED_TICKER})")
@@ -2069,6 +2080,7 @@ def main():
         "largestStocks":   largest_stocks,
         "periodicTable":   periodic_table,
         "countryReturns":  country_returns,
+        "marketTiming":    market_timing,
         "worldValue":      world_value,
         "worldQuality":    world_quality,
         "worldSmallCap":   world_smallcap,

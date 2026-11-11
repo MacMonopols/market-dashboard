@@ -16,6 +16,14 @@ CHF** (iShares Russell 3000 ETF `IWV`, Yahoo, × FRED `DEXSZUS`, Yahoo
   as Dimensional, values ~3–4 % lower (8,072 vs 8,360) = fund fees; shown in
   the note. ^SP500TR would be closer in level (8,284) but is the wrong index.
 - In CHF the best month / 3 / 6 months fall in 2011–12 (franc cap), not 2020 / 2009.
+- **Missing the worst** (added 2026-11-11, user's request): second toggle
+  Missing the best / Missing the worst (`localStorage.mtSide`, default best);
+  `missedWorst` per view = total / growth of the worst n-day run (argmin). The
+  PDF has no worst runs, so the Dimensional view uses the IWV 2001–2025 runs
+  applied to the index total (8,360 × IWV-missed / IWV-total). Summary text
+  lists the years of best and worst runs (perfect-foresight caveat). Not yet
+  run on live data (Yahoo/FRED blocked from the cloud session); first Actions
+  run fills it, the card hides the toggle while any view lacks `missedWorst`.
 - At 2026-11-10: USD 8,951 → 7,550 / 7,124 / 6,291 / 5,822; CHF 4,553 →
   3,850 / 3,643 / 3,241 / 2,982.
 

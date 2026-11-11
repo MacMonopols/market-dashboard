@@ -21,9 +21,12 @@ CHF** (iShares Russell 3000 ETF `IWV`, Yahoo, × FRED `DEXSZUS`, Yahoo
   `missedWorst` per view = total / growth of the worst n-day run (argmin). The
   PDF has no worst runs, so the Dimensional view uses the IWV 2001–2025 runs
   applied to the index total (8,360 × IWV-missed / IWV-total). Summary text
-  lists the years of best and worst runs (perfect-foresight caveat). Not yet
-  run on live data (Yahoo/FRED blocked from the cloud session); first Actions
-  run fills it, the card hides the toggle while any view lacks `missedWorst`.
+  lists the years of best and worst runs (perfect-foresight caveat). The card
+  hides the toggle while any view lacks `missedWorst`. At 2026-11-10, missing
+  the worst week / month / 3 / 6 months: Dimensional 8,360 → 10,282 / 12,736 /
+  14,529 / 15,580; USD 8,961 → 11,022 / 13,651 / 15,573 / 16,700 (runs end
+  2020-03-12, 2020-03-23, 2008-11-20, 2009-03-05); CHF 4,533 → 5,557 / 6,875 /
+  7,085 / 7,963. Worst and best runs sit weeks apart (Mar → Apr 2020, Nov 2008).
 - At 2026-11-10: USD 8,951 → 7,550 / 7,124 / 6,291 / 5,822; CHF 4,553 →
   3,850 / 3,643 / 3,241 / 2,982.
 

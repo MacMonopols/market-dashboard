@@ -50,16 +50,19 @@ NOTE = (
     "Dimensional view: Russell 3000 Index, values from their PDF. Own views: iShares Russell 3000 ETF (IWV, "
     "Yahoo Finance), net of the fund's fees, so about 3 % below the index over 25 years — on 2001–2025 it "
     "gives {val}, and the same best-period dates. CHF view: the USD series converted at the daily USD/CHF "
-    "rate (FRED H.10), cash held in CHF. Past performance is not a guide to future returns."
+    "rate (FRED H.10), cash held in CHF. \"Missing the worst …\" = the same, sitting out the worst run "
+    "instead (perfect foresight both ways — nobody can pick either in advance, and the best and worst runs "
+    "tend to come in the same crises); in the Dimensional view the worst runs are measured on IWV "
+    "over 2001–2025 and applied to the index total. Past performance is not a guide to future returns."
 )
 
 
-def _missed(levels, dates, total):
-    """For each period: value of 1,000 when the best n-day run is skipped."""
+def _missed(levels, dates, total, worst=False):
+    """For each period: value of 1,000 when the best (or worst) n-day run is skipped."""
     out = []
     for label, n in PERIODS:
         w = levels[n:] / levels[:-n]
-        i = int(w.argmax())
+        i = int(w.argmin() if worst else w.argmax())
         out.append({"label": label, "days": n, "value": round(total / w[i]),
                     "end": dates[i + n - 1], "periodReturn": round((w[i] - 1) * 100, 1)})
     return out
@@ -77,7 +80,8 @@ def _view(series, label, ccy, end=None):
     years = (s.index[-1] - pd.Timestamp(START)).days / 365.25
     return {"label": label, "ccy": ccy, "start": START, "end": dates[-1], "total": round(total),
             "annualized": round(((total / 1000) ** (1 / years) - 1) * 100, 2),
-            "missed": _missed(lv, dates, total)}
+            "missed": _missed(lv, dates, total),
+            "missedWorst": _missed(lv, dates, total, worst=True)}
 
 
 def _compute(today=None):
@@ -96,8 +100,13 @@ def _compute(today=None):
     chf = usd * fx.reindex(usd.index, method="ffill")
 
     validation = _view(usd, "IWV", "USD", end="2025-12-31")
+    # Dimensional gives only the best runs. The worst runs are measured on IWV over the
+    # same 2001–2025 window and applied to the index total (missing a run divides the
+    # total by that run's growth factor; fees over ≤ 126 days are negligible).
+    dim_worst = [dict(m, value=round(m["value"] * DIMENSIONAL["total"] / validation["total"]))
+                 for m in validation["missedWorst"]]
     views = [
-        dict(DIMENSIONAL, key="dim"),
+        dict(DIMENSIONAL, key="dim", missedWorst=dim_worst),
         dict(_view(usd, "Russell 3000 ETF (IWV) in USD", "USD"), key="usd", source=f"Yahoo Finance ({TICKER})"),
         dict(_view(chf, "Russell 3000 ETF (IWV) in CHF", "CHF"), key="chf",
              source=f"Yahoo Finance ({TICKER}), FRED DEXSZUS"),
@@ -136,3 +145,4 @@ if __name__ == "__main__":
           [(m["value"], m["end"]) for m in r["validation"]["missed"]])
     for v in r["views"]:
         print(v["key"], v["end"], v["total"], [(m["value"], m["end"]) for m in v["missed"]])
+        print("   worst:", [(m["value"], m["end"], m["periodReturn"]) for m in v["missedWorst"]])

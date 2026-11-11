@@ -554,6 +554,7 @@
   <div class="mktcap-title">The Cost of Trying to Time the Market</div>
   <div class="mktcap-date" id="mt-date"></div>
   <div class="range-btns" id="mt-views"></div>
+  <div class="range-btns" id="mt-sides"></div>
   <div class="mt-sum" id="mt-sum"></div>
   <div class="mt-wrap"><svg id="mt-svg" viewBox="0 0 900 340"></svg></div>
   <span class="ls-note" id="mt-note"></span>
@@ -1377,20 +1378,25 @@
     const views = mt.views;
     let key = "dim";
     try { const s = localStorage.getItem("mtView"); if (views.some(v => v.key === s)) key = s; } catch (e) {}
+    const hasWorst = views.every(v => v.missedWorst);
+    let side = "best";
+    try { if (hasWorst && localStorage.getItem("mtSide") === "worst") side = "worst"; } catch (e) {}
     const F = 'font-family="Helvetica Neue,Arial,sans-serif"';
     const d = iso => new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
     const money = (v, c) => (c === "CHF" ? "CHF " : "$") + Math.round(v).toLocaleString("en-US").replace(/,/g, "'");
     const btnLabel = v => v.key === "dim" ? "Dimensional 2001–2025" : `2001–today in ${v.ccy}`;
     function draw() {
-      const v = views.find(x => x.key === key), c = v.ccy;
+      const v = views.find(x => x.key === key), c = v.ccy, worst = side === "worst";
+      const missed = worst ? v.missedWorst : v.missed;
       const W = 900, H = 340, padL = 20, padR = 20, padT = 64, padB = 58, base = H - padB;
       const bars = [{ label: `${v.start.slice(0, 4)}–${v.end.slice(0, 4)}`, sub: "Fully invested", value: v.total, full: true }]
-        .concat(v.missed.map(m => ({ label: m.label, sub: "Ending " + d(m.end), value: m.value, m })));
+        .concat(missed.map(m => ({ label: m.label, sub: "Ending " + d(m.end), value: m.value, m })));
       const max = Math.max(...bars.map(b => b.value));
       const y = val => base - (base - padT) * val / max;
       const slot = (W - padL - padR) / (bars.length + 1), bw = Math.min(86, slot * 0.6);
       const cx = i => padL + slot * (i === 0 ? 0.5 : i + 1);
-      const cols = ["#0a7f86", "#2c8e93", "#4aa1a1", "#69b6b1", "#86ccb8"];
+      const cols = worst ? ["#0a7f86", "#3f8f5a", "#4f9f66", "#62b075", "#7cc28a"]
+                         : ["#0a7f86", "#2c8e93", "#4aa1a1", "#69b6b1", "#86ccb8"];
       let h = `<line x1="${padL}" y1="${base}" x2="${W - padR}" y2="${base}" stroke="#dde3ea"/>`;
       // red step line along the bar tops
       let path = `M${cx(0) - bw / 2},${y(bars[0].value)} L${cx(0) + bw / 2},${y(bars[0].value)}`;
@@ -1401,31 +1407,42 @@
       bars.forEach((b, i) => {
         const x = cx(i) - bw / 2, yt = y(b.value);
         const tip = b.full ? `Fully invested: ${money(b.value, c)}`
-          : `Missed the best ${b.m.days} trading days (${b.label.toLowerCase()}) ending ${d(b.m.end)}${b.m.periodReturn != null ? ` (+${b.m.periodReturn.toFixed(1)}% in that run)` : ""}: ${money(b.value, c)}`;
+          : `Missed the ${side} ${b.m.days} trading days (${b.label.toLowerCase()}) ending ${d(b.m.end)}${b.m.periodReturn != null ? ` (${b.m.periodReturn > 0 ? "+" : "−"}${Math.abs(b.m.periodReturn).toFixed(1)}% in that run)` : ""}: ${money(b.value, c)}`;
         h += `<rect x="${x}" y="${yt}" width="${bw}" height="${base - yt}" fill="${cols[i]}"><title>${tip}</title></rect>`;
         h += `<text x="${cx(i)}" y="${yt - 8}" text-anchor="middle" ${F} font-size="15" fill="#1a2533">${money(b.value, c)}</text>`;
         if (!b.full) {
           const pct = (b.value / v.total - 1) * 100;
           h += `<text x="${cx(i)}" y="${padT - 40}" text-anchor="middle" ${F} font-size="12" font-weight="700" fill="#1a2533">${b.label}</text>`;
-          h += `<text x="${cx(i)}" y="${padT - 24}" text-anchor="middle" ${F} font-size="11" fill="#c0392b">${pct.toFixed(0).replace("-", "−")}%</text>`;
+          h += `<text x="${cx(i)}" y="${padT - 24}" text-anchor="middle" ${F} font-size="11" fill="${pct < 0 ? "#c0392b" : "#2e8b57"}">${pct > 0 ? "+" : ""}${pct.toFixed(0).replace("-", "−")}%</text>`;
         }
         h += `<text x="${cx(i)}" y="${base + 18}" text-anchor="middle" ${F} font-size="11" fill="#1a2533">${b.label}</text>`;
         h += `<text x="${cx(i)}" y="${base + 33}" text-anchor="middle" ${F} font-size="10" fill="#6b7a8d">${b.sub}</text>`;
       });
       h += `<path d="${path}" fill="none" stroke="#E04822" stroke-width="2"/>`;
-      h += `<text x="${cx(0) + bw / 2 + 14}" y="${y(bars[1].value) - 22}" ${F} font-size="12" font-weight="700" fill="#E04822">But if you missed</text>`;
-      h += `<text x="${cx(0) + bw / 2 + 14}" y="${y(bars[1].value) - 8}" ${F} font-size="12" font-weight="700" fill="#E04822">the best…</text>`;
+      // label in the gap between the first two bars, above the line where it rises (worst) or drops (best)
+      const ly = worst ? Math.max(padT + 4, y(bars[1].value) - 22) : y(bars[1].value) - 22;
+      h += `<text x="${cx(0) + bw / 2 + 14}" y="${ly}" ${F} font-size="12" font-weight="700" fill="#E04822">${worst ? "If you sat out" : "But if you missed"}</text>`;
+      h += `<text x="${cx(0) + bw / 2 + 14}" y="${ly + 14}" ${F} font-size="12" font-weight="700" fill="#E04822">the ${side}…</text>`;
       document.getElementById("mt-svg").innerHTML = h;
-      const w = v.missed[0], q = v.missed[2];
+      const w = missed[0], q = missed[2];
       document.getElementById("mt-sum").innerHTML =
         `${money(1000, c)} invested at the start of ${v.start.slice(0, 4)} grows to <b>${money(v.total, c)}</b> by ${d(v.end)}`
         + (v.annualized != null ? ` (${v.annualized.toFixed(1)}% a year)` : "")
-        + `. Miss the best week and it is <b>${money(w.value, c)}</b>; miss the best three months and it is <b>${money(q.value, c)}</b>.`;
+        + `. Miss the ${side} week and it is <b>${money(w.value, c)}</b>; miss the ${side} three months and it is <b>${money(q.value, c)}</b>.`
+        + (worst ? ` That takes perfect foresight: the worst runs sit right next to the best ones (${[...new Set(v.missed.concat(missed).map(m => m.end.slice(0, 4)))].sort().join(", ")}), and sitting out a crash usually means missing the rebound too.`
+                 + (v.key === "dim" ? " Worst runs measured on IWV over 2001–2025." : "") : "");
       document.getElementById("mt-date").textContent = `${v.label} · total return, ${d(v.start)} – ${d(v.end)} · source: ${v.source}`
         + (mt.stale && v.key !== "dim" ? " · ⚠ live update failed, cached values" : "");
       document.getElementById("mt-views").innerHTML = views.map(x =>
         `<button class="range-btn${x.key === key ? " active" : ""}" data-k="${x.key}">${btnLabel(x)}</button>`).join("");
+      document.getElementById("mt-sides").innerHTML = hasWorst ? [["best", "Missing the best"], ["worst", "Missing the worst"]].map(([k, l]) =>
+        `<button class="range-btn${k === side ? " active" : ""}" data-s="${k}">${l}</button>`).join("") : "";
     }
+    document.getElementById("mt-sides").addEventListener("click", e => {
+      const b = e.target.closest("button"); if (!b) return;
+      side = b.dataset.s; try { localStorage.setItem("mtSide", side); } catch (err) {}
+      draw();
+    });
     document.getElementById("mt-views").addEventListener("click", e => {
       const b = e.target.closest("button"); if (!b) return;
       key = b.dataset.k; try { localStorage.setItem("mtView", key); } catch (err) {}

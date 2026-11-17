@@ -53,6 +53,34 @@ buttons (`localStorage.msRange`: 1 an / 3 ans / 5 ans / Depuis 2015).
   - No signal gave 6–9 months of warning. They work as a trend filter: the
     "fall avoided" was 83–98 % because the bear market lasted 2½ years.
 
+## Sector & factor rotation (RRG) — card on Market Signal, set up 2026-11-17
+
+Card before the dot-com backtest on `market-signal.html`, from a pasted
+French text on spotting sector / factor rotations (offer: "RRG of the 11
+sectors and main factors, 8-week tails, table of quadrant changes").
+`sector_rotation.py` (`calc_sector_rotation()` → `LD.sectorRotation`), cache
+`sector_rotation_cache.json` (git-ignored), `stale: true` on fallback.
+- **Open approximation of de Kempenaer's RRG** (JdK formulas are
+  proprietary), weekly Friday closes from Yahoo daily (`auto_adjust=True`;
+  the last week is partial): rs = EMA4(100 × ETF/SPY); RS-Ratio = 100 × rs /
+  SMA26(rs); RS-Momentum = 100 × RS-Ratio / RS-Ratio 4 weeks earlier.
+  Constants at the top of the module.
+- Universe: 11 SPDR sectors (XLK … XLRE) and factors MTUM, USMV, QUAL, VLUE,
+  IWD, IWF, IWM, RSP, all vs SPY. Factor ETFs overlap (style tilts, not pure
+  factors), which the note says.
+- **Confirmation**: a quadrant change counts after 2 consecutive weekly
+  closes (`CONFIRM_WEEKS`), otherwise it is shown as "unconfirmed".
+- Page: toggle 11 sectors / Factors (`localStorage.msRrgGroup`), tails of 8
+  weeks, click to highlight, slider replaying the last 104 weeks (graph
+  only), table = quadrant now / confirmed / weeks in it / last confirmed
+  change / 4 and 8 weeks ago / relative return vs SPY 4 and 13 weeks.
+- At 2026-11-17: XLK Lagging (−8.4 % vs SPY in 4 weeks); XLY, XLF, XLB,
+  XLV, XLP, XLRE Leading; XLE → Weakening and XLU → Leading unconfirmed.
+  Factors: MTUM (−11.1 % in 13 weeks), VLUE, IWF Lagging; USMV, QUAL, IWD,
+  RSP Leading; IWM Improving.
+- Not done from the paste: rolling betas, dispersion / correlation / PCA,
+  fund flows.
+
 ## Cost of trying to time the market — last card on Long Term Summary, set up 2026-11-10
 
 After Dimensional's Quick Take PDF "The Cost of Trying to Time the Market"

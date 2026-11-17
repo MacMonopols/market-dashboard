@@ -1958,6 +1958,17 @@ def main():
         print(f"  ⚠ market signals failed: {e}")
         market_signals = None
 
+    # 5e7) Market Signal tab: sector / factor Relative Rotation Graph
+    #      (weekly, vs SPY; sector_rotation.py)
+    print("\nSector & factor rotation (RRG) ...")
+    try:
+        from sector_rotation import calc_sector_rotation
+        sector_rotation = calc_sector_rotation()
+        print(f"  → as of {sector_rotation['asOf']}" + (" (stale cache)" if sector_rotation.get("stale") else ""))
+    except Exception as e:
+        print(f"  ⚠ sector rotation failed: {e}")
+        sector_rotation = None
+
     # 5f) World Value Factor vs World Cap-Weighted (live ETF prices, IWVL vs SWDA)
     next_step7 = next_step6 + 1
     print(f"\n[{next_step7}] World Value vs World Cap-Weighted ({WORLD_VALUE_TICKER} vs {WORLD_CAPWEIGHTED_TICKER})")
@@ -2093,6 +2104,7 @@ def main():
         "countryReturns":  country_returns,
         "marketTiming":    market_timing,
         "marketSignals":   market_signals,
+        "sectorRotation":  sector_rotation,
         "worldValue":      world_value,
         "worldQuality":    world_quality,
         "worldSmallCap":   world_smallcap,

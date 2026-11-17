@@ -444,6 +444,23 @@
   </div>
 </div>
 
+<!-- ── Sector & factor rotation (RRG) ── -->
+<div class="mktcap-card" id="ms-rrg-card" style="display:none">
+  <div class="mktcap-title">Sector &amp; Factor Rotation — Relative Rotation Graph vs S&amp;P 500</div>
+  <div class="mktcap-date" id="ms-rrg-date"></div>
+  <div class="range-btns" id="ms-rrg-btns" style="margin-top:4px"></div>
+  <div class="sig-note" id="ms-rrg-summary" style="margin-top:6px;font-size:11.5px;color:var(--text)"></div>
+  <div class="spy-history-wrap" style="margin-top:10px;padding-top:10px">
+    <svg id="ms-rrg-svg" width="900" height="560" viewBox="0 0 900 560"></svg>
+    <div style="display:flex;align-items:center;gap:10px;font-size:11px;color:var(--text-muted);margin-top:6px">
+      <span>Replay:</span><input type="range" id="ms-rrg-slider" style="flex:1;max-width:520px">
+      <span id="ms-rrg-slider-date" style="min-width:90px"></span>
+    </div>
+  </div>
+  <div class="tbl-wrap" style="margin-top:12px"><table class="sig-table" id="ms-rrg-table" style="white-space:nowrap"></table></div>
+  <div class="sig-note" id="ms-rrg-note"></div>
+</div>
+
 <!-- ── 5. Backtest on the dot-com bubble ── -->
 <div class="mktcap-card" id="ms-dotcom-card" style="display:none">
   <div class="mktcap-title">Backtest — The Same Signals on the Dot-com Bubble, 1998–2002</div>
@@ -755,6 +772,103 @@
   };
   rb.querySelectorAll('.range-btn').forEach(b => b.addEventListener('click', () => { range = b.dataset.k; redraw(); }));
   redraw();
+
+  // ── Sector & factor rotation (RRG) ──────────────────────────────────────
+  const RG = LD.sectorRotation;
+  if (RG) {
+    document.getElementById('ms-rrg-card').style.display = '';
+    const P2 = RG.params, nW = RG.dates.length;
+    document.getElementById('ms-rrg-date').textContent =
+      `Weekly closes to ${fmtDate(RG.asOf)}${RG.stale ? ' (cached — live fetch failed)' : ''} (last week partial) · Yahoo Finance, total return · benchmark ${P2.bench} · tails = last ${P2.tailWeeks} weeks`;
+    const QC = { Leading: GREEN, Weakening: '#c9a227', Lagging: RED, Improving: '#2f6db5' };
+    const QORDER = ['Leading', 'Weakening', 'Lagging', 'Improving'];
+    const PAL = ['#003a5c', '#e67e22', '#2e7d4f', '#c0392b', '#5a3e9a', '#8c564b', '#d6337f', '#6b7a8d', '#17a2b8', '#b8860b', '#1f77b4'];
+    let grp = 'sectors', hl = null, at = nW - 1;
+    try { grp = localStorage.getItem('msRrgGroup') || 'sectors'; } catch (e) {}
+    if (!['sectors', 'factors'].includes(grp)) grp = 'sectors';
+    const qBadge = q => q ? `<span style="color:${QC[q]};font-weight:600">${q}</span>` : '—';
+
+    function drawRRG() {
+      const items = RG[grp], svg = document.getElementById('ms-rrg-svg');
+      const W = 900, H = 560, pad = 44, i1 = at, i0 = Math.max(0, at - P2.tailWeeks);
+      let span = 2;
+      items.forEach(it => { for (let i = i0; i <= i1; i++) if (it.x[i] != null && it.y[i] != null) span = Math.max(span, Math.abs(it.x[i] - 100), Math.abs(it.y[i] - 100)); });
+      span = Math.ceil(span * 1.08);
+      const X = v => pad + (W - 2 * pad) * ((v - (100 - span)) / (2 * span));
+      const Y = v => H - pad - (H - 2 * pad) * ((v - (100 - span)) / (2 * span));
+      const cx = X(100), cy = Y(100);
+      let h = '';
+      [['Leading', cx, pad, W - pad - cx, cy - pad, 'end', W - pad - 6, pad + 14],
+       ['Weakening', cx, cy, W - pad - cx, H - pad - cy, 'end', W - pad - 6, H - pad - 8],
+       ['Lagging', pad, cy, cx - pad, H - pad - cy, 'start', pad + 6, H - pad - 8],
+       ['Improving', pad, pad, cx - pad, cy - pad, 'start', pad + 6, pad + 14]].forEach(([q, x, y, w, hh, anc, tx, ty]) => {
+        h += `<rect x="${x}" y="${y}" width="${w}" height="${hh}" fill="${QC[q]}" opacity="0.07"/>`;
+        h += `<text x="${tx}" y="${ty}" text-anchor="${anc}" font-family="Helvetica Neue,Arial,sans-serif" font-size="12" font-weight="700" fill="${QC[q]}" opacity="0.8">${q.toUpperCase()}</text>`;
+      });
+      const step = span <= 4 ? 1 : span <= 10 ? 2 : 5;
+      for (let g = Math.ceil((100 - span) / step) * step; g <= 100 + span; g += step) {
+        h += `<text x="${X(g).toFixed(1)}" y="${H - pad + 14}" text-anchor="middle" ${txt}>${g}</text>`;
+        h += `<text x="${pad - 6}" y="${Y(g).toFixed(1)}" text-anchor="end" dominant-baseline="middle" ${txt}>${g}</text>`;
+      }
+      h += `<line x1="${cx}" y1="${pad}" x2="${cx}" y2="${H - pad}" stroke="${GREY}" stroke-width="1"/><line x1="${pad}" y1="${cy}" x2="${W - pad}" y2="${cy}" stroke="${GREY}" stroke-width="1"/>`;
+      h += `<text x="${W / 2}" y="${H - 6}" text-anchor="middle" ${txt}>RS-Ratio (relative strength vs its ${P2.ratioWindow}-week trend) →</text>`;
+      h += `<text x="12" y="${H / 2}" text-anchor="middle" transform="rotate(-90 12 ${H / 2})" ${txt}>RS-Momentum (${P2.momLag}-week change) →</text>`;
+      items.forEach((it, k) => {
+        const c = PAL[k % PAL.length], dim = hl && hl !== it.ticker, op = dim ? 0.15 : 1;
+        const pts = []; for (let i = i0; i <= i1; i++) if (it.x[i] != null && it.y[i] != null) pts.push([X(it.x[i]), Y(it.y[i])]);
+        if (!pts.length) return;
+        h += `<g data-t="${it.ticker}" style="cursor:pointer" opacity="${op}">`;
+        h += `<polyline points="${pts.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="${c}" stroke-width="${hl === it.ticker ? 2.4 : 1.4}"/>`;
+        pts.slice(0, -1).forEach(p => h += `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2.2" fill="${c}"/>`);
+        const [lx, ly] = pts[pts.length - 1];
+        h += `<circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="5" fill="${c}" stroke="#fff" stroke-width="1.5"/>`;
+        h += `<text x="${(lx + 7).toFixed(1)}" y="${(ly - 6).toFixed(1)}" font-family="Helvetica Neue,Arial,sans-serif" font-size="10.5" font-weight="700" fill="${c}">${it.ticker}</text>`;
+        h += `<title>${it.ticker} · ${it.name}: RS-Ratio ${it.x[i1]}, RS-Momentum ${it.y[i1]}</title></g>`;
+      });
+      svg.innerHTML = h;
+      svg.querySelectorAll('g[data-t]').forEach(g => g.addEventListener('click', () => { hl = hl === g.dataset.t ? null : g.dataset.t; drawRRG(); drawTable(); }));
+      document.getElementById('ms-rrg-slider-date').textContent = fmtDate(RG.dates[at]) + (at === nW - 1 ? ' (latest)' : '');
+    }
+
+    function drawTable() {
+      const items = RG[grp].slice().sort((a, b) => QORDER.indexOf(a.quadrant) - QORDER.indexOf(b.quadrant) || b.x[nW - 1] - a.x[nW - 1]);
+      document.getElementById('ms-rrg-table').innerHTML =
+        `<tr><th>ETF</th><th>Quadrant now</th><th>Confirmed<br>quadrant</th><th>Weeks<br>in it</th><th>Last confirmed change</th><th>4 weeks<br>ago</th><th>8 weeks<br>ago</th><th>vs SPY<br>4 wks</th><th>vs SPY<br>13 wks</th></tr>` +
+        items.map(it => `<tr data-t="${it.ticker}" style="cursor:pointer;${hl === it.ticker ? 'background:#f6f9fb' : ''}">
+          <td><strong>${it.ticker}</strong><br><span style="color:#6b7a8d;font-size:10px">${it.name}</span></td>
+          <td>${qBadge(it.quadrant)}${it.pending ? '<br><span style="color:#6b7a8d;font-size:10px">unconfirmed</span>' : ''}</td>
+          <td>${qBadge(it.confirmed)}</td><td>${it.weeksIn}</td>
+          <td>${it.lastChange ? `${qBadge(it.from)} → ${qBadge(it.confirmed)}<br><span style="color:#6b7a8d;font-size:10px">${fmtDate(it.lastChange)}</span>` : '—'}</td>
+          <td>${qBadge(it.quadrant4w)}</td><td>${qBadge(it.quadrant8w)}</td>
+          <td class="${it.rel4w < 0 ? 'neg' : 'pos'}">${sgn(it.rel4w)}&nbsp;%</td><td class="${it.rel13w < 0 ? 'neg' : 'pos'}">${sgn(it.rel13w)}&nbsp;%</td></tr>`).join('');
+      document.querySelectorAll('#ms-rrg-table tr[data-t]').forEach(tr => tr.addEventListener('click', () => { hl = hl === tr.dataset.t ? null : tr.dataset.t; drawRRG(); drawTable(); }));
+      // summary: confirmed moves into / out of Leading over the last 4 weeks
+      const all = RG[grp];
+      const into = all.filter(it => it.confirmed === 'Leading' && it.quadrant4w && it.quadrant4w !== 'Leading').map(it => it.ticker);
+      const out = all.filter(it => it.quadrant4w === 'Leading' && it.confirmed !== 'Leading').map(it => it.ticker);
+      const pend = all.filter(it => it.pending).map(it => `${it.ticker} → ${it.quadrant}`);
+      const byQ = QORDER.map(q => `${qBadge(q)}: ${all.filter(it => it.confirmed === q).map(it => it.ticker).join(', ') || '—'}`).join(' · ');
+      document.getElementById('ms-rrg-summary').innerHTML =
+        `${byQ}<br>Last 4 weeks — moved into Leading: <strong>${into.join(', ') || 'none'}</strong>; left Leading: <strong>${out.join(', ') || 'none'}</strong>` +
+        (pend.length ? `; not yet confirmed: ${pend.join(', ')}` : '');
+    }
+
+    const btns = document.getElementById('ms-rrg-btns');
+    btns.innerHTML = [['sectors', '11 sectors'], ['factors', 'Factors / styles']].map(([k, l]) => `<button class="range-btn" data-k="${k}">${l}</button>`).join('');
+    const setGrp = () => {
+      try { localStorage.setItem('msRrgGroup', grp); } catch (e) {}
+      btns.querySelectorAll('.range-btn').forEach(b => b.classList.toggle('active', b.dataset.k === grp));
+      hl = null; drawRRG(); drawTable();
+    };
+    btns.querySelectorAll('.range-btn').forEach(b => b.addEventListener('click', () => { grp = b.dataset.k; setGrp(); }));
+    const sl = document.getElementById('ms-rrg-slider');
+    sl.min = P2.ratioWindow; sl.max = nW - 1; sl.value = at;
+    sl.addEventListener('input', () => { at = +sl.value; drawRRG(); });
+    document.getElementById('ms-rrg-note').innerHTML =
+      `Clockwise cycle: Improving → Leading → Weakening → Lagging. A rotation shows when one ETF moves from Leading to Weakening while another moves from Improving to Leading. ` +
+      `Click a tail or a row to highlight it; the slider replays the graph over the last two years (the table always shows today). ${RG.note}`;
+    setGrp();
+  }
 
   // ── Backtest 1998–2002 (fixed window, not affected by the range buttons) ──
   const B = D.dotcom;

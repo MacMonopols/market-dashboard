@@ -316,6 +316,139 @@ def _compute(today=None):
     }
 
 
+# ── Dot-com backtest 1998–2002 (fixed history, cached permanently) ─────────
+
+DOTCOM_WINDOW = ("1998-01-01", "2002-12-31")
+DOTCOM_DATA = ("1995-01-01", "2003-01-31")   # warm-up for MA200 and 3-year z-scores
+# Point-in-time Generals: 7 largest US stocks at the START of each year,
+# approximated from memory of the year-end top-10 lists (no free point-in-time
+# market caps). Lucent (1999–2000) and AOL are not on Yahoo any more → IBM / the
+# next name in its place.
+DOTCOM_PIT = {
+    1998: ["GE", "KO", "MSFT", "XOM", "INTC", "MRK", "PFE"],
+    1999: ["MSFT", "GE", "WMT", "XOM", "INTC", "MRK", "IBM"],
+    2000: ["MSFT", "GE", "CSCO", "WMT", "XOM", "INTC", "IBM"],
+    2001: ["GE", "XOM", "PFE", "CSCO", "C", "WMT", "MSFT"],
+    2002: ["GE", "MSFT", "XOM", "WMT", "C", "PFE", "INTC"],
+}
+DOTCOM_PEAK_LIST = ["CSCO", "MSFT", "GE", "INTC", "XOM", "WMT", "ORCL"]   # largest at the March 2000 peak
+DOTCOM_CACHE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "market_signals_dotcom_cache.json")
+DOTCOM_SCHEMA = 1
+DOTCOM_NOTE = (
+    "Same rules and parameters as the live signals, applied to 1998–2002 (Yahoo daily closes from 1995 for the "
+    "warm-up). Substitutions: Generals = the 7 largest US stocks at the start of each year, lists approximated "
+    "from memory (Lucent and AOL are no longer on Yahoo, IBM stands in), plus a variant with the March 2000 "
+    "leaders held fixed; semis = PHLX Semiconductor index (^SOX) vs the S&P 500 price index (SMH only starts "
+    "in 2000); rotation starts mid-1999 (sector SPDRs launched Dec 1998, 100-day MA). “Fall avoided” = share "
+    "of the peak-to-trough fall of the S&P 500 (24.3.2000 → 9.10.2002) still ahead on the day of the alert — "
+    "it ignores whipsaws, re-entry and dividends. One bubble only: an illustration, not a statistical test. "
+    "Not investment advice."
+)
+
+
+def _dotcom_compute():
+    import yfinance as yf
+    stocks = sorted({t for v in DOTCOM_PIT.values() for t in v} | set(DOTCOM_PEAK_LIST))
+    idxs = ["^GSPC", "^IXIC", "^SOX", "^VIX", "XLK", "XLU", "XLP"]
+    px = yf.download(stocks + idxs, start=DOTCOM_DATA[0], end=DOTCOM_DATA[1], auto_adjust=True,
+                     progress=False)["Close"]
+    px.index = px.index.tz_localize(None) if px.index.tz is not None else px.index
+    px = px[px["^GSPC"].notna()].ffill()
+    missing = [t for t in stocks + idxs if t not in px.columns or px[t].dropna().empty]
+    if missing:
+        raise RuntimeError(f"no Yahoo data for {missing}")
+
+    spx = px["^GSPC"]
+    ma = lambda s, n: s.rolling(n).mean()
+    below = pd.DataFrame({t: px[t] < ma(px[t], MA_GENERALS) for t in stocks})
+    lists = [DOTCOM_PIT.get(d.year, DOTCOM_PIT[min(max(d.year, 1998), 2002)]) for d in px.index]
+    cnt_pit = pd.Series([int(below.loc[d, l].sum()) for d, l in zip(px.index, lists)], px.index)
+    cnt_peak = below[DOTCOM_PEAK_LIST].sum(axis=1)
+    rel = (px["^SOX"] / px["^SOX"].shift(SEMI_WINDOW) - spx / spx.shift(SEMI_WINDOW)) * 100
+    ratio = px["XLK"] / np.sqrt(px["XLU"] * px["XLP"])
+    rot_ma = ma(ratio, ROT_MA)
+    zs = pd.DataFrame({"a": rz((spx / ma(spx, 50) - 1) * 100), "b": rz(rsi(spx)),
+                       "c": rz((spx / spx.shift(63) - 1) * 100), "d": -rz(px["^VIX"])})
+    pulse = rz(zs.mean(axis=1, skipna=False))
+    raw = {
+        "spx": spx < ma(spx, MA_GENERALS),
+        "nasdaq": px["^IXIC"] < ma(px["^IXIC"], MA_GENERALS),
+        "generals": cnt_pit >= GENERALS_ALERT,
+        "generalsPeak": cnt_peak >= GENERALS_ALERT,
+        "semis": (rel < 0) & (rel.rolling(SEMI_LOOKBACK, min_periods=1).max() >= SEMI_LEAD_PCT),
+        "rotation": (ratio < rot_ma) & rot_ma.notna(),
+        "pulse": pulse > PULSE_Z,
+    }
+    m = (px.index >= DOTCOM_WINDOW[0]) & (px.index <= DOTCOM_WINDOW[1])
+    idx = px.index[m]
+    dates = [_d(t) for t in idx]
+    s = spx[m]
+    peak_i, trough_i = int(np.argmax(s.values)), int(np.argmin(s.values[int(np.argmax(s.values)):])) + int(np.argmax(s.values))
+    peak, trough = float(s.iloc[peak_i]), float(s.iloc[trough_i])
+    eps = {k: episodes(confirm(v.values)[m], idx) for k, v in raw.items()}
+    # the S&P break that starts the bear market = first S&P episode after the peak
+    spx_break = next(a for a, b in eps["spx"] if a > peak_i)
+
+    labels = {
+        "spx": ("S&P 500 below its 200-day MA", "reference: the index's own break"),
+        "nasdaq": ("Nasdaq Composite below its 200-day MA", "where the bubble was"),
+        "generals": ("1 · Generals ≥ 4/7 below MA (point-in-time lists)", "largest stocks at the start of each year"),
+        "generalsPeak": ("1 · Generals ≥ 4/7 below MA (March 2000 leaders)", ", ".join(DOTCOM_PEAK_LIST)),
+        "semis": ("2 · Semis: SOX − S&P < 0 after a ≥ 15 pt lead", "price proxy for the capex peak"),
+        "rotation": ("4 · Rotation: XLK / (XLU·XLP) below 100-day MA", "data from mid-1999"),
+        "pulse": ("3 · PULSE > 1.5 sd", "overheating composite"),
+    }
+    rows = []
+    for k, (name, sub) in labels.items():
+        before = [e for e in eps[k] if e[0] <= peak_i]
+        after = [e for e in eps[k] if e[0] > peak_i]
+        r = {"key": k, "name": name, "sub": sub,
+             "episodes": [[dates[a], dates[b]] for a, b in eps[k]],
+             "alertsBeforePeak": [dates[a] for a, _ in before if a >= peak_i - 252]}
+        if after:
+            a = after[0][0]
+            lvl = float(s.iloc[a])
+            r.update({"firstAfterPeak": dates[a], "spx": round(lvl), "vsPeakPct": round((lvl / peak - 1) * 100, 1),
+                      "sessionsAfterPeak": a - peak_i, "sessionsVsBreak": spx_break - a,
+                      "fallAvoidedPct": round((lvl - trough) / (peak - trough) * 100)})
+        rows.append(r)
+    return {
+        "schema": DOTCOM_SCHEMA,
+        "window": list(DOTCOM_WINDOW),
+        "dates": dates,
+        "spx": _r(s.values, 1),
+        "spxMa": _r(ma(spx, MA_GENERALS)[m].values, 1),
+        "count": [int(v) for v in cnt_pit[m].values],
+        "countPeak": [int(v) for v in cnt_peak[m].values],
+        "peak": {"date": dates[peak_i], "spx": round(peak), "nasdaqDate": _d(px["^IXIC"][m].idxmax())},
+        "trough": {"date": dates[trough_i], "spx": round(trough), "fallPct": round((trough / peak - 1) * 100, 1)},
+        "spxBreak": {"date": dates[spx_break], "spx": round(float(s.iloc[spx_break])),
+                     "sessionsAfterPeak": spx_break - peak_i},
+        "lists": {str(y): v for y, v in DOTCOM_PIT.items()},
+        "peakList": DOTCOM_PEAK_LIST,
+        "rows": rows,
+        "note": DOTCOM_NOTE,
+    }
+
+
+def calc_dotcom_backtest():
+    """Fixed history → computed once and cached for good (delete the cache to rerun)."""
+    try:
+        with open(DOTCOM_CACHE_PATH) as f:
+            res = json.load(f)
+        if res.get("schema") == DOTCOM_SCHEMA:
+            return res
+    except (OSError, json.JSONDecodeError):
+        pass
+    res = _dotcom_compute()
+    try:
+        with open(DOTCOM_CACHE_PATH, "w") as f:
+            json.dump(res, f)
+    except OSError as e:
+        print(f"  ⚠ could not write dot-com backtest cache: {e}")
+    return res
+
+
 def calc_market_signals():
     try:
         res = _compute()
@@ -325,7 +458,6 @@ def calc_market_signals():
         except OSError as e:
             print(f"  ⚠ could not write market signals cache: {e}")
         res["stale"] = False
-        return res
     except Exception as e:
         try:
             with open(CACHE_PATH) as f:
@@ -334,7 +466,12 @@ def calc_market_signals():
             raise e
         print(f"  ⚠ market signals fetch failed ({e}) — using cache as of {res.get('asOf')}")
         res["stale"] = True
-        return res
+    try:
+        res["dotcom"] = calc_dotcom_backtest()
+    except Exception as e:
+        print(f"  ⚠ dot-com backtest failed: {e}")
+        res["dotcom"] = None
+    return res
 
 
 if __name__ == "__main__":

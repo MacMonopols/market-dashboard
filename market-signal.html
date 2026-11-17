@@ -444,6 +444,25 @@
   </div>
 </div>
 
+<!-- ── 5. Backtest on the dot-com bubble ── -->
+<div class="mktcap-card" id="ms-dotcom-card" style="display:none">
+  <div class="mktcap-title">Backtest — The Same Signals on the Dot-com Bubble, 1998–2002</div>
+  <div class="mktcap-date" id="ms-dotcom-date"></div>
+  <div class="mktcap-body" style="align-items:flex-start;gap:28px;flex-wrap:wrap;">
+    <div><div class="mktcap-pct" id="ms-dc-peak"></div><div class="mktcap-name" id="ms-dc-peak-label"></div></div>
+    <div><div class="mktcap-pct" id="ms-dc-break"></div><div class="mktcap-name" id="ms-dc-break-label"></div></div>
+    <div><div class="mktcap-pct" id="ms-dc-trough"></div><div class="mktcap-name" id="ms-dc-trough-label"></div></div>
+  </div>
+  <div class="tbl-wrap" style="margin-top:12px"><table class="sig-table" id="ms-dc-table"></table></div>
+  <div class="sig-note" id="ms-dc-verdict"></div>
+  <div class="spy-history-wrap">
+    <svg id="ms-dc-svg" width="900" height="240" viewBox="0 0 900 240"></svg>
+    <svg id="ms-dc-tl-svg" width="900" height="170" viewBox="0 0 900 170"></svg>
+    <svg id="ms-dc-count-svg" width="900" height="110" viewBox="0 0 900 110"></svg>
+    <div class="spy-history-legend" id="ms-dc-legend"></div>
+  </div>
+</div>
+
 <div class="footer" id="footer"></div>
 
 <script>document.write('<script src="live_data.js?' + Date.now() + '" onerror="window.LIVE_DATA=null"><\/script>');</script>
@@ -485,7 +504,7 @@
   function drawChart(svgId, i0, opts) {
     const svg = document.getElementById(svgId);
     const W = 900, H = opts.H || 240, padL = 50, padR = 16, padT = 12, padB = opts.noX ? 8 : 24;
-    const dates = D.dates.slice(i0);
+    const dates = (opts.dates || D.dates).slice(i0);
     const t = s => Date.parse(s);
     const t0 = t(dates[0]), t1 = t(dates[dates.length - 1]);
     const xT = ms => padL + (W - padL - padR) * ((ms - t0) / ((t1 - t0) || 1));
@@ -543,6 +562,11 @@
     (opts.hlines || []).forEach(l => {
       h += `<line x1="${padL}" y1="${y(l.v).toFixed(1)}" x2="${W - padR}" y2="${y(l.v).toFixed(1)}" stroke="${l.color}" stroke-width="1.2" stroke-dasharray="${l.dash || '5,3'}"/>`;
       if (l.label) h += `<text x="${W - padR - 2}" y="${(y(l.v) - 4).toFixed(1)}" text-anchor="end" font-family="Helvetica Neue,Arial,sans-serif" font-size="9.5" font-weight="600" fill="${l.color}">${l.label}</text>`;
+    });
+    (opts.vlines || []).forEach(l => {
+      const xv = xT(t(l.date)).toFixed(1);
+      h += `<line x1="${xv}" y1="${padT}" x2="${xv}" y2="${H - padB}" stroke="${l.color}" stroke-width="1" stroke-dasharray="2,2"/>`;
+      if (l.label) h += `<text x="${(+xv + 3).toFixed(1)}" y="${padT + 8}" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" font-weight="600" fill="${l.color}">${l.label}</text>`;
     });
     opts.series.forEach(s => {
       let p = '', pen = false;
@@ -731,6 +755,76 @@
   };
   rb.querySelectorAll('.range-btn').forEach(b => b.addEventListener('click', () => { range = b.dataset.k; redraw(); }));
   redraw();
+
+  // ── Backtest 1998–2002 (fixed window, not affected by the range buttons) ──
+  const B = D.dotcom;
+  if (B) {
+    document.getElementById('ms-dotcom-card').style.display = '';
+    document.getElementById('ms-dotcom-date').textContent =
+      `${fmtDate(B.dates[0])} – ${fmtDate(B.dates[B.dates.length - 1])} · Yahoo Finance daily closes (from 1995 for the warm-up) · same rules and thresholds as above, ${cfm}-session confirm filter`;
+    const setF = (id, v, lbl, col) => { const e = document.getElementById(id); e.textContent = v; if (col) e.style.color = col; document.getElementById(id + '-label').innerHTML = lbl; };
+    setF('ms-dc-peak', B.peak.spx.toLocaleString('de-CH'), `S&amp;P 500 peak, ${fmtDate(B.peak.date)}<br>(Nasdaq peak ${fmtDate(B.peak.nasdaqDate)})`, BLUE);
+    setF('ms-dc-break', `+${B.spxBreak.sessionsAfterPeak} sessions`, `S&amp;P break below its ${D.params.maGenerals}-day MA that opened the bear market, ${fmtDate(B.spxBreak.date)} (${B.spxBreak.spx.toLocaleString('de-CH')})`, ORANGE);
+    setF('ms-dc-trough', sgn(B.trough.fallPct) + ' %', `peak to trough, ${fmtDate(B.trough.date)} (${B.trough.spx.toLocaleString('de-CH')})`, RED);
+    const cell = (v, f, cls) => v == null ? '<td>—</td>' : `<td class="${cls || ''}">${f(v)}</td>`;
+    document.getElementById('ms-dc-table').innerHTML =
+      `<tr><th>Signal</th><th>Alerts in the 12 m<br>before the peak</th><th>First alert<br>after the peak</th><th>Sessions<br>after peak</th><th>Sessions before<br>the S&amp;P break</th><th>S&amp;P 500</th><th>vs peak</th><th>Fall<br>avoided</th></tr>` +
+      B.rows.map(r => `<tr${r.key === 'spx' ? ' style="background:#f6f9fb"' : ''}><td style="white-space:normal;min-width:220px"><strong>${r.name}</strong><br><span style="color:#6b7a8d;font-size:10px">${r.sub}</span></td>
+        <td>${r.alertsBeforePeak.length ? r.alertsBeforePeak.map(fmtDate).join('<br>') : '—'}</td>
+        ${cell(r.firstAfterPeak, fmtDate)}${cell(r.sessionsAfterPeak, v => '+' + v)}
+        ${cell(r.sessionsVsBreak, v => r.key === 'spx' ? '—' : sgn(v, 0), r.sessionsVsBreak > 0 ? 'pos' : r.sessionsVsBreak < 0 ? 'neg' : '')}
+        ${cell(r.spx, v => v.toLocaleString('de-CH'))}${cell(r.vsPeakPct, v => sgn(v) + ' %', 'neg')}${cell(r.fallAvoidedPct, v => v + ' %')}</tr>`).join('');
+    document.getElementById('ms-dc-verdict').innerHTML =
+      `<strong>Reading.</strong> No signal fired 6–9 months before the peak: the alerts before it are false starts (the S&amp;P dipped below its MA three times in 1999–2000 and the market went on up). ` +
+      `After the peak the order is the one Willer describes, but compressed: rotation first (+${B.rows.find(r => r.key === 'rotation').sessionsAfterPeak} sessions), then semis, then the Generals a week before the S&amp;P itself. ` +
+      `Because the bear market lasted 2½ years, even the late signals avoided most of the −49 % — they work as a trend filter, not as an early warning. PULSE never fired during the euphoria (a 3-year z-score treats a long boom as normal).`;
+
+    const bi = 0, bopt = { dates: B.dates };
+    const vl = [{ date: B.peak.date, color: BLUE, label: 'peak' }, { date: B.spxBreak.date, color: ORANGE, label: 'S&P break' }, { date: B.trough.date, color: RED, label: 'trough' }];
+    drawChart('ms-dc-svg', bi, Object.assign({}, bopt, {
+      log: true, fmt: v => v.toLocaleString('de-CH'), vlines: vl,
+      series: [{ v: B.spxMa, color: GREY, w: 1.2, dash: '4,3' }, { v: B.spx, color: BLUE, w: 1.5 }],
+      bands: [{ eps: B.rows.find(r => r.key === 'spx').episodes, color: RED, opacity: 0.55, y0: 0.95, y1: 1 }],
+    }));
+    drawChart('ms-dc-count-svg', bi, Object.assign({}, bopt, {
+      H: 110, fmt: v => v, vlines: vl.map(l => ({ date: l.date, color: l.color })),
+      series: [{ v: B.countPeak, color: GREY, w: 1.1, step: true, dash: '3,2' }, { v: B.count, color: ORANGE, w: 1.3, step: true }],
+      hlines: [{ v: D.params.generalsAlert, color: RED, label: `alert ≥ ${D.params.generalsAlert}` }, { v: 0, color: '#b0bac6', dash: '1,0' }, { v: 7, color: '#b0bac6', dash: '1,0' }],
+    }));
+    // timeline: one lane per signal, confirmed alert periods as bars
+    (function () {
+      const svg = document.getElementById('ms-dc-tl-svg');
+      const W = 900, padL = 50, padR = 16, laneH = 20, top = 6, lanes = B.rows;
+      const H = top + lanes.length * laneH + 22;
+      const t = s => Date.parse(s), t0 = t(B.dates[0]), t1 = t(B.dates[B.dates.length - 1]);
+      const xT = ms => padL + (W - padL - padR) * ((ms - t0) / (t1 - t0));
+      const short = { spx: 'S&P < MA', nasdaq: 'Nasdaq', generals: 'Generals', generalsPeak: 'Gen. 2000', semis: 'Semis', rotation: 'Rotation', pulse: 'PULSE' };
+      const col = { spx: RED, nasdaq: RED, generals: ORANGE, generalsPeak: ORANGE, semis: PURPLE, rotation: GREEN, pulse: BLUE };
+      let h = '';
+      lanes.forEach((r, k) => {
+        const y = top + k * laneH;
+        h += `<line x1="${padL}" y1="${y + laneH / 2}" x2="${W - padR}" y2="${y + laneH / 2}" stroke="#eef2f5"/>`;
+        h += `<text x="${padL - 4}" y="${y + laneH / 2}" text-anchor="end" dominant-baseline="middle" ${txt}>${short[r.key]}</text>`;
+        r.episodes.forEach(([a, e]) => {
+          const xa = xT(t(a)), xe = xT(t(e) + 864e5);
+          h += `<rect x="${xa.toFixed(1)}" y="${y + 4}" width="${Math.max(1.5, xe - xa).toFixed(1)}" height="${laneH - 8}" rx="2" fill="${col[r.key]}" opacity="${r.key === 'spx' ? 0.75 : 0.55}"><title>${short[r.key]}: ${fmtDate(a)} – ${fmtDate(e)}</title></rect>`;
+        });
+      });
+      vl.forEach(l => { const xv = xT(t(l.date)).toFixed(1); h += `<line x1="${xv}" y1="${top}" x2="${xv}" y2="${top + lanes.length * laneH}" stroke="${l.color}" stroke-dasharray="2,2"/>`; });
+      for (let yy = 1998; yy <= 2002; yy++) {
+        const xv = xT(Date.UTC(yy, 0, 1)).toFixed(1);
+        h += `<text x="${xv}" y="${H - 8}" text-anchor="middle" ${txt}>${yy}</text>`;
+      }
+      svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('height', H); svg.innerHTML = h;
+    })();
+    document.getElementById('ms-dc-legend').innerHTML =
+      `<span style="display:block;font-size:10.5px;color:var(--text-muted);line-height:1.5;max-width:860px;">
+        Top: <strong style="color:${BLUE}">━ S&amp;P 500</strong> (log scale, price index) · <span style="color:${GREY}">╌ ${D.params.maGenerals}-day MA</span> ·
+        <span style="background:rgba(192,57,43,.35);padding:0 6px">&nbsp;</span> S&amp;P below its MA. Middle: confirmed alert periods per signal. Bottom: Generals below their MA —
+        <span style="color:${ORANGE}">━ point-in-time lists</span>, <span style="color:${GREY}">╌ March 2000 leaders</span>.
+        Lists used: ${Object.entries(B.lists).map(([y, l]) => `${y}: ${l.join(' ')}`).join(' · ')}
+        <div class="sig-note">${B.note}</div></span>`;
+  }
 })();
 </script>
 </body>

@@ -37,6 +37,21 @@ buttons (`localStorage.msRange`: 1 an / 3 ans / 5 ans / Depuis 2015).
   in every correction.
 - At 2026-11-17: Generals 4/7 building (2/5), S&P −0.1 % vs MA, semis ALERT
   (−16.4 pt after +86 pt), PULSE −2.56 sd off, rotation ALERT (−16.7 %).
+- **Dot-com backtest card** (added 2026-11-17, last card):
+  `calc_dotcom_backtest()` → `LD.marketSignals.dotcom` (attached inside
+  `calc_market_signals()`, own try). Same rules on 1998–2002, data from 1995.
+  Cached permanently in `market_signals_dotcom_cache.json` (git-ignored, bump
+  `DOTCOM_SCHEMA` or delete it to rerun). Substitutions: Generals =
+  point-in-time yearly lists `DOTCOM_PIT` recalled from memory (Lucent and AOL
+  are not on Yahoo, IBM stands in) + fixed March 2000 leaders; semis = ^SOX vs
+  ^GSPC; rotation from mid-1999. Results:
+  - S&P peak 24.3.2000 (1527), S&P break 5.10.2000 (+135 sessions), trough
+    −49.1 %.
+  - First alert after the peak: rotation 18.4.2000 (+17 sessions), Nasdaq
+    24.5.2000, semis 29.8.2000, Generals 28.9.2000 (5 sessions before the S&P
+    break). PULSE fired only on 12.3.2002.
+  - No signal gave 6–9 months of warning. They work as a trend filter: the
+    "fall avoided" was 83–98 % because the bear market lasted 2½ years.
 
 ## Cost of trying to time the market — last card on Long Term Summary, set up 2026-11-10
 

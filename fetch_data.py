@@ -1947,6 +1947,17 @@ def main():
         print(f"  ⚠ market timing failed: {e}")
         market_timing = None
 
+    # 5e6) Market Signal tab: four bubble-exit signals after Citi's Willer
+    #      (price proxies, Yahoo daily; market_signals.py)
+    print("\nMarket signals (Generals / semis / PULSE proxy / rotation) ...")
+    try:
+        from market_signals import calc_market_signals
+        market_signals = calc_market_signals()
+        print(f"  → as of {market_signals['asOf']}" + (" (stale cache)" if market_signals.get("stale") else ""))
+    except Exception as e:
+        print(f"  ⚠ market signals failed: {e}")
+        market_signals = None
+
     # 5f) World Value Factor vs World Cap-Weighted (live ETF prices, IWVL vs SWDA)
     next_step7 = next_step6 + 1
     print(f"\n[{next_step7}] World Value vs World Cap-Weighted ({WORLD_VALUE_TICKER} vs {WORLD_CAPWEIGHTED_TICKER})")
@@ -2081,6 +2092,7 @@ def main():
         "periodicTable":   periodic_table,
         "countryReturns":  country_returns,
         "marketTiming":    market_timing,
+        "marketSignals":   market_signals,
         "worldValue":      world_value,
         "worldQuality":    world_quality,
         "worldSmallCap":   world_smallcap,

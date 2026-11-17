@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Market Signal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #f4f6f8;
+      --card:        #ffffff;
+      --border:      #dde3ea;
+      --text:        #1a2533;
+      --text-muted:  #6b7a8d;
+      --hinder-blue: #003a5c;
+      --hinder-teal: #005f87;
+      --oblique-red: #E04822;
+      --green:       #2e7d4f;
+      --red:         #c0392b;
+      --col-stock:   #003a5c;
+      --col-bond:    #5a3e9a;
+      --na:          #bbb;
+    }
+
+    body {
+      background: var(--bg);
+      font-family: "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      padding: 32px 24px 60px;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    .header {
+      max-width: 960px;
+      margin: 0 auto 28px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+    .header-left h1 {
+      font-size: 28px;
+      font-weight: 300;
+      color: var(--hinder-blue);
+      line-height: 1.15;
+    }
+    .header-left h1 strong { font-weight: 700; }
+    .header-left .subtitle { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+    .logo a {
+      font-family: 'Nunito', sans-serif;
+      font-size: 32px; font-weight: 600;
+      color: var(--oblique-red);
+      text-decoration: none; letter-spacing: -.5px;
+    }
+    .logo a:hover { opacity: .8; }
+
+    /* ── Nav ─────────────────────────────────────────────────── */
+    .nav {
+      max-width: 960px;
+      margin: 0 auto 16px;
+      display: flex;
+      gap: 8px;
+    }
+    .nav a {
+      font-size: 12px;
+      padding: 4px 12px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      text-decoration: none;
+      color: var(--text-muted);
+      background: var(--card);
+    }
+    .nav a.active {
+      background: var(--hinder-blue);
+      color: #fff;
+      border-color: var(--hinder-blue);
+    }
+    .nav a:hover:not(.active) { background: #e8f0f6; }
+
+    /* ── Card ────────────────────────────────────────────────── */
+    .card {
+      max-width: 960px;
+      margin: 0 auto;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,58,92,.06);
+    }
+
+    /* ── Table ───────────────────────────────────────────────── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    /* group header row (Stocks / Bonds) */
+    .group-row th {
+      padding: 10px 16px 6px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #fff;
+      border-bottom: 2px solid rgba(255,255,255,.2);
+    }
+    .group-row th.label-cell {
+      background: var(--hinder-blue);
+    }
+    .group-row th.stocks { background: var(--col-stock); }
+    .group-row th.bonds  { background: var(--col-bond);  }
+
+    /* divider between stocks and bonds */
+    .divider-col { width: 2px; background: #e0e8f0; }
+
+    /* column header row */
+    .col-header th {
+      padding: 8px 12px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      text-align: center;
+      color: #fff;
+      border-bottom: 1px solid rgba(255,255,255,.15);
+      line-height: 1.3;
+    }
+    .col-header th.label-cell {
+      background: var(--hinder-blue);
+      text-align: left;
+      font-size: 10.5px;
+      color: rgba(255,255,255,.6);
+    }
+    .col-header th.stocks { background: var(--col-stock); }
+    .col-header th.bonds  { background: var(--col-bond);  }
+    .col-header th.divider-col { background: #e0e8f0; }
+
+    /* data rows */
+    .data-row td {
+      padding: 14px 12px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .data-row:last-child td { border-bottom: none; }
+    .data-row:hover td { background: #f6f9fb; }
+
+    .data-row td.label-cell {
+      text-align: left;
+      padding-left: 20px;
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .data-row td.divider-col {
+      background: #e8f0f6;
+      padding: 0;
+    }
+
+    /* value cell */
+    .val {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .val .pct {
+      font-size: 14px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -.3px;
+    }
+    .val .pct.pos { color: var(--green); }
+    .val .pct.neg { color: var(--red);   }
+    .val .arrow { font-size: 13px; }
+    .val .arrow.pos { color: var(--green); }
+    .val .arrow.neg { color: var(--red);   }
+    .val.na { color: var(--na); font-size: 18px; font-weight: 300; }
+
+    /* ── World Market Cap ────────────────────────────────────── */
+    .mktcap-card {
+      max-width: 960px;
+      margin: 0 auto 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 24px 20px;
+      box-shadow: 0 2px 12px rgba(0,58,92,.06);
+    }
+    .mktcap-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--hinder-blue);
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .mktcap-date {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      margin-bottom: 16px;
+    }
+    .mktcap-body {
+      display: flex;
+      align-items: center;
+      gap: 36px;
+    }
+
+    /* Donut via SVG */
+    .donut-wrap {
+      position: relative;
+      flex-shrink: 0;
+      width: 150px;
+      height: 150px;
+    }
+    .donut-wrap svg { display: block; }
+    .donut-wrap svg path {
+      transition: opacity .15s;
+      cursor: pointer;
+    }
+    .donut-wrap svg path:hover { opacity: .78; }
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--hinder-teal);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 8px;
+      cursor: pointer;
+      margin-bottom: 8px;
+    }
+    .back-btn:hover { background: #daeaf5; }
+
+    .range-btns { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 8px; }
+    .range-btn {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 9px;
+      cursor: pointer;
+    }
+    .range-btn:hover { background: #eef3f8; }
+    .range-btn.active { background: #003a5c; border-color: #003a5c; color: #fff; }
+
+    /* Legend */
+    .mktcap-legend {
+      display: flex;
+      gap: 28px;
+      flex-wrap: wrap;
+    }
+    .mktcap-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .mktcap-swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+      margin-top: 3px;
+      flex-shrink: 0;
+    }
+    .mktcap-pct {
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .mktcap-name {
+      font-size: 12px;
+      color: var(--text);
+      font-weight: 600;
+      margin-top: 2px;
+    }
+    .mktcap-val {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    /* ── MAG7 ───────────────────────────────────────────────── */
+    .mag7-block {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .mag7-body {
+      display: flex;
+      align-items: center;
+      gap: 36px;
+    }
+
+    /* ── S&P 500 Top 10 ─────────────────────────────────────── */
+    .spy-history-wrap {
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+    .spy-history-wrap svg { display: block; width: 100%; height: auto; }
+    .spy-history-legend {
+      display: flex;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    /* ── Footer ──────────────────────────────────────────────── */
+    .footer {
+      max-width: 960px;
+      margin: 16px auto 0;
+      font-size: 10.5px;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+    .footer code { font-size: 10px; background: #eef2f5; padding: 1px 4px; border-radius: 3px; }
+    /* ── Market Signal ───────────────────────────────────────── */
+    .sig-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .sig-tile {
+      border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+      border-left: 4px solid #b0bac6; cursor: pointer; text-decoration: none; color: inherit; display: block;
+    }
+    .sig-tile:hover { background: #f6f9fb; }
+    .sig-tile.on { border-left-color: var(--red); }
+    .sig-tile.pending { border-left-color: #e67e22; }
+    .sig-tile.off { border-left-color: var(--green); }
+    .sig-name { font-size: 11px; font-weight: 700; color: var(--hinder-blue); text-transform: uppercase; letter-spacing: .04em; }
+    .sig-state { font-size: 18px; font-weight: 700; margin-top: 4px; }
+    .sig-state.on { color: var(--red); } .sig-state.off { color: var(--green); } .sig-state.pending { color: #e67e22; }
+    .sig-detail { font-size: 11px; color: var(--text-muted); margin-top: 3px; line-height: 1.4; }
+    .sig-note { font-size: 10.5px; color: var(--text-muted); line-height: 1.5; margin-top: 10px; max-width: 880px; }
+    .sig-table { width: auto; font-size: 11.5px; margin-top: 4px; }
+    .sig-table th { font-size: 10px; color: var(--text-muted); font-weight: 600; text-align: right; padding: 3px 10px; border-bottom: 1px solid var(--border); }
+    .sig-table td { text-align: right; padding: 3px 10px; font-variant-numeric: tabular-nums; border-bottom: 1px solid #eef2f5; }
+    .sig-table th:first-child, .sig-table td:first-child { text-align: left; }
+    .neg { color: var(--red); } .pos { color: var(--green); }
+    .disclaimer { max-width: 960px; margin: 0 auto 16px; font-size: 11.5px; color: #8a4b0f; background: #fdf3e7; border: 1px solid #f3d9b8; border-radius: 8px; padding: 8px 14px; }
+    @media (max-width: 760px) {
+      body { padding: 20px 16px 40px; }
+      .sig-grid { grid-template-columns: repeat(2, 1fr); }
+      .nav { flex-wrap: wrap; }
+      .header { flex-direction: column; align-items: flex-start; gap: 8px; }
+      .mktcap-body { flex-direction: column; align-items: flex-start !important; gap: 14px !important; }
+      .tbl-wrap { overflow-x: auto; max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>Market Signal<br><strong>When to Exit a Bubble — Four Price Proxies</strong></h1>
+    <div class="subtitle" id="subtitle"></div>
+  </div>
+  <div class="logo"><a href="https://oblique.swiss" target="_blank" rel="noopener"><i>O</i>blique</a></div>
+</div>
+
+<div class="nav">
+  <a href="index.html">YTD Dashboard</a>
+  <a href="longterm.html">Long-Term Summary</a>
+  <a href="expected-return.html">Expected Return</a>
+  <a href="hyperscaler-capex.html">Hyperscaler Capex</a>
+  <a href="market-signal.html" class="active">Market Signal</a>
+  <a href="https://market-vol-dashboard.streamlit.app" target="_blank" rel="noopener">Vol &amp; Options ↗</a>
+</div>
+
+<div class="disclaimer" id="ms-disclaimer" style="display:none"></div>
+
+<!-- ── Overview: current state of the four signals ── -->
+<div class="mktcap-card" id="ms-overview-card" style="display:none">
+  <div class="mktcap-title">Signal Status Today</div>
+  <div class="mktcap-date" id="ms-overview-date"></div>
+  <div class="sig-grid" id="ms-tiles"></div>
+  <div class="sig-note" id="ms-overview-note"></div>
+  <div class="range-btns" id="ms-range-btns" style="margin-top:12px"></div>
+</div>
+
+<!-- ── 1. Generals ── -->
+<div class="mktcap-card" id="ms-generals-card" style="display:none">
+  <div class="mktcap-title">1 · Generals — Largest S&amp;P 500 Stocks Below Their 200-Day MA</div>
+  <div class="mktcap-date" id="ms-generals-date"></div>
+  <div class="mktcap-body" style="align-items:flex-start;gap:28px;flex-wrap:wrap;">
+    <div><div class="mktcap-pct" id="ms-gen-count"></div><div class="mktcap-name" id="ms-gen-count-label"></div></div>
+    <div><div class="mktcap-pct" id="ms-gen-spx"></div><div class="mktcap-name" id="ms-gen-spx-label"></div></div>
+    <div><div class="mktcap-pct" id="ms-gen-lead"></div><div class="mktcap-name" id="ms-gen-lead-label"></div></div>
+  </div>
+  <div class="mktcap-body" style="align-items:flex-start;gap:28px;flex-wrap:wrap;margin-top:12px;">
+    <div class="tbl-wrap"><table class="sig-table" id="ms-gen-stocks"></table></div>
+    <div class="tbl-wrap"><table class="sig-table" id="ms-gen-leads"></table></div>
+  </div>
+  <div class="spy-history-wrap">
+    <svg id="ms-gen-svg" width="900" height="240" viewBox="0 0 900 240"></svg>
+    <svg id="ms-gen-count-svg" width="900" height="110" viewBox="0 0 900 110"></svg>
+    <div class="spy-history-legend" id="ms-gen-legend"></div>
+  </div>
+</div>
+
+<!-- ── 2. Semis vs S&P ── -->
+<div class="mktcap-card" id="ms-semis-card" style="display:none">
+  <div class="mktcap-title">2 · AI Overcapacity Peak (Proxy) — Semiconductors vs S&amp;P 500, 6-Month Relative Return</div>
+  <div class="mktcap-date" id="ms-semis-date"></div>
+  <div class="mktcap-body" style="align-items:flex-start;gap:28px;flex-wrap:wrap;">
+    <div><div class="mktcap-pct" id="ms-semis-rel"></div><div class="mktcap-name" id="ms-semis-rel-label"></div></div>
+    <div><div class="mktcap-pct" id="ms-semis-max"></div><div class="mktcap-name" id="ms-semis-max-label"></div></div>
+  </div>
+  <div class="spy-history-wrap">
+    <svg id="ms-semis-svg" width="900" height="240" viewBox="0 0 900 240"></svg>
+    <div class="spy-history-legend" id="ms-semis-legend"></div>
+  </div>
+</div>
+
+<!-- ── 3. PULSE proxy ── -->
+<div class="mktcap-card" id="ms-pulse-card" style="display:none">
+  <div class="mktcap-title">3 · PULSE (Proxy) — Short-Term Overheating Composite</div>
+  <div class="mktcap-date" id="ms-pulse-date"></div>
+  <div class="mktcap-body" style="align-items:flex-start;gap:28px;flex-wrap:wrap;">
+    <div><div class="mktcap-pct" id="ms-pulse-z"></div><div class="mktcap-name" id="ms-pulse-z-label"></div></div>
+    <div><div class="mktcap-pct" id="ms-pulse-hit"></div><div class="mktcap-name" id="ms-pulse-hit-label"></div></div>
+    <div><div class="mktcap-pct" id="ms-pulse-base"></div><div class="mktcap-name" id="ms-pulse-base-label"></div></div>
+  </div>
+  <div class="tbl-wrap" style="margin-top:12px"><table class="sig-table" id="ms-pulse-comp"></table></div>
+  <div class="spy-history-wrap">
+    <svg id="ms-pulse-svg" width="900" height="240" viewBox="0 0 900 240"></svg>
+    <div class="spy-history-legend" id="ms-pulse-legend"></div>
+  </div>
+</div>
+
+<!-- ── 4. Rotation ── -->
+<div class="mktcap-card" id="ms-rot-card" style="display:none">
+  <div class="mktcap-title">4 · Rotation — Tech (XLK) vs Utilities + Staples (XLU, XLP)</div>
+  <div class="mktcap-date" id="ms-rot-date"></div>
+  <div class="mktcap-body" style="align-items:flex-start;gap:28px;flex-wrap:wrap;">
+    <div><div class="mktcap-pct" id="ms-rot-dist"></div><div class="mktcap-name" id="ms-rot-dist-label"></div></div>
+  </div>
+  <div class="spy-history-wrap">
+    <svg id="ms-rot-svg" width="900" height="240" viewBox="0 0 900 240"></svg>
+    <div class="spy-history-legend" id="ms-rot-legend"></div>
+  </div>
+</div>
+
+<div class="footer" id="footer"></div>
+
+<script>document.write('<script src="live_data.js?' + Date.now() + '" onerror="window.LIVE_DATA=null"><\/script>');</script>
+<script>
+(function () {
+  const LD = (typeof LIVE_DATA !== "undefined") ? LIVE_DATA : null;
+  document.getElementById("subtitle").textContent = LD
+    ? "As of " + LD.fetchedAt + "  ·  Source: Yahoo Finance (daily closes)  ·  After Citi's Willer, rebuilt as price proxies"
+    : "⚠ No data — run: python3 fetch_data.py";
+  if (!LD || !LD.marketSignals) return;
+  const D = LD.marketSignals;
+  document.getElementById("footer").innerHTML =
+    "Personal use. Not investment advice. Code: <code>market_signals.py</code> — parameters (MA lengths, thresholds, confirm days, the Generals list) are constants at the top of the module.";
+
+  const RED = '#c0392b', GREEN = '#2e7d4f', ORANGE = '#e67e22', BLUE = '#003a5c', PURPLE = '#5a3e9a', GREY = '#6b7a8d';
+  const txt = 'font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="#6b7a8d"';
+  const sgn = (v, d = 1) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(d);
+  const fmtDate = s => { const [y, m, d] = s.split('-'); return `${+d}.${+m}.${y}`; };
+  const stale = D.stale ? ' (cached — live fetch failed)' : '';
+  const cfm = D.params.confirmDays;
+
+  const RANGES = [
+    { key: '1Y', label: '1 an', years: 1 }, { key: '3Y', label: '3 ans', years: 3 },
+    { key: '5Y', label: '5 ans', years: 5 }, { key: 'ALL', label: 'Depuis 2015' },
+  ];
+
+  // State of a signal: ON (confirmed), pending (raw condition met but not yet
+  // 5 sessions / or still on but raw already off), OFF.
+  function state(st) {
+    if (st.on && st.raw) return { cls: 'on', label: 'ALERT' };
+    if (st.on) return { cls: 'pending', label: `Alert, fading (${st.rawRun}/${cfm} off)` };
+    if (st.raw) return { cls: 'pending', label: `Building (${st.rawRun}/${cfm})` };
+    return { cls: 'off', label: 'Off' };
+  }
+
+  // ── generic daily line chart with shaded alert episodes ─────────────────
+  // opts: {series:[{v,color,w,dash}], bands:[{eps,color,opacity,y0,y1 (fraction)}],
+  //        hlines:[{v,color,label,dash}], log, fmt, H, step:fn(span)->step, minZero}
+  function drawChart(svgId, i0, opts) {
+    const svg = document.getElementById(svgId);
+    const W = 900, H = opts.H || 240, padL = 50, padR = 16, padT = 12, padB = opts.noX ? 8 : 24;
+    const dates = D.dates.slice(i0);
+    const t = s => Date.parse(s);
+    const t0 = t(dates[0]), t1 = t(dates[dates.length - 1]);
+    const xT = ms => padL + (W - padL - padR) * ((ms - t0) / ((t1 - t0) || 1));
+    const tf = opts.log ? Math.log : (v => v);
+    let vals = [];
+    opts.series.forEach(s => s.v.slice(i0).forEach(v => v != null && vals.push(v)));
+    (opts.hlines || []).forEach(h => vals.push(h.v));
+    let lo = Math.min(...vals), hi = Math.max(...vals);
+    let ticks;
+    if (opts.log) {
+      const cands = [];
+      for (let e = 0; e <= 5; e++) [1, 1.2, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9].forEach(m => cands.push(+(m * 10 ** e).toFixed(4)));
+      ticks = cands.filter(c => c >= lo * 0.98 && c <= hi * 1.02);
+      while (ticks.length > 8) ticks = ticks.filter((_, k) => k % 2 === 0);
+      if (ticks.length < 3) {   // narrow range: plain round steps
+        const step = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000].find(s => (hi - lo) / s <= 5) || 1000;
+        ticks = []; for (let g = Math.ceil(lo / step) * step; g <= hi; g += step) ticks.push(g);
+      }
+      lo *= 0.97; hi *= 1.03;
+    } else {
+      const span = hi - lo || 1;
+      const step = [0.5, 1, 2, 5, 10, 20, 25, 50, 100].find(s => span / s <= 6) || 100;
+      lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
+      ticks = []; for (let g = lo; g <= hi + 1e-9; g += step) ticks.push(+g.toFixed(4));
+    }
+    const y = v => H - padB - (H - padT - padB) * ((tf(v) - tf(lo)) / ((tf(hi) - tf(lo)) || 1));
+    let h = '';
+    // bands
+    (opts.bands || []).forEach(b => b.eps.forEach(([a, e]) => {
+      if (t(e) < t0) return;
+      const xa = xT(Math.max(t(a), t0)), xe = xT(t(e) + 864e5);
+      const y0 = padT + (H - padT - padB) * (b.y0 || 0), y1 = padT + (H - padT - padB) * (b.y1 ?? 1);
+      h += `<rect x="${xa.toFixed(1)}" y="${y0.toFixed(1)}" width="${Math.max(1.5, xe - xa).toFixed(1)}" height="${(y1 - y0).toFixed(1)}" fill="${b.color}" opacity="${b.opacity || 0.18}"/>`;
+    }));
+    ticks.forEach(g => {
+      h += `<line x1="${padL}" y1="${y(g).toFixed(1)}" x2="${W - padR}" y2="${y(g).toFixed(1)}" stroke="${g === 0 && !opts.log ? GREY : '#b0bac6'}" ${g === 0 && !opts.log ? '' : 'stroke-dasharray="3,3" opacity="0.5"'}/>`;
+      h += `<text x="${padL - 6}" y="${y(g).toFixed(1)}" text-anchor="end" dominant-baseline="middle" ${txt}>${opts.fmt ? opts.fmt(g) : g}</text>`;
+    });
+    if (!opts.noX) {
+      const yrs = (t1 - t0) / 3.156e10;
+      const y0 = new Date(t0).getUTCFullYear(), y1 = new Date(t1).getUTCFullYear();
+      if (yrs <= 1.5) {
+        for (let yy = y0; yy <= y1; yy++) for (let mm = 0; mm < 12; mm += (yrs < 1.2 ? 1 : 2)) {
+          const ms = Date.UTC(yy, mm, 1); if (ms < t0 || ms > t1) continue;
+          h += `<text x="${xT(ms).toFixed(1)}" y="${H - 8}" text-anchor="middle" ${txt}>${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][mm]}${mm === 0 ? " '" + String(yy).slice(2) : ''}</text>`;
+        }
+      } else {
+        for (let yy = y0; yy <= y1; yy++) {
+          const ms = Date.UTC(yy, 0, 1); if (ms < t0) continue;
+          h += `<line x1="${xT(ms).toFixed(1)}" y1="${H - padB}" x2="${xT(ms).toFixed(1)}" y2="${H - padB + 3}" stroke="#b0bac6"/>`;
+          h += `<text x="${xT(ms).toFixed(1)}" y="${H - 8}" text-anchor="middle" ${txt}>${yy}</text>`;
+        }
+      }
+    }
+    (opts.hlines || []).forEach(l => {
+      h += `<line x1="${padL}" y1="${y(l.v).toFixed(1)}" x2="${W - padR}" y2="${y(l.v).toFixed(1)}" stroke="${l.color}" stroke-width="1.2" stroke-dasharray="${l.dash || '5,3'}"/>`;
+      if (l.label) h += `<text x="${W - padR - 2}" y="${(y(l.v) - 4).toFixed(1)}" text-anchor="end" font-family="Helvetica Neue,Arial,sans-serif" font-size="9.5" font-weight="600" fill="${l.color}">${l.label}</text>`;
+    });
+    opts.series.forEach(s => {
+      let p = '', pen = false;
+      s.v.slice(i0).forEach((v, k) => {
+        if (v == null) { pen = false; return; }
+        p += (pen ? 'L' : 'M') + xT(t(dates[k])).toFixed(1) + ',' + y(v).toFixed(1); pen = true;
+      });
+      const step = s.step ? ' shape-rendering="crispEdges"' : '';
+      h += `<path d="${p}" fill="none" stroke="${s.color}" stroke-width="${s.w || 1.4}" ${s.dash ? `stroke-dasharray="${s.dash}"` : ''}${step}/>`;
+    });
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('height', H);
+    svg.innerHTML = h;
+  }
+
+
+  // ── Overview ────────────────────────────────────────────────────────────
+  const G = D.generals, S = D.semis, P = D.pulse, R = D.rotation;
+  const tiles = [
+    { id: 'ms-generals-card', name: '1 · Generals', st: G.status,
+      detail: `${G.status.count} of 7 below their ${D.params.maGenerals}-day MA (alert ≥ ${D.params.generalsAlert}) · S&P 500 ${sgn(G.spxStatus.distPct)} % vs its MA` },
+    { id: 'ms-semis-card', name: '2 · Semis peak (proxy)', st: S.status,
+      detail: `SMH − SPY, 6 months: ${sgn(S.status.rel)} pt (max of prior 6 m: ${sgn(S.status.priorMax)} pt)` },
+    { id: 'ms-pulse-card', name: '3 · PULSE (proxy)', st: P.status,
+      detail: `Composite ${sgn(P.status.z, 2)} sd (alert > ${D.params.pulseZ})` },
+    { id: 'ms-rot-card', name: '4 · Rotation', st: R.status,
+      detail: `XLK / (XLU·XLP) ${sgn(R.status.distPct)} % vs its ${D.params.rotMa}-day MA` },
+  ];
+  document.getElementById('ms-tiles').innerHTML = tiles.map(tl => {
+    const s = state(tl.st);
+    return `<a class="sig-tile ${s.cls}" href="#${tl.id}"><div class="sig-name">${tl.name}</div>
+      <div class="sig-state ${s.cls}">${s.label}</div><div class="sig-detail">${tl.detail}</div></a>`;
+  }).join('');
+  const nOn = tiles.filter(tl => tl.st.on).length;
+  document.getElementById('ms-overview-date').textContent =
+    `Close of ${fmtDate(D.asOf)}${stale} · ${nOn} of 4 signals in alert · a signal switches on / off only after its condition held ${cfm} consecutive sessions`;
+  document.getElementById('ms-overview-note').innerHTML =
+    `Willer's sequence (Citi): the generals break first, the sector's fundamentals peak 6–9 months before the index breaks, positioning gets stretched near the top, and money rotates from tech into utilities and staples. ` +
+    `<strong>All four are price proxies</strong> built from free data — Citi's own indicators use capex / capacity and positioning data that is not public. Shaded areas on the charts = confirmed alert periods.`;
+  const disc = document.getElementById('ms-disclaimer');
+  disc.textContent = '⚠ ' + D.disclaimer; disc.style.display = '';
+  ['ms-overview-card', 'ms-generals-card', 'ms-semis-card', 'ms-pulse-card', 'ms-rot-card']
+    .forEach(id => document.getElementById(id).style.display = '');
+
+  // ── Static parts of each card ───────────────────────────────────────────
+  // 1. Generals
+  document.getElementById('ms-generals-date').textContent =
+    `Close of ${fmtDate(D.asOf)}${stale} · Yahoo Finance daily closes from ${fmtDate(D.historyStart)} · fixed list: ${D.params.generals.join(', ')}`;
+  const gs = state(G.status), ss = state(G.spxStatus);
+  const gc = document.getElementById('ms-gen-count');
+  gc.textContent = `${G.status.count} / 7`; gc.style.color = gs.cls === 'off' ? GREEN : gs.cls === 'on' ? RED : ORANGE;
+  document.getElementById('ms-gen-count-label').textContent = `below their ${D.params.maGenerals}-day MA — ${gs.label}`;
+  const gx = document.getElementById('ms-gen-spx');
+  gx.textContent = sgn(G.spxStatus.distPct) + ' %'; gx.style.color = ss.cls === 'off' ? GREEN : ss.cls === 'on' ? RED : ORANGE;
+  document.getElementById('ms-gen-spx-label').textContent = `S&P 500 vs its ${D.params.maGenerals}-day MA — break: ${ss.label}`;
+  document.getElementById('ms-gen-lead').textContent =
+    G.leadMedianSessions == null ? '—' : `${sgn(G.leadMedianSessions, G.leadMedianSessions % 1 ? 1 : 0)} sessions`;
+  document.getElementById('ms-gen-lead-label').textContent =
+    `median lead of the Generals alert over the S&P break (${G.leadPositive} of ${G.leadMatched} alerts came first)`;
+  document.getElementById('ms-gen-stocks').innerHTML =
+    `<tr><th>Stock</th><th>Close</th><th>${D.params.maGenerals}d MA</th><th>vs MA</th></tr>` +
+    G.stocks.slice().sort((a, b) => a.distPct - b.distPct).map(s =>
+      `<tr><td><strong>${s.ticker}</strong>${s.below ? ' <span class="neg">▼</span>' : ''}</td><td>${s.close.toFixed(2)}</td><td>${s.ma.toFixed(2)}</td>
+       <td class="${s.distPct < 0 ? 'neg' : 'pos'}">${sgn(s.distPct)} %</td></tr>`).join('');
+  document.getElementById('ms-gen-leads').innerHTML =
+    `<tr><th>Generals alert</th><th>S&amp;P break</th><th>Lead (sessions)</th><th>Days</th></tr>` +
+    G.leads.map(l => `<tr><td>${fmtDate(l.generals)}</td><td>${l.spx ? fmtDate(l.spx) : '<span style="color:#6b7a8d">none (false alarm)</span>'}</td>
+      <td class="${l.sessions > 0 ? 'pos' : l.sessions < 0 ? 'neg' : ''}">${l.sessions == null ? '—' : sgn(l.sessions, 0)}</td><td>${l.days == null ? '—' : sgn(l.days, 0)}</td></tr>`).join('') +
+    (G.spxUnwarned.length ? `<tr><td colspan="4" style="text-align:left;color:#6b7a8d;white-space:normal;max-width:360px">S&amp;P breaks with no Generals alert: ${G.spxUnwarned.map(fmtDate).join(', ')}</td></tr>` : '');
+  document.getElementById('ms-gen-legend').innerHTML =
+    `<span style="display:block;font-size:10.5px;color:var(--text-muted);line-height:1.5;max-width:860px;">
+      <strong style="color:${BLUE}">━ S&amp;P 500</strong> (log scale) · <span style="color:${GREY}">╌ ${D.params.maGenerals}-day MA</span> ·
+      <span style="background:rgba(230,126,34,.3);padding:0 6px">&nbsp;</span> Generals alert (≥ ${D.params.generalsAlert} of 7 below MA) ·
+      <span style="background:rgba(192,57,43,.35);padding:0 6px">&nbsp;</span> S&amp;P below its MA (strip under the line) · lower panel: number of generals below their MA
+      <div class="sig-note">${G.note}</div></span>`;
+
+  // 2. Semis
+  document.getElementById('ms-semis-date').textContent = `Close of ${fmtDate(D.asOf)}${stale} · Yahoo Finance: SMH, SPY (dividend-adjusted)`;
+  const sr = document.getElementById('ms-semis-rel');
+  sr.textContent = sgn(S.status.rel) + ' pt'; sr.style.color = S.status.rel < 0 ? RED : GREEN;
+  document.getElementById('ms-semis-rel-label').textContent = `SMH minus SPY, last ${D.params.semiWindow} sessions — ${state(S.status).label}`;
+  document.getElementById('ms-semis-max').textContent = sgn(S.status.priorMax) + ' pt';
+  document.getElementById('ms-semis-max-label').textContent = `largest lead over the previous 6 months (strong lead ≥ ${D.params.semiLeadPct} pt)`;
+  document.getElementById('ms-semis-legend').innerHTML =
+    `<span style="display:block;font-size:10.5px;color:var(--text-muted);line-height:1.5;max-width:860px;">
+      <strong style="color:${PURPLE}">━ SMH − SPY</strong>, 6-month total return gap · <span style="color:${GREEN}">╌ strong lead (${D.params.semiLeadPct} pt)</span> ·
+      <span style="background:rgba(192,57,43,.3);padding:0 6px">&nbsp;</span> alert: gap back below 0 after a strong lead
+      <div class="sig-note">${S.note}</div></span>`;
+
+  // 3. PULSE
+  const HR = P.hitRate;
+  document.getElementById('ms-pulse-date').textContent = `Close of ${fmtDate(D.asOf)}${stale} · Yahoo Finance: ^GSPC, ^VIX`;
+  const pz = document.getElementById('ms-pulse-z');
+  pz.textContent = sgn(P.status.z, 2) + ' sd'; pz.style.color = P.status.z > D.params.pulseZ ? RED : P.status.z > 1 ? ORANGE : BLUE;
+  document.getElementById('ms-pulse-z-label').textContent = `composite today (alert > ${D.params.pulseZ}) — ${state(P.status).label}`;
+  const hit = document.getElementById('ms-pulse-hit');
+  hit.textContent = HR.alertHitPct == null ? '—' : `${HR.alertHitPct.toFixed(0)} %  (${HR.hits}/${HR.alerts})`;
+  hit.style.color = HR.alertHitPct != null && HR.alertHitPct > HR.basePct + 10 ? GREEN : ORANGE;
+  document.getElementById('ms-pulse-hit-label').innerHTML =
+    `alerts followed by a ≥ ${Math.abs(HR.drawdownPct)} % drawdown within ${HR.horizon} sessions<br>(all ${HR.alertDays} alert days: ${HR.alertDayHitPct == null ? '—' : HR.alertDayHitPct.toFixed(0) + ' %'})`;
+  document.getElementById('ms-pulse-base').textContent = HR.basePct.toFixed(0) + ' %';
+  document.getElementById('ms-pulse-base-label').textContent = `base rate: same drawdown after any day since ${D.historyStart.slice(0, 4)} (${HR.baseDays} days)`;
+  const C = P.status.components, V = P.status.values;
+  document.getElementById('ms-pulse-comp').innerHTML =
+    `<tr><th>Component today</th><th>Value</th><th>z-score</th></tr>` +
+    [['S&P 500 above its 50-day MA', sgn(V.dist50) + ' %', C.dist50], ['RSI(14)', V.rsi14.toFixed(1), C.rsi14],
+     ['3-month return', sgn(V.ret63) + ' %', C.ret63], ['VIX (low = complacent, sign flipped)', V.vix.toFixed(1), C.vix]]
+      .map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td class="${r[2] > 0 ? 'neg' : 'pos'}">${sgn(r[2], 2)}</td></tr>`).join('');
+  document.getElementById('ms-pulse-legend').innerHTML =
+    `<span style="display:block;font-size:10.5px;color:var(--text-muted);line-height:1.5;max-width:860px;">
+      <strong style="color:${BLUE}">━ Composite z-score</strong> · <span style="color:${RED}">╌ alert threshold ${D.params.pulseZ} sd</span> ·
+      <span style="background:rgba(192,57,43,.3);padding:0 6px">&nbsp;</span> confirmed alert ·
+      <span style="background:rgba(0,58,92,.25);padding:0 6px">&nbsp;</span> strip: S&amp;P fell ≥ ${Math.abs(HR.drawdownPct)} % within the next month
+      <div class="sig-note">${P.note}</div></span>`;
+
+  // 4. Rotation
+  document.getElementById('ms-rot-date').textContent = `Close of ${fmtDate(D.asOf)}${stale} · Yahoo Finance: XLK, XLU, XLP (dividend-adjusted) · ratio = 100 at ${fmtDate(D.historyStart)}`;
+  const rd = document.getElementById('ms-rot-dist');
+  rd.textContent = sgn(R.status.distPct) + ' %'; rd.style.color = R.status.distPct < 0 ? RED : GREEN;
+  document.getElementById('ms-rot-dist-label').textContent = `ratio vs its ${D.params.rotMa}-day MA — ${state(R.status).label}`;
+  document.getElementById('ms-rot-legend').innerHTML =
+    `<span style="display:block;font-size:10.5px;color:var(--text-muted);line-height:1.5;max-width:860px;">
+      <strong style="color:${BLUE}">━ XLK / geometric mean(XLU, XLP)</strong> (log scale) · <span style="color:${ORANGE}">╌ ${D.params.rotMa}-day MA</span> ·
+      <span style="background:rgba(192,57,43,.3);padding:0 6px">&nbsp;</span> alert: ratio below its MA
+      <div class="sig-note">${R.note}</div></span>`;
+
+  // Drawdown ≥ 5 % within the next month, from the S&P series (for the PULSE strip)
+  const ddEps = (() => {
+    const s = D.spx, n = s.length, h = HR.horizon, eps = []; let a = null;
+    for (let i = 0; i < n; i++) {
+      let hitI = false;
+      if (i + h < n) { let mn = Infinity; for (let k = i + 1; k <= i + h; k++) mn = Math.min(mn, s[k]); hitI = (mn / s[i] - 1) * 100 <= HR.drawdownPct; }
+      if (hitI && a == null) a = i;
+      if (!hitI && a != null) { eps.push([D.dates[a], D.dates[i - 1]]); a = null; }
+    }
+    if (a != null) eps.push([D.dates[a], D.dates[n - 1]]);
+    return eps;
+  })();
+
+  // ── Charts, redrawn on range change ─────────────────────────────────────
+  function drawAll(range) {
+    let i0 = 0;
+    if (range.years) {
+      const cut = new Date(Date.parse(D.asOf)); cut.setUTCFullYear(cut.getUTCFullYear() - range.years);
+      i0 = Math.max(0, D.dates.findIndex(d => Date.parse(d) >= cut));
+    }
+    drawChart('ms-gen-svg', i0, {
+      log: true, fmt: v => v.toLocaleString('de-CH'),
+      series: [{ v: D.spxMa, color: GREY, w: 1.2, dash: '4,3' }, { v: D.spx, color: BLUE, w: 1.5 }],
+      bands: [{ eps: G.episodes, color: ORANGE, opacity: 0.22, y1: 0.93 }, { eps: G.spxEpisodes, color: RED, opacity: 0.55, y0: 0.95, y1: 1 }],
+    });
+    drawChart('ms-gen-count-svg', i0, {
+      H: 110, fmt: v => v, noX: false,
+      series: [{ v: G.count, color: ORANGE, w: 1.3, step: true }],
+      hlines: [{ v: D.params.generalsAlert, color: RED, label: `alert ≥ ${D.params.generalsAlert}` }, { v: 0, color: '#b0bac6', dash: '1,0' }, { v: 7, color: '#b0bac6', dash: '1,0' }],
+      bands: [{ eps: G.episodes, color: ORANGE, opacity: 0.18 }],
+    });
+    drawChart('ms-semis-svg', i0, {
+      fmt: v => sgn(v, 0) + ' pt',
+      series: [{ v: S.rel, color: PURPLE, w: 1.5 }],
+      hlines: [{ v: D.params.semiLeadPct, color: GREEN, label: 'strong lead' }],
+      bands: [{ eps: S.episodes, color: RED, opacity: 0.22 }],
+    });
+    drawChart('ms-pulse-svg', i0, {
+      fmt: v => sgn(v, 0),
+      series: [{ v: P.z, color: BLUE, w: 1.2 }],
+      hlines: [{ v: D.params.pulseZ, color: RED, label: `${D.params.pulseZ} sd` }],
+      bands: [{ eps: P.episodes, color: RED, opacity: 0.3, y1: 0.93 }, { eps: ddEps, color: BLUE, opacity: 0.35, y0: 0.95, y1: 1 }],
+    });
+    drawChart('ms-rot-svg', i0, {
+      log: true, fmt: v => v,
+      series: [{ v: R.ma, color: ORANGE, w: 1.2, dash: '4,3' }, { v: R.ratio, color: BLUE, w: 1.5 }],
+      bands: [{ eps: R.episodes, color: RED, opacity: 0.2 }],
+    });
+  }
+
+  let range = 'ALL';
+  try { range = localStorage.getItem('msRange') || 'ALL'; } catch (e) {}
+  if (!RANGES.some(r => r.key === range)) range = 'ALL';
+  const rb = document.getElementById('ms-range-btns');
+  rb.innerHTML = '<span style="font-size:11px;color:var(--text-muted);margin-right:4px;align-self:center">Charts:</span>' +
+    RANGES.map(r => `<button class="range-btn" data-k="${r.key}">${r.label}</button>`).join('');
+  const redraw = () => {
+    try { localStorage.setItem('msRange', range); } catch (e) {}
+    rb.querySelectorAll('.range-btn').forEach(b => b.classList.toggle('active', b.dataset.k === range));
+    drawAll(RANGES.find(r => r.key === range));
+  };
+  rb.querySelectorAll('.range-btn').forEach(b => b.addEventListener('click', () => { range = b.dataset.k; redraw(); }));
+  redraw();
+})();
+</script>
+</body>
+</html>

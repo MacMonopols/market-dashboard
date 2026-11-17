@@ -1,5 +1,43 @@
 # market-dashboard
 
+## Market Signal tab — `market-signal.html`, set up 2026-11-17
+
+New page "Market Signal" (nav entry on all five pages, after Hyperscaler
+Capex): four "when to exit a bubble" signals after Citi's Willer (user's
+French notes; built from the description of a draft `bubble_exit_signals.py`
+that was never in the repo and had only been run on a simulated market).
+`market_signals.py` (`calc_market_signals()` → `LD.marketSignals`), Yahoo
+daily closes (`auto_adjust=True`) from 2011 for warm-up, history shown from
+2015. All parameters are constants at the top of the module. Cache
+`market_signals_cache.json` (git-ignored), `stale: true` on fallback. Page =
+longterm/expected-return CSS + status tiles, one card per signal, generic
+`drawChart()` (inline SVG, shaded confirmed-alert episodes), shared range
+buttons (`localStorage.msRange`: 1 an / 3 ans / 5 ans / Depuis 2015).
+- **Confirm filter** (`confirm()`): ON after 5 consecutive sessions with the
+  raw condition, OFF after 5 without (hysteresis both ways). Tiles show
+  "Building (n/5)" / "fading" in between.
+- **Generals**: FIXED list NVDA MSFT AAPL GOOGL AMZN META AVGO (survivorship
+  / look-ahead bias on history, flagged), count below 200d MA, alert ≥ 4/7;
+  vs ^GSPC below its 200d MA. Lead = sessions to the next S&P break starting
+  within 63 sessions before / 189 after the alert. **Result 2015–2026: no
+  real lead** — 6 alerts, leads +1 / −4 / 0 / +2 / 0 / +2 sessions (median
+  +0.5), and 5 S&P breaks with no Generals alert (2015 ×2, Jan 2022, 2023
+  ×2). With 7 megacaps ≈ 1/3 of the index, ≥ 4 of 7 breaking ≈ the index
+  breaking.
+- **Semis (proxy)**: 6-month SMH − SPY return gap; alert when < 0 after a lead
+  ≥ 15 pt in the previous 126 sessions. Price proxy for Citi's capex data.
+- **PULSE (proxy)**: mean of 4 rolling 3-year z-scores (S&P vs 50d MA,
+  RSI14, 63d return, −VIX), re-standardized, alert > 1.5. Hit rate at
+  2026-11-17: 1 of 5 alerts (20 %) followed by a ≥ 5 % drawdown within 21
+  sessions vs a 15.5 % base rate; on all 90 alert days only 6.7 % — i.e. no
+  edge, consistent with the simulated test (22 vs 23 %). Threshold
+  uncalibrated, said on the card.
+- **Rotation**: XLK / geometric mean(XLU, XLP) (geometric so MA crossings do
+  not depend on price levels) vs its 100d MA. 22 episodes since 2015 — fires
+  in every correction.
+- At 2026-11-17: Generals 4/7 building (2/5), S&P −0.1 % vs MA, semis ALERT
+  (−16.4 pt after +86 pt), PULSE −2.56 sd off, rotation ALERT (−16.7 %).
+
 ## Cost of trying to time the market — last card on Long Term Summary, set up 2026-11-10
 
 After Dimensional's Quick Take PDF "The Cost of Trying to Time the Market"

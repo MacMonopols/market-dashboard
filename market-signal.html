@@ -825,6 +825,10 @@
         h += `<text x="${(lx + 7).toFixed(1)}" y="${(ly - 6).toFixed(1)}" font-family="Helvetica Neue,Arial,sans-serif" font-size="10.5" font-weight="700" fill="${c}">${it.ticker}</text>`;
         h += `<title>${it.ticker} · ${it.name}: RS-Ratio ${it.x[i1]}, RS-Momentum ${it.y[i1]}</title></g>`;
       });
+      // benchmark: SPY vs itself is always RS-Ratio 100 / RS-Momentum 100, i.e. the centre of the graph
+      h += `<g><rect x="${(cx - 5).toFixed(1)}" y="${(cy - 5).toFixed(1)}" width="10" height="10" transform="rotate(45 ${cx.toFixed(1)} ${cy.toFixed(1)})" fill="#1f2d3d" stroke="#fff" stroke-width="1.5"/>`;
+      h += `<text x="${(cx + 8).toFixed(1)}" y="${(cy + 15).toFixed(1)}" font-family="Helvetica Neue,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#1f2d3d">SPY (benchmark)</text>`;
+      h += `<title>SPY is the benchmark: measured against itself it is always at RS-Ratio 100 / RS-Momentum 100, the centre of the graph. Every other ETF is placed relative to it.</title></g>`;
       svg.innerHTML = h;
       svg.querySelectorAll('g[data-t]').forEach(g => g.addEventListener('click', () => { hl = hl === g.dataset.t ? null : g.dataset.t; drawRRG(); drawTable(); }));
       document.getElementById('ms-rrg-slider-date').textContent = fmtDate(RG.dates[at]) + (at === nW - 1 ? ' (latest)' : '');

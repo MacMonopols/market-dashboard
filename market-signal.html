@@ -339,6 +339,10 @@
     .sig-table th { font-size: 10px; color: var(--text-muted); font-weight: 600; text-align: right; padding: 3px 10px; border-bottom: 1px solid var(--border); }
     .sig-table td { text-align: right; padding: 3px 10px; font-variant-numeric: tabular-nums; border-bottom: 1px solid #eef2f5; }
     .sig-table th:first-child, .sig-table td:first-child { text-align: left; }
+    .tbl-wrap { overflow-x: auto; max-width: 100%; }
+    #ms-rrg-table th:first-child, #ms-rrg-table td:first-child { position: sticky; left: 0; background: var(--card); z-index: 1; box-shadow: 1px 0 0 var(--border); }
+    .rrg-scroll { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 11px; color: var(--text-muted); }
+    .rrg-scroll input { flex: 1; max-width: 520px; }
     .neg { color: var(--red); } .pos { color: var(--green); }
     .disclaimer { max-width: 960px; margin: 0 auto 16px; font-size: 11.5px; color: #8a4b0f; background: #fdf3e7; border: 1px solid #f3d9b8; border-radius: 8px; padding: 8px 14px; }
     @media (max-width: 760px) {
@@ -457,7 +461,8 @@
       <span id="ms-rrg-slider-date" style="min-width:90px"></span>
     </div>
   </div>
-  <div class="tbl-wrap" style="margin-top:12px"><table class="sig-table" id="ms-rrg-table" style="white-space:nowrap"></table></div>
+  <div class="rrg-scroll" id="ms-rrg-scroll"><span>Columns:</span><input type="range" id="ms-rrg-scroll-slider" min="0" max="1000" value="0"><span>→ YTD · 1 · 3 · 5 years</span></div>
+  <div class="tbl-wrap" id="ms-rrg-tbl-wrap" style="margin-top:6px"><table class="sig-table" id="ms-rrg-table" style="white-space:nowrap"></table></div>
   <div class="sig-note" id="ms-rrg-note"></div>
 </div>
 
@@ -875,6 +880,17 @@
       `Clockwise cycle: Improving → Leading → Weakening → Lagging. A rotation shows when one ETF moves from Leading to Weakening while another moves from Improving to Leading. ` +
       `Click a tail or a row to highlight it; the slider replays the graph over the last two years (the table always shows today). ${RG.note}`;
     setGrp();
+    // column slider ↔ horizontal scroll of the table (hidden when the table fits)
+    const tw = document.getElementById('ms-rrg-tbl-wrap'), cs = document.getElementById('ms-rrg-scroll-slider');
+    const syncScroll = () => {
+      const max = tw.scrollWidth - tw.clientWidth;
+      document.getElementById('ms-rrg-scroll').style.display = max > 2 ? '' : 'none';
+      cs.value = max > 0 ? Math.round(1000 * tw.scrollLeft / max) : 0;
+    };
+    cs.addEventListener('input', () => { tw.scrollLeft = (tw.scrollWidth - tw.clientWidth) * cs.value / 1000; });
+    tw.addEventListener('scroll', syncScroll);
+    window.addEventListener('resize', syncScroll);
+    syncScroll();
   }
 
   // ── Backtest 1998–2002 (fixed window, not affected by the range buttons) ──

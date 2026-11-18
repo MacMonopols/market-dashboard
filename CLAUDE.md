@@ -73,7 +73,11 @@ sectors and main factors, 8-week tails, table of quadrant changes").
 - Page: toggle 11 sectors / Factors (`localStorage.msRrgGroup`), tails of 8
   weeks, click to highlight, slider replaying the last 104 weeks (graph
   only), table = quadrant now / confirmed / weeks in it / last confirmed
-  change / 4 and 8 weeks ago / relative return vs SPY 4 and 13 weeks.
+  change / 4 and 8 weeks ago / relative return vs SPY 4 and 13 weeks /
+  total return YTD, 1 y, 3 y p.a., 5 y p.a. each absolute and vs SPY
+  (`perf`, from daily closes; relative = growth ratio, annualized the same
+  way, not a difference) + a SPY benchmark row (`benchPerf`). Added
+  2026-11-18; data start moved from 3 to 5 years for it.
 - At 2026-11-17: XLK Lagging (−8.4 % vs SPY in 4 weeks); XLY, XLF, XLB,
   XLV, XLP, XLRE Leading; XLE → Weakening and XLU → Leading unconfirmed.
   Factors: MTUM (−11.1 % in 13 weeks), VLUE, IWF Lagging; USMV, QUAL, IWD,

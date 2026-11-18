@@ -115824,7 +115824,17 @@ const LIVE_DATA = {
         "quadrant4w": "Weakening",
         "quadrant8w": "Weakening",
         "rel4w": -7.5,
-        "rel13w": -7.0
+        "rel13w": -7.0,
+        "perf": {
+          "ytd": 13.8,
+          "ytdRel": 5.1,
+          "1y": 15.7,
+          "1yRel": 4.0,
+          "3y": 22.1,
+          "3yRel": 2.6,
+          "5y": 15.0,
+          "5yRel": 3.8
+        }
       },
       {
         "ticker": "XLC",
@@ -116050,7 +116060,17 @@ const LIVE_DATA = {
         "quadrant4w": "Improving",
         "quadrant8w": "Improving",
         "rel4w": 3.5,
-        "rel13w": -1.1
+        "rel13w": -1.1,
+        "perf": {
+          "ytd": -9.8,
+          "ytdRel": -16.6,
+          "1y": -4.2,
+          "1yRel": -13.8,
+          "3y": 15.9,
+          "3yRel": -2.6,
+          "5y": 6.6,
+          "5yRel": -3.8
+        }
       },
       {
         "ticker": "XLY",
@@ -116276,7 +116296,17 @@ const LIVE_DATA = {
         "quadrant4w": "Improving",
         "quadrant8w": "Lagging",
         "rel4w": 7.4,
-        "rel13w": 3.7
+        "rel13w": 3.7,
+        "perf": {
+          "ytd": -1.3,
+          "ytdRel": -8.8,
+          "1y": 3.2,
+          "1yRel": -7.2,
+          "3y": 12.8,
+          "3yRel": -5.2,
+          "5y": 3.2,
+          "5yRel": -6.8
+        }
       },
       {
         "ticker": "XLF",
@@ -116502,7 +116532,17 @@ const LIVE_DATA = {
         "quadrant4w": "Lagging",
         "quadrant8w": "Leading",
         "rel4w": 5.9,
-        "rel13w": 3.9
+        "rel13w": 3.9,
+        "perf": {
+          "ytd": 5.5,
+          "ytdRel": -2.6,
+          "1y": 12.7,
+          "1yRel": 1.3,
+          "3y": 19.5,
+          "3yRel": 0.5,
+          "5y": 9.4,
+          "5yRel": -1.3
+        }
       },
       {
         "ticker": "XLI",
@@ -116728,7 +116768,17 @@ const LIVE_DATA = {
         "quadrant4w": "Lagging",
         "quadrant8w": "Lagging",
         "rel4w": 3.8,
-        "rel13w": -4.4
+        "rel13w": -4.4,
+        "perf": {
+          "ytd": 7.1,
+          "ytdRel": -1.1,
+          "1y": 10.7,
+          "1yRel": -0.5,
+          "3y": 17.6,
+          "3yRel": -1.2,
+          "5y": 10.8,
+          "5yRel": -0.1
+        }
       },
       {
         "ticker": "XLB",
@@ -116954,7 +117004,17 @@ const LIVE_DATA = {
         "quadrant4w": "Improving",
         "quadrant8w": "Lagging",
         "rel4w": 2.8,
-        "rel13w": -0.5
+        "rel13w": -0.5,
+        "perf": {
+          "ytd": 13.5,
+          "ytdRel": 4.9,
+          "1y": 21.1,
+          "1yRel": 8.9,
+          "3y": 10.3,
+          "3yRel": -7.3,
+          "5y": 4.8,
+          "5yRel": -5.5
+        }
       },
       {
         "ticker": "XLE",
@@ -117180,7 +117240,17 @@ const LIVE_DATA = {
         "quadrant4w": "Leading",
         "quadrant8w": "Leading",
         "rel4w": -5.2,
-        "rel13w": 4.4
+        "rel13w": 4.4,
+        "perf": {
+          "ytd": 44.5,
+          "ytdRel": 33.5,
+          "1y": 44.3,
+          "1yRel": 29.7,
+          "3y": 18.0,
+          "3yRel": -0.8,
+          "5y": 21.4,
+          "5yRel": 9.6
+        }
       },
       {
         "ticker": "XLV",
@@ -117245,7 +117315,7 @@ const LIVE_DATA = {
           104.67,
           104.82,
           104.65,
-          104.15,
+          104.16,
           104.36,
           103.49,
           103.66,
@@ -117406,7 +117476,17 @@ const LIVE_DATA = {
         "quadrant4w": "Leading",
         "quadrant8w": "Leading",
         "rel4w": 7.2,
-        "rel13w": 11.1
+        "rel13w": 11.1,
+        "perf": {
+          "ytd": 21.1,
+          "ytdRel": 11.9,
+          "1y": 24.1,
+          "1yRel": 11.6,
+          "3y": 14.9,
+          "3yRel": -3.4,
+          "5y": 8.5,
+          "5yRel": -2.1
+        }
       },
       {
         "ticker": "XLP",
@@ -117632,7 +117712,17 @@ const LIVE_DATA = {
         "quadrant4w": "Lagging",
         "quadrant8w": "Lagging",
         "rel4w": 7.5,
-        "rel13w": 11.6
+        "rel13w": 11.6,
+        "perf": {
+          "ytd": 20.0,
+          "ytdRel": 10.9,
+          "1y": 22.4,
+          "1yRel": 10.1,
+          "3y": 12.6,
+          "3yRel": -5.4,
+          "5y": 7.5,
+          "5yRel": -3.0
+        }
       },
       {
         "ticker": "XLU",
@@ -117858,7 +117948,17 @@ const LIVE_DATA = {
         "quadrant4w": "Improving",
         "quadrant8w": "Lagging",
         "rel4w": 5.9,
-        "rel13w": 6.6
+        "rel13w": 6.6,
+        "perf": {
+          "ytd": 3.8,
+          "ytdRel": -4.1,
+          "1y": -0.3,
+          "1yRel": -10.3,
+          "3y": 15.1,
+          "3yRel": -3.3,
+          "5y": 8.5,
+          "5yRel": -2.2
+        }
       },
       {
         "ticker": "XLRE",
@@ -118084,7 +118184,17 @@ const LIVE_DATA = {
         "quadrant4w": "Lagging",
         "quadrant8w": "Lagging",
         "rel4w": 6.2,
-        "rel13w": 1.7
+        "rel13w": 1.7,
+        "perf": {
+          "ytd": 10.6,
+          "ytdRel": 2.2,
+          "1y": 10.9,
+          "1yRel": -0.3,
+          "3y": 10.3,
+          "3yRel": -7.3,
+          "5y": 1.3,
+          "5yRel": -8.6
+        }
       }
     ],
     "factors": [
@@ -118218,7 +118328,7 @@ const LIVE_DATA = {
           97.69,
           98.87,
           100.09,
-          100.8,
+          100.81,
           101.84,
           103.37,
           103.56,
@@ -118312,7 +118422,17 @@ const LIVE_DATA = {
         "quadrant4w": "Lagging",
         "quadrant8w": "Lagging",
         "rel4w": -6.4,
-        "rel13w": -10.6
+        "rel13w": -10.6,
+        "perf": {
+          "ytd": 4.8,
+          "ytdRel": -3.2,
+          "1y": 8.1,
+          "1yRel": -2.8,
+          "3y": 21.3,
+          "3yRel": 1.9,
+          "5y": 7.9,
+          "5yRel": -2.6
+        }
       },
       {
         "ticker": "USMV",
@@ -118538,7 +118658,17 @@ const LIVE_DATA = {
         "quadrant4w": "Leading",
         "quadrant8w": "Improving",
         "rel4w": 2.6,
-        "rel13w": 5.2
+        "rel13w": 5.2,
+        "perf": {
+          "ytd": 9.3,
+          "ytdRel": 1.0,
+          "1y": 10.3,
+          "1yRel": -0.9,
+          "3y": 12.6,
+          "3yRel": -5.3,
+          "5y": 7.1,
+          "5yRel": -3.3
+        }
       },
       {
         "ticker": "QUAL",
@@ -118710,7 +118840,7 @@ const LIVE_DATA = {
           100.72,
           100.69,
           100.71,
-          100.83,
+          100.84,
           100.63,
           100.47,
           100.52,
@@ -118764,7 +118894,17 @@ const LIVE_DATA = {
         "quadrant4w": "Leading",
         "quadrant8w": "Lagging",
         "rel4w": 1.5,
-        "rel13w": 2.0
+        "rel13w": 2.0,
+        "perf": {
+          "ytd": 10.4,
+          "ytdRel": 2.0,
+          "1y": 14.4,
+          "1yRel": 2.8,
+          "3y": 17.1,
+          "3yRel": -1.6,
+          "5y": 9.8,
+          "5yRel": -1.0
+        }
       },
       {
         "ticker": "VLUE",
@@ -118990,7 +119130,17 @@ const LIVE_DATA = {
         "quadrant4w": "Weakening",
         "quadrant8w": "Weakening",
         "rel4w": -2.1,
-        "rel13w": -5.7
+        "rel13w": -5.7,
+        "perf": {
+          "ytd": 35.0,
+          "ytdRel": 24.8,
+          "1y": 44.7,
+          "1yRel": 30.1,
+          "3y": 28.1,
+          "3yRel": 7.6,
+          "5y": 14.3,
+          "5yRel": 3.1
+        }
       },
       {
         "ticker": "IWD",
@@ -119216,7 +119366,17 @@ const LIVE_DATA = {
         "quadrant4w": "Weakening",
         "quadrant8w": "Weakening",
         "rel4w": 3.6,
-        "rel13w": 4.6
+        "rel13w": 4.6,
+        "perf": {
+          "ytd": 23.5,
+          "ytdRel": 14.1,
+          "1y": 28.9,
+          "1yRel": 15.9,
+          "3y": 20.6,
+          "3yRel": 1.3,
+          "5y": 11.2,
+          "5yRel": 0.3
+        }
       },
       {
         "ticker": "IWF",
@@ -119442,7 +119602,17 @@ const LIVE_DATA = {
         "quadrant4w": "Improving",
         "quadrant8w": "Improving",
         "rel4w": -3.9,
-        "rel13w": -5.6
+        "rel13w": -5.6,
+        "perf": {
+          "ytd": -6.2,
+          "ytdRel": -13.3,
+          "1y": -4.7,
+          "1yRel": -14.3,
+          "3y": 16.0,
+          "3yRel": -2.5,
+          "5y": 8.3,
+          "5yRel": -2.3
+        }
       },
       {
         "ticker": "IWM",
@@ -119668,7 +119838,17 @@ const LIVE_DATA = {
         "quadrant4w": "Lagging",
         "quadrant8w": "Lagging",
         "rel4w": 1.2,
-        "rel13w": -6.2
+        "rel13w": -6.2,
+        "perf": {
+          "ytd": 10.0,
+          "ytdRel": 1.7,
+          "1y": 16.8,
+          "1yRel": 5.0,
+          "3y": 16.0,
+          "3yRel": -2.5,
+          "5y": 3.9,
+          "5yRel": -6.2
+        }
       },
       {
         "ticker": "RSP",
@@ -119894,11 +120074,31 @@ const LIVE_DATA = {
         "quadrant4w": "Lagging",
         "quadrant8w": "Lagging",
         "rel4w": 3.4,
-        "rel13w": 1.9
+        "rel13w": 1.9,
+        "perf": {
+          "ytd": 14.0,
+          "ytdRel": 5.3,
+          "1y": 18.6,
+          "1yRel": 6.6,
+          "3y": 15.9,
+          "3yRel": -2.6,
+          "5y": 7.8,
+          "5yRel": -2.8
+        }
       }
     ],
+    "benchPerf": {
+      "ytd": 8.2,
+      "ytdRel": 0.0,
+      "1y": 11.2,
+      "1yRel": 0.0,
+      "3y": 19.0,
+      "3yRel": 0.0,
+      "5y": 10.8,
+      "5yRel": 0.0
+    },
     "missing": [],
-    "note": "Relative Rotation Graph after Julius de Kempenaer, OPEN APPROXIMATION (the JdK formulas are proprietary): weekly total-return closes from Yahoo; relative strength = ETF / SPY smoothed over 4 weeks; RS-Ratio = relative strength vs its 26-week average (100 = on trend); RS-Momentum = change of the RS-Ratio over 4 weeks (100 = flat). The last point uses the latest close (partial week). A quadrant change is shown as unconfirmed until it has held 2 weekly closes. Price-based, so late by construction, and many rotations abort within 2–3 weeks. Factor ETFs overlap (MTUM and QUAL are both heavy in large tech): read them as style tilts, not pure factors. Not investment advice.",
+    "note": "Relative Rotation Graph after Julius de Kempenaer, OPEN APPROXIMATION (the JdK formulas are proprietary): weekly total-return closes from Yahoo; relative strength = ETF / SPY smoothed over 4 weeks; RS-Ratio = relative strength vs its 26-week average (100 = on trend); RS-Momentum = change of the RS-Ratio over 4 weeks (100 = flat). The last point uses the latest close (partial week). A quadrant change is shown as unconfirmed until it has held 2 weekly closes. Price-based, so late by construction, and many rotations abort within 2–3 weeks. Factor ETFs overlap (MTUM and QUAL are both heavy in large tech): read them as style tilts, not pure factors. Return columns: total return on daily closes, YTD and 1 year cumulative, 3 and 5 years annualized; vs SPY = relative return (ETF growth / SPY growth − 1, annualized for 3 and 5 years), not the difference of the two figures. Not investment advice.",
     "stale": false
   },
   "worldValue": {

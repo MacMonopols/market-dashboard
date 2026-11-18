@@ -830,17 +830,20 @@
       document.getElementById('ms-rrg-slider-date').textContent = fmtDate(RG.dates[at]) + (at === nW - 1 ? ' (latest)' : '');
     }
 
+    const PERF_COLS = [['ytd', 'YTD'], ['1y', '1 year'], ['3y', '3 years<br>p.a.'], ['5y', '5 years<br>p.a.']];
+    const perfTd = (v, first) => `<td${first ? ' style="border-left:1px solid #e3e8ee"' : ''} class="${v == null ? '' : v < 0 ? 'neg' : 'pos'}">${v == null ? '—' : sgn(v) + '&nbsp;%'}</td>`;
     function drawTable() {
       const items = RG[grp].slice().sort((a, b) => QORDER.indexOf(a.quadrant) - QORDER.indexOf(b.quadrant) || b.x[nW - 1] - a.x[nW - 1]);
       document.getElementById('ms-rrg-table').innerHTML =
-        `<tr><th>ETF</th><th>Quadrant now</th><th>Confirmed<br>quadrant</th><th>Weeks<br>in it</th><th>Last confirmed change</th><th>4 weeks<br>ago</th><th>8 weeks<br>ago</th><th>vs SPY<br>4 wks</th><th>vs SPY<br>13 wks</th></tr>` +
+        `<tr><th>ETF</th><th>Quadrant now</th><th>Confirmed<br>quadrant</th><th>Weeks<br>in it</th><th>Last confirmed change</th><th>4 weeks<br>ago</th><th>8 weeks<br>ago</th><th>vs SPY<br>4 wks</th><th>vs SPY<br>13 wks</th>${PERF_COLS.map(([k, l]) => `<th style="border-left:1px solid #e3e8ee">${l}</th><th>${l}<br>vs SPY</th>`).join('')}</tr>` +
         items.map(it => `<tr data-t="${it.ticker}" style="cursor:pointer;${hl === it.ticker ? 'background:#f6f9fb' : ''}">
           <td><strong>${it.ticker}</strong><br><span style="color:#6b7a8d;font-size:10px">${it.name}</span></td>
           <td>${qBadge(it.quadrant)}${it.pending ? '<br><span style="color:#6b7a8d;font-size:10px">unconfirmed</span>' : ''}</td>
           <td>${qBadge(it.confirmed)}</td><td>${it.weeksIn}</td>
           <td>${it.lastChange ? `${qBadge(it.from)} → ${qBadge(it.confirmed)}<br><span style="color:#6b7a8d;font-size:10px">${fmtDate(it.lastChange)}</span>` : '—'}</td>
           <td>${qBadge(it.quadrant4w)}</td><td>${qBadge(it.quadrant8w)}</td>
-          <td class="${it.rel4w < 0 ? 'neg' : 'pos'}">${sgn(it.rel4w)}&nbsp;%</td><td class="${it.rel13w < 0 ? 'neg' : 'pos'}">${sgn(it.rel13w)}&nbsp;%</td></tr>`).join('');
+          <td class="${it.rel4w < 0 ? 'neg' : 'pos'}">${sgn(it.rel4w)}&nbsp;%</td><td class="${it.rel13w < 0 ? 'neg' : 'pos'}">${sgn(it.rel13w)}&nbsp;%</td>${PERF_COLS.map(([k]) => perfTd((it.perf || {})[k], true) + perfTd((it.perf || {})[k + 'Rel'])).join('')}</tr>`).join('') +
+        (RG.benchPerf ? `<tr style="color:#6b7a8d"><td><strong>SPY</strong><br><span style="font-size:10px">benchmark</span></td><td colspan="8"></td>${PERF_COLS.map(([k]) => perfTd(RG.benchPerf[k], true) + '<td></td>').join('')}</tr>` : '');
       document.querySelectorAll('#ms-rrg-table tr[data-t]').forEach(tr => tr.addEventListener('click', () => { hl = hl === tr.dataset.t ? null : tr.dataset.t; drawRRG(); drawTable(); }));
       // summary: confirmed moves into / out of Leading over the last 4 weeks
       const all = RG[grp];

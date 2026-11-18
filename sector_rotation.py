@@ -48,7 +48,8 @@ MOM_LAG = 4          # momentum = change of RS-Ratio over 4 weeks
 TAIL_WEEKS = 8       # trail drawn on the graph
 HISTORY_WEEKS = 104  # weekly points kept (for the date slider)
 CONFIRM_WEEKS = 2    # weekly closes in a new quadrant before a change counts
-DATA_START_DAYS = 3 * 365
+DATA_START_DAYS = 5 * 365 + 30   # 5-year return column needs 5 years of daily closes
+PERF_YEARS = (1, 3, 5)  # trailing return columns (3 and 5 years annualized)
 
 CACHE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sector_rotation_cache.json")
 
@@ -59,7 +60,9 @@ NOTE = (
     f"the RS-Ratio over {MOM_LAG} weeks (100 = flat). The last point uses the latest close (partial week). "
     f"A quadrant change is shown as unconfirmed until it has held {CONFIRM_WEEKS} weekly closes. Price-based, so "
     "late by construction, and many rotations abort within 2–3 weeks. Factor ETFs overlap (MTUM and QUAL are "
-    "both heavy in large tech): read them as style tilts, not pure factors. Not investment advice."
+    "both heavy in large tech): read them as style tilts, not pure factors. Return columns: total return on daily "
+    "closes, YTD and 1 year cumulative, 3 and 5 years annualized; vs SPY = relative return (ETF growth / SPY "
+    "growth − 1, annualized for 3 and 5 years), not the difference of the two figures. Not investment advice."
 )
 
 
@@ -87,7 +90,28 @@ def _rrg(w, ticker):
     return ratio, mom
 
 
-def _group(w, items):
+def _perf(px, t):
+    """Total return YTD (since last close of the previous year) and over PERF_YEARS (daily closes, 3y/5y
+    annualized), absolute and relative to SPY (ratio of growth, annualized the same way)."""
+    s, b = px[t].dropna(), px[BENCH]
+    last = s.index[-1]
+    starts = {"ytd": (pd.Timestamp(last.year, 1, 1) - pd.Timedelta(days=1), 1)}
+    for n in PERF_YEARS:
+        starts[f"{n}y"] = (last - pd.DateOffset(years=n), n)
+    out = {}
+    for k, (d0, n) in starts.items():
+        s0 = s[s.index <= d0]
+        if s0.empty or (d0 - s0.index[-1]).days > 7:
+            out[k] = out[k + "Rel"] = None
+            continue
+        g, gb = s.iloc[-1] / s0.iloc[-1], b.loc[last] / b.loc[s0.index[-1]]
+        ann = (lambda x: x ** (1 / n)) if n > 1 else (lambda x: x)
+        out[k] = round(float(ann(g) * 100 - 100), 1)
+        out[k + "Rel"] = round(float(ann(g / gb) * 100 - 100), 1)
+    return out
+
+
+def _group(w, items, px):
     out = []
     dates = w.index[-HISTORY_WEEKS:]
     for t, name in items:
@@ -135,6 +159,7 @@ def _group(w, items):
             "quadrant4w": conf[-1 - 4] if len(conf) > 4 else None,
             "quadrant8w": conf[-1 - 8] if len(conf) > 8 else None,
             "rel4w": perf(4), "rel13w": perf(13),
+            "perf": _perf(px, t),
         })
     return out
 
@@ -158,8 +183,9 @@ def _compute(today=None):
         "dates": dates,
         "params": {"rsSmooth": RS_SMOOTH, "ratioWindow": RATIO_WINDOW, "momLag": MOM_LAG,
                    "tailWeeks": TAIL_WEEKS, "confirmWeeks": CONFIRM_WEEKS, "bench": BENCH},
-        "sectors": _group(w, SECTORS),
-        "factors": _group(w, FACTORS),
+        "sectors": _group(w, SECTORS, px),
+        "factors": _group(w, FACTORS, px),
+        "benchPerf": _perf(px, BENCH),
         "missing": missing,
         "note": NOTE,
     }
@@ -196,5 +222,6 @@ if __name__ == "__main__":
         for s in r[g]:
             print(f"  {s['ticker']:5} {s['x'][-1]:7.2f} {s['y'][-1]:7.2f} {s['quadrant']:9} conf={s['confirmed']:9} "
                   f"{s['weeksIn']:3}w  last change {s['lastChange']} from {s['from']}  4w:{s['quadrant4w']}  "
-                  f"rel4w {s['rel4w']:+.1f} rel13w {s['rel13w']:+.1f}")
+                  f"rel4w {s['rel4w']:+.1f} rel13w {s['rel13w']:+.1f}  {s['perf']}")
+    print("SPY", r["benchPerf"])
     print("json size", len(json.dumps(r)))

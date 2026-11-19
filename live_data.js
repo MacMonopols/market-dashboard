@@ -70080,72 +70080,89 @@ const LIVE_DATA = {
     "note": "Net purchases of corporate equities by US mutual funds and ETFs (Fed Financial Accounts Z.1, table F.224, via FRED), cumulated within each calendar year; the latest year is year to date. Not the same measure as BofA/EPFR fund flows: it is what the funds buy, not what investors put in, covers all mutual funds (incl. hybrid) and foreign as well as US equities, and is quarterly with about one quarter of lag. Mutual fund outflows and ETF inflows largely reflect the shift from active funds to ETFs; their sum is the headline. Money leaving mutual funds for collective investment trusts (401(k) plans) or direct holdings is NOT offset here, which likely explains negative years such as 2025 (BofA/EPFR show strong inflows). % view = cumulative flow over the market value of all corporate equities held in the US at the start of the year (Z.1)."
   },
   "mag7": {
-    "totalT": 21.4,
+    "totalT": 21.3,
     "worldPct": 19,
     "usPct": 30,
     "stocks": [
       {
+        "dilutedT": null,
         "name": "Apple",
         "ticker": "AAPL",
-        "trillions": 5.088,
-        "totalT": 5.114,
+        "trillions": 5.043,
+        "totalT": 5.068,
         "freeFloat": 99.5,
         "note": "live"
       },
       {
+        "dilutedT": null,
         "name": "Microsoft",
         "ticker": "MSFT",
-        "trillions": 3.74,
-        "totalT": 3.759,
+        "trillions": 3.739,
+        "totalT": 3.758,
         "freeFloat": 99.5,
         "note": "live"
       },
       {
+        "dilutedT": null,
         "name": "Nvidia",
         "ticker": "NVDA",
-        "trillions": 3.66,
-        "totalT": 3.754,
+        "trillions": 3.51,
+        "totalT": 3.6,
         "freeFloat": 97.5,
         "note": "live"
       },
       {
+        "dilutedT": null,
         "name": "Amazon",
         "ticker": "AMZN",
-        "trillions": 2.622,
-        "totalT": 2.789,
+        "trillions": 2.659,
+        "totalT": 2.829,
         "freeFloat": 94.0,
         "note": "live"
       },
       {
+        "dilutedT": null,
         "name": "Alphabet",
         "ticker": "GOOGL",
-        "trillions": 3.204,
-        "totalT": 3.445,
+        "trillions": 3.218,
+        "totalT": 3.46,
         "freeFloat": 93.0,
         "note": "live"
       },
       {
+        "dilutedT": null,
         "name": "Meta",
         "ticker": "META",
-        "trillions": 1.361,
-        "totalT": 1.582,
+        "trillions": 1.332,
+        "totalT": 1.549,
         "freeFloat": 86.0,
         "note": "live"
       },
       {
+        "dilutedT": null,
         "name": "Tesla",
         "ticker": "TSLA",
-        "trillions": 1.262,
-        "totalT": 1.502,
+        "trillions": 1.254,
+        "totalT": 1.493,
         "freeFloat": 84.0,
         "note": "live"
       },
       {
+        "dilutedT": null,
         "name": "SpaceX",
         "ticker": "SPCX",
-        "trillions": 0.51,
-        "totalT": 1.924,
-        "freeFloat": 26.5,
+        "trillions": 0.496,
+        "totalT": 1.866,
+        "freeFloat": 26.6,
+        "note": "live"
+      },
+      {
+        "dilutedT": 1.741,
+        "name": "Anthropic",
+        "ticker": "ANT",
+        "trillions": 0.093,
+        "totalT": 1.256,
+        "freeFloat": 7.4,
         "note": "live"
       }
     ]

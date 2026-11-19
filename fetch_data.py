@@ -213,15 +213,50 @@ SPCX_UNLOCK_SCHEDULE = [
     (datetime(2027, 9, 1,  tzinfo=timezone.utc), 100.0),   # full unlock
 ]
 
-def spcx_scheduled_float_pct(as_of=None):
+# Anthropic (ANT): Nasdaq IPO 2026-11-19, priced at $83 (above the $70-78
+# range), opened at $111.50. ~980M shares sold ($81.3bn base deal, plus a
+# 30-day greenshoe of ~$12bn) out of ~13.09B shares outstanding (Yahoo's
+# impliedSharesOutstanding; its plain sharesOutstanding of ~7.43B again
+# counts one share class only, like SPCX) → ≈ 7.5 % free float at IPO,
+# ≈ 8.6 % if the greenshoe is exercised (Motley Fool, 2026-11-19). The
+# "$2tn" valuation quoted in the press is FULLY DILUTED (~18B shares incl.
+# options / RSUs); this card uses basic shares like Yahoo's marketCap and the
+# other Mag7 rows, so ANT's total shows ~$1.3T, not $2T.
+# Total raised $107.3bn = $81.3bn IPO + a $26bn CONCURRENT PRIVATE PLACEMENT
+# (~313M non-voting Class N shares at $83, to Google 10, Nvidia 10, AMD 2.5,
+# Broadcom / Micron / Microsoft 1 each, TSMC 0.5 $bn at the midpoint). Those
+# are strategic holdings, so — like MSCI / S&P float rules — they are NOT
+# counted as free float (press says 7.4 % of shares outstanding are publicly
+# offered, which matches 980M / 13.09B). Reports conflict on whether the
+# placement shares are locked up at all.
+# Lock-ups (BigGo, 2026-11-19; tranche sizes not published): co-founders
+# and holders > 0.5 % locked 365 days (→ ~2027-11-19); other existing
+# holders incl. employees released in stages over 180 days (through ~May
+# 2027), up to 10 % of their holdings tradable from day one. The employee
+# stake is not disclosed, so the schedule below only holds the IPO point
+# and stays flat. EXTEND IT once the tranches are known, otherwise the
+# float will be held at ~7.5 % whenever yfinance's floatShares diverges
+# from it by more than 15 %.
+ANT_UNLOCK_SCHEDULE = [
+    (datetime(2026, 11, 19, tzinfo=timezone.utc), 7.5),   # IPO: ~980M of ~13.09B shares
+]
+
+# Tickers whose free float is anchored on an unlock schedule (see
+# fetch_live_float_cap()).
+FLOAT_UNLOCK_SCHEDULES = {
+    "SPCX": SPCX_UNLOCK_SCHEDULE,
+    "ANT":  ANT_UNLOCK_SCHEDULE,
+}
+
+def scheduled_float_pct(ticker, as_of=None):
     """
-    Free float % implied by SPCX_UNLOCK_SCHEDULE for `as_of` (default: now),
-    linearly interpolated between the schedule's milestone dates. Flat at
-    the first milestone's % before the schedule starts, flat at 100% once
-    it's past the last milestone.
+    Free float % implied by FLOAT_UNLOCK_SCHEDULES[ticker] for `as_of`
+    (default: now), linearly interpolated between the schedule's milestone
+    dates. Flat at the first milestone's % before the schedule starts, flat
+    at the last milestone's % once past it.
     """
     as_of = as_of or datetime.now(timezone.utc)
-    pts = SPCX_UNLOCK_SCHEDULE
+    pts = FLOAT_UNLOCK_SCHEDULES[ticker]
     if as_of <= pts[0][0]:
         return pts[0][1]
     if as_of >= pts[-1][0]:
@@ -231,6 +266,9 @@ def spcx_scheduled_float_pct(as_of=None):
             frac = (as_of - d0).total_seconds() / (d1 - d0).total_seconds()
             return p0 + frac * (p1 - p0)
     return pts[-1][1]
+
+def spcx_scheduled_float_pct(as_of=None):
+    return scheduled_float_pct("SPCX", as_of)
 
 # ── MAG7 Market Cap ──────────────────────────────────────────────────────────
 # Baseline market caps at Q1 2026 (31 March 2026), in USD trillions.
@@ -259,6 +297,14 @@ MAG7_BASELINE = [
     # total shares outstanding materially overstates the public float.
     # totalT/freeFloat here are only the fallback if the live fetch fails.
     {"name": "SpaceX",    "ticker": "SPCX",  "totalT": 2.419, "freeFloat": 0.043, "live_float": True},
+    # Anthropic (ANT): Nasdaq IPO 2026-11-19 — same live_float treatment as
+    # SpaceX (see ANT_UNLOCK_SCHEDULE). Fallback = IPO-day figures.
+    # diluted_shares: ~18.14B fully diluted (options / RSUs incl.; CNN,
+    # 2026-11-19), the base of the "$2tn" press valuation. Yahoo has no
+    # diluted count, so it is a constant; shown in the legend only, never
+    # used for the float cap or the total.
+    {"name": "Anthropic", "ticker": "ANT",   "totalT": 1.30,  "freeFloat": 0.075, "live_float": True,
+     "diluted_shares": 18.14e9},
 ]
 
 # ── Long-Term Market Summary config ─────────────────────────────────────────
@@ -722,7 +768,7 @@ def calc_us_share_history(japan_intl_dev_share=None):
 
 def calc_mag7(world_total_t):
     """
-    Compute free float market cap for each MAG7+SpaceX company.
+    Compute free float market cap for each MAG7 + SpaceX + Anthropic company.
     For established listed stocks: live total market cap via
     get_company_market_cap() — the same source calc_mag7_cap_weighted() uses
     on the YTD tab — × each company's free-float % (MSCI/Bloomberg estimate,
@@ -731,7 +777,7 @@ def calc_mag7(world_total_t):
     YTD tab's cap-weighted weights which use full market cap, so the two
     tabs' weights will be close but not bit-identical — that residual gap
     (≲1pt per company) is the intentional free-float discount, not a bug.
-    For live_float entries (SpaceX/SPCX, IPO too recent for a Q1-2026
+    For live_float entries (SpaceX/SPCX, Anthropic/ANT, IPOs too recent for a Q1-2026
     baseline and whose sharesOutstanding/floatShares both need correction):
     computed directly each run as live price × floatShares via
     fetch_live_float_cap().
@@ -772,7 +818,12 @@ def calc_mag7(world_total_t):
                 updated_ff = baseline_ff
                 note = "fallback"
 
+        diluted_t = None
+        if stock.get("diluted_shares") and stock.get("live_float") and note == "live":
+            diluted_t = round(live["price"] * stock["diluted_shares"] / 1e12, 3)
+
         stocks_out.append({
+            "dilutedT":  diluted_t,
             "name":      stock["name"],
             "ticker":    ticker or "—",
             "trillions": updated_ff,
@@ -1519,14 +1570,16 @@ def fetch_live_float_cap(ticker):
     cross-check price × sharesOutstanding against the reported marketCap and,
     on a large mismatch, use impliedSharesOutstanding instead — logging a
     warning rather than silently using a number we know is likely wrong. This
-    check is intentionally SPCX-only (via the `live_float` baseline flag),
+    check is intentionally limited to fresh IPOs (SPCX, ANT, via the
+    `live_float` baseline flag),
     not applied to the other Mag7 tickers, whose yfinance data has been
     stable for years.
 
     Same undercount bug also affects `floatShares` (added 2026-07-22): SPCX's
     reported floatShares is roughly half of what the lock-up unlock schedule
     implies should be free-floating by now (SPCX_UNLOCK_SCHEDULE, see its
-    definition) — so for SPCX we anchor on the schedule-derived share count
+    definition) — so for SPCX (and ANT, FLOAT_UNLOCK_SCHEDULES) we anchor on
+    the schedule-derived share count
     instead when yfinance's figure diverges from it by more than 15%. The
     schedule itself grows over time as lock-up tranches release, which is
     the correct behaviour going forward (unlike the old fixed IPO-size
@@ -1553,8 +1606,8 @@ def fetch_live_float_cap(ticker):
                       f"({implied_shares:,.0f}) instead.")
                 total_shares = implied_shares
 
-        if ticker == "SPCX":
-            scheduled_pct    = spcx_scheduled_float_pct()
+        if ticker in FLOAT_UNLOCK_SCHEDULES:
+            scheduled_pct    = scheduled_float_pct(ticker)
             scheduled_shares = total_shares * scheduled_pct / 100
             discrepancy = abs(float_shares - scheduled_shares) / scheduled_shares
             if discrepancy > 0.15:
@@ -1565,6 +1618,7 @@ def fetch_live_float_cap(ticker):
                 float_shares = scheduled_shares
 
         return {
+            "price":          price,
             "float_cap_t":    price * float_shares / 1e12,
             "total_cap_t":    price * total_shares / 1e12,
             "free_float_pct": float_shares / total_shares * 100,

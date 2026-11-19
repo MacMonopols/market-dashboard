@@ -894,6 +894,26 @@ The "Vol & Options" nav entry on every page links out to
 its own separate repo. It is embedded here only as an external link — no
 data, charts, or assets from that repo are pulled into this site.
 
+## Anthropic (ANT) added to the Mag7 free-float card — set up 2026-11-19
+
+Anthropic listed on Nasdaq on 2026-11-19 (IPO $83, opened $111.50, ~980M
+shares sold, $81.3bn). Added to `MAG7_BASELINE` with `live_float: True`,
+exactly like SpaceX: live price × float shares, total = price ×
+`impliedSharesOutstanding` (~13.09B; `sharesOutstanding` 7.43B counts one
+class only). Unlock schedules are now generic (`FLOAT_UNLOCK_SCHEDULES`,
+`scheduled_float_pct(ticker)`); `ANT_UNLOCK_SCHEDULE` holds only the IPO
+point (7.5 %): founders and > 0.5 % holders are locked 365 days, others
+(incl. employees) released in stages over 180 days with 10 % tradable on
+day one, but the tranche sizes are not public — EXTEND it once known. The
+$26bn concurrent private placement (~313M Class N shares to Google,
+Nvidia, AMD, Broadcom, Micron, Microsoft, TSMC; total raised $107.3bn) is
+NOT free float: strategic holders, as in MSCI / S&P rules. Total uses basic shares (~$1.29T),
+not the press's "$2tn" fully diluted figure (NZZ, Yahoo, Fool). The
+legend adds "~$x T fully diluted" = live price × `diluted_shares` (18.14B,
+CNN, constant — Yahoo has no diluted count; `dilutedT` in `LD.mag7.stocks`,
+legend only, never in the float cap or totals). At IPO day: float 7.4 %
+(yfinance floatShares 966M), float cap $0.10T, card total $21.4T.
+
 ## SPCX (SpaceX) free float — now modeled via unlock schedule, set up 2026-08-10
 
 `fetch_data.py`'s `SPCX_UNLOCK_SCHEDULE` anchors SpaceX's free float

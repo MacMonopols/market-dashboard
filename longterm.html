@@ -400,7 +400,7 @@
     <div class="mktcap-legend" id="mktcap-legend"></div>
   </div>
   <div class="mag7-block" id="mag7-block" style="display:none">
-    <div class="mktcap-title">Magnificent 7 + SpaceX — Free Float Market Cap</div>
+    <div class="mktcap-title">Magnificent 7 + SpaceX + Anthropic — Free Float Market Cap</div>
     <div class="mktcap-date" id="mag7-date"></div>
     <div class="mag7-body">
       <div class="donut-wrap">
@@ -693,6 +693,7 @@
     Meta:      "#0668e1",
     Tesla:     "#e82127",
     SpaceX:    "#005288",
+    Anthropic: "#d97757",
   };
 
   if (LD?.mag7) {
@@ -711,6 +712,7 @@
       trillions: s.trillions,
       freeFloat: s.freeFloat,
       totalT:    s.totalT,
+      dilutedT:  s.dilutedT,
     }));
 
     renderDonut('mag7-svg', 'mag7-legend', segs,
@@ -720,14 +722,16 @@
 
     // Legend: always show total market cap next to the free-float cap, so
     // it's clear the float figure is intentionally a haircut (freeFloat%)
-    // off a total that's live and current — not a stale number. SpaceX
+    // off a total that's live and current — not a stale number. SpaceX and
+    // Anthropic
     // (freeFloat < 20%) gets an extra red highlight since its float is such
     // a small sliver of its total that it's easy to misread.
     document.getElementById('mag7-legend').innerHTML = segs.map(s => {
       const color   = s.color;
       const pct     = (s.pct).toFixed(1);
       const lowFloat = s.freeFloat < 20;
-      const ffNote  = `<div class="mktcap-val"${lowFloat ? ' style="color:#c0392b;"' : ''}>${s.freeFloat}% free float · total $${s.totalT.toFixed(2)}T</div>`;
+      const ffNote  = `<div class="mktcap-val"${lowFloat ? ' style="color:#c0392b;"' : ''}>${s.freeFloat}% free float · total $${s.totalT.toFixed(2)}T</div>`
+        + (s.dilutedT ? `<div class="mktcap-val" title="Fully diluted (options and RSUs included) — the basis of the ~$2T press valuation; not used in the float cap">~$${s.dilutedT.toFixed(2)}T fully diluted</div>` : '');
       return `
         <div class="mktcap-item">
           <div class="mktcap-swatch" style="background:${color}"></div>
@@ -883,7 +887,7 @@
       function(i) { renderWorldDrilldown(i); }
     );
 
-    // ── Mag7+SpaceX hatch overlay inside US segment ──────────
+    // ── Mag7+SpaceX+Anthropic hatch overlay inside US segment ──────────
     if (LD.mag7) {
       const svg    = document.getElementById('mktcap-svg');
       const cx = 75, cy = 75, R = 70, ri = 44;
@@ -915,7 +919,7 @@
       pathEl.setAttribute('pointer-events', 'none');
       svg.appendChild(pathEl);
 
-      // Insert Mag7+SpaceX legend entry after US Market
+      // Insert Mag7+SpaceX+Anthropic legend entry after US Market
       const mag7Pct  = Math.round(mag7T / wmc.totalT * 100);
       const legend   = document.getElementById('mktcap-legend');
       const usItem   = legend.querySelector('.mktcap-item');
@@ -927,7 +931,7 @@
               transparent 2px, transparent 6px);"></div>
           <div class="mktcap-info">
             <div class="mktcap-pct" style="color:#003a5c">${mag7Pct}%</div>
-            <div class="mktcap-name">Mag 7 + SpaceX</div>
+            <div class="mktcap-name">Mag 7 + SpaceX + Anthropic</div>
             <div class="mktcap-val">$${mag7T.toFixed(1)}T</div>
           </div>
         </div>`);

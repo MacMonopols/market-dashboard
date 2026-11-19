@@ -913,6 +913,12 @@ legend adds "~$x T fully diluted" = live price × `diluted_shares` (18.14B,
 CNN, constant — Yahoo has no diluted count; `dilutedT` in `LD.mag7.stocks`,
 legend only, never in the float cap or totals). At IPO day: float 7.4 %
 (yfinance floatShares 966M), float cap $0.10T, card total $21.4T.
+- **ⓘ bubble** next to the name (`FLOAT_MILESTONES` in fetch_data.py →
+  `floatMilestones` per stock, `ffInfo()` in longterm.html): expected
+  free-float calendar (IPO, greenshoe ~147M by ~19.12.2026, 180-day staged
+  release to ~18.05.2027, 365-day lock-up ~19.11.2027, strategic holders not
+  float). Display only, not used in the calculation. Hover / tap; under
+  600 px it is pinned to the viewport (`position: fixed`, 16 px gutter).
 
 ## SPCX (SpaceX) free float — now modeled via unlock schedule, set up 2026-08-10
 

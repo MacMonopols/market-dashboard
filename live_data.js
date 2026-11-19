@@ -70086,82 +70086,116 @@ const LIVE_DATA = {
     "stocks": [
       {
         "dilutedT": null,
+        "floatMilestones": null,
         "name": "Apple",
         "ticker": "AAPL",
-        "trillions": 5.04,
-        "totalT": 5.065,
+        "trillions": 5.034,
+        "totalT": 5.059,
         "freeFloat": 99.5,
         "note": "live"
       },
       {
         "dilutedT": null,
+        "floatMilestones": null,
         "name": "Microsoft",
         "ticker": "MSFT",
-        "trillions": 3.734,
-        "totalT": 3.753,
+        "trillions": 3.723,
+        "totalT": 3.742,
         "freeFloat": 99.5,
         "note": "live"
       },
       {
         "dilutedT": null,
+        "floatMilestones": null,
         "name": "Nvidia",
         "ticker": "NVDA",
-        "trillions": 3.496,
-        "totalT": 3.586,
+        "trillions": 3.493,
+        "totalT": 3.583,
         "freeFloat": 97.5,
         "note": "live"
       },
       {
         "dilutedT": null,
+        "floatMilestones": null,
         "name": "Amazon",
         "ticker": "AMZN",
-        "trillions": 2.655,
-        "totalT": 2.824,
+        "trillions": 2.648,
+        "totalT": 2.817,
         "freeFloat": 94.0,
         "note": "live"
       },
       {
         "dilutedT": null,
+        "floatMilestones": null,
         "name": "Alphabet",
         "ticker": "GOOGL",
-        "trillions": 3.209,
-        "totalT": 3.451,
+        "trillions": 3.203,
+        "totalT": 3.444,
         "freeFloat": 93.0,
         "note": "live"
       },
       {
         "dilutedT": null,
+        "floatMilestones": null,
         "name": "Meta",
         "ticker": "META",
-        "trillions": 1.33,
-        "totalT": 1.546,
+        "trillions": 1.324,
+        "totalT": 1.539,
         "freeFloat": 86.0,
         "note": "live"
       },
       {
         "dilutedT": null,
+        "floatMilestones": null,
         "name": "Tesla",
         "ticker": "TSLA",
-        "trillions": 1.252,
-        "totalT": 1.49,
+        "trillions": 1.25,
+        "totalT": 1.488,
         "freeFloat": 84.0,
         "note": "live"
       },
       {
         "dilutedT": null,
+        "floatMilestones": null,
         "name": "SpaceX",
         "ticker": "SPCX",
-        "trillions": 0.494,
-        "totalT": 1.859,
+        "trillions": 0.495,
+        "totalT": 1.86,
         "freeFloat": 26.6,
         "note": "live"
       },
       {
-        "dilutedT": 1.733,
+        "dilutedT": 1.719,
+        "floatMilestones": {
+          "title": "Expected free-float increase (tranche sizes not published)",
+          "items": [
+            {
+              "when": "19.11.2026",
+              "text": "IPO: 980M shares = 7.4 % of shares outstanding (5.4 % diluted). Employees and small holders may sell up to 10 % of their shares from day one."
+            },
+            {
+              "when": "by ~19.12.2026",
+              "text": "Greenshoe: up to ~147M more shares (~$12bn) → ~8.5 %."
+            },
+            {
+              "when": "to ~18.05.2027",
+              "text": "180-day lock-up: other existing holders incl. employees released in stages."
+            },
+            {
+              "when": "~19.11.2027",
+              "text": "365-day lock-up ends: 7 co-founders (~240M shares each ≈ 12.8 %) and holders above 0.5 %."
+            },
+            {
+              "when": "not float",
+              "text": "Strategic holders: Amazon ~14.7 %, Alphabet ~13.7 %, and the $26bn private placement (Nvidia, AMD, Broadcom, Micron, Microsoft, TSMC)."
+            }
+          ],
+          "note": "The card keeps today's float (Yahoo floatShares) until the tranche sizes are known."
+        },
         "name": "Anthropic",
         "ticker": "ANT",
-        "trillions": 0.092,
-        "totalT": 1.25,
+        "trillions": 0.091,
+        "totalT": 1.24,
         "freeFloat": 7.4,
         "note": "live"
       }

@@ -241,6 +241,29 @@ ANT_UNLOCK_SCHEDULE = [
     (datetime(2026, 11, 19, tzinfo=timezone.utc), 7.5),   # IPO: ~980M of ~13.09B shares
 ]
 
+# Expected free-float milestones shown in the Mag7 legend tooltip (ⓘ next
+# to the name), as {when, text}. Display only — NOT used in the calculation,
+# which follows ANT_UNLOCK_SCHEDULE / yfinance floatShares. Sources: press
+# coverage on IPO day (BigGo, VKTR, TrendingTopics, Yahoo, NZZ); tranche
+# sizes for the 180-day release are not published. Update together with
+# ANT_UNLOCK_SCHEDULE when the prospectus terms are known.
+FLOAT_MILESTONES = {
+    "ANT": {
+        "title": "Expected free-float increase (tranche sizes not published)",
+        "items": [
+            {"when": "19.11.2026", "text": "IPO: 980M shares = 7.4 % of shares outstanding (5.4 % diluted). "
+                                           "Employees and small holders may sell up to 10 % of their shares from day one."},
+            {"when": "by ~19.12.2026", "text": "Greenshoe: up to ~147M more shares (~$12bn) → ~8.5 %."},
+            {"when": "to ~18.05.2027", "text": "180-day lock-up: other existing holders incl. employees released in stages."},
+            {"when": "~19.11.2027", "text": "365-day lock-up ends: 7 co-founders (~240M shares each ≈ 12.8 %) "
+                                            "and holders above 0.5 %."},
+            {"when": "not float", "text": "Strategic holders: Amazon ~14.7 %, Alphabet ~13.7 %, and the $26bn "
+                                          "private placement (Nvidia, AMD, Broadcom, Micron, Microsoft, TSMC)."},
+        ],
+        "note": "The card keeps today's float (Yahoo floatShares) until the tranche sizes are known.",
+    },
+}
+
 # Tickers whose free float is anchored on an unlock schedule (see
 # fetch_live_float_cap()).
 FLOAT_UNLOCK_SCHEDULES = {
@@ -824,6 +847,7 @@ def calc_mag7(world_total_t):
 
         stocks_out.append({
             "dilutedT":  diluted_t,
+            "floatMilestones": FLOAT_MILESTONES.get(ticker),
             "name":      stock["name"],
             "ticker":    ticker or "—",
             "trillions": updated_ff,

@@ -262,6 +262,21 @@ FLOAT_MILESTONES = {
         ],
         "note": "The card keeps today's float (Yahoo floatShares) until the tranche sizes are known.",
     },
+    # Summary of SPCX_UNLOCK_SCHEDULE (keep both in sync).
+    "SPCX": {
+        "title": "Free-float unlock schedule (approximate)",
+        "items": [
+            {"when": "11.06.2026", "text": "IPO: 4.9 % of shares outstanding (≈4.2 % before the greenshoe)."},
+            {"when": "08.08–24.10.2026", "text": "Lock-up expiry, early tranches released in stages → ~25 %."},
+            {"when": "08.12.2026", "text": "Next tranche → ~27.6 %."},
+            {"when": "~01.01.2027", "text": "Accelerated and normal tranches converge → ~40 %."},
+            {"when": "02–06.2027", "text": "Monthly releases → ~51 %."},
+            {"when": "~12.06.2027", "text": "Day 366: Musk's 46.1 % stake becomes sellable → ~97 %."},
+            {"when": "~09.2027", "text": "Full unlock → 100 %."},
+        ],
+        "note": "Reconstructed from a third-party infographic based on the 17.06.2026 prospectus; "
+                "eligible to sell ≠ actually sold. The card interpolates this schedule.",
+    },
 }
 
 # Tickers whose free float is anchored on an unlock schedule (see

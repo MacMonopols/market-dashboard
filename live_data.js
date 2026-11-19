@@ -70089,8 +70089,8 @@ const LIVE_DATA = {
         "floatMilestones": null,
         "name": "Apple",
         "ticker": "AAPL",
-        "trillions": 5.034,
-        "totalT": 5.059,
+        "trillions": 5.046,
+        "totalT": 5.071,
         "freeFloat": 99.5,
         "note": "live"
       },
@@ -70099,8 +70099,8 @@ const LIVE_DATA = {
         "floatMilestones": null,
         "name": "Microsoft",
         "ticker": "MSFT",
-        "trillions": 3.723,
-        "totalT": 3.742,
+        "trillions": 3.716,
+        "totalT": 3.735,
         "freeFloat": 99.5,
         "note": "live"
       },
@@ -70109,8 +70109,8 @@ const LIVE_DATA = {
         "floatMilestones": null,
         "name": "Nvidia",
         "ticker": "NVDA",
-        "trillions": 3.493,
-        "totalT": 3.583,
+        "trillions": 3.509,
+        "totalT": 3.599,
         "freeFloat": 97.5,
         "note": "live"
       },
@@ -70129,8 +70129,8 @@ const LIVE_DATA = {
         "floatMilestones": null,
         "name": "Alphabet",
         "ticker": "GOOGL",
-        "trillions": 3.203,
-        "totalT": 3.444,
+        "trillions": 3.205,
+        "totalT": 3.446,
         "freeFloat": 93.0,
         "note": "live"
       },
@@ -70139,8 +70139,8 @@ const LIVE_DATA = {
         "floatMilestones": null,
         "name": "Meta",
         "ticker": "META",
-        "trillions": 1.324,
-        "totalT": 1.539,
+        "trillions": 1.327,
+        "totalT": 1.543,
         "freeFloat": 86.0,
         "note": "live"
       },
@@ -70149,23 +70149,56 @@ const LIVE_DATA = {
         "floatMilestones": null,
         "name": "Tesla",
         "ticker": "TSLA",
-        "trillions": 1.25,
-        "totalT": 1.488,
+        "trillions": 1.253,
+        "totalT": 1.492,
         "freeFloat": 84.0,
         "note": "live"
       },
       {
         "dilutedT": null,
-        "floatMilestones": null,
+        "floatMilestones": {
+          "title": "Free-float unlock schedule (approximate)",
+          "items": [
+            {
+              "when": "11.06.2026",
+              "text": "IPO: 4.9 % of shares outstanding (≈4.2 % before the greenshoe)."
+            },
+            {
+              "when": "08.08–24.10.2026",
+              "text": "Lock-up expiry, early tranches released in stages → ~25 %."
+            },
+            {
+              "when": "08.12.2026",
+              "text": "Next tranche → ~27.6 %."
+            },
+            {
+              "when": "~01.01.2027",
+              "text": "Accelerated and normal tranches converge → ~40 %."
+            },
+            {
+              "when": "02–06.2027",
+              "text": "Monthly releases → ~51 %."
+            },
+            {
+              "when": "~12.06.2027",
+              "text": "Day 366: Musk's 46.1 % stake becomes sellable → ~97 %."
+            },
+            {
+              "when": "~09.2027",
+              "text": "Full unlock → 100 %."
+            }
+          ],
+          "note": "Reconstructed from a third-party infographic based on the 17.06.2026 prospectus; eligible to sell ≠ actually sold. The card interpolates this schedule."
+        },
         "name": "SpaceX",
         "ticker": "SPCX",
-        "trillions": 0.495,
+        "trillions": 0.494,
         "totalT": 1.86,
         "freeFloat": 26.6,
         "note": "live"
       },
       {
-        "dilutedT": 1.719,
+        "dilutedT": 1.72,
         "floatMilestones": {
           "title": "Expected free-float increase (tranche sizes not published)",
           "items": [
@@ -70194,8 +70227,8 @@ const LIVE_DATA = {
         },
         "name": "Anthropic",
         "ticker": "ANT",
-        "trillions": 0.091,
-        "totalT": 1.24,
+        "trillions": 0.092,
+        "totalT": 1.241,
         "freeFloat": 7.4,
         "note": "live"
       }

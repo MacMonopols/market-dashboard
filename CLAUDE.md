@@ -919,6 +919,8 @@ legend only, never in the float cap or totals). At IPO day: float 7.4 %
   release to ~18.05.2027, 365-day lock-up ~19.11.2027, strategic holders not
   float). Display only, not used in the calculation. Hover / tap; under
   600 px it is pinned to the viewport (`position: fixed`, 16 px gutter).
+  SpaceX has one too (`FLOAT_MILESTONES["SPCX"]`, added 2026-11-19), a
+  hand-written summary of `SPCX_UNLOCK_SCHEDULE` — keep the two in sync.
 
 ## SPCX (SpaceX) free float — now modeled via unlock schedule, set up 2026-08-10
 

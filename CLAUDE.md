@@ -710,6 +710,16 @@ correctly treated as stale and triggers a live re-fetch. Delete
 right after a hyperscaler earnings release, if you don't want to wait up to
 7 days for the new filing to show up).
 
+## World factor cards moved to Market Signal — 2026-11-19
+
+The three "World Value / Quality / Small Cap vs World Cap-Weighted" cards
+(sections below) are now the LAST cards on `market-signal.html`, no longer on
+`longterm.html`. HTML and `renderFactorVsCapWeighted()` moved verbatim; the
+render code sits in its own `<script>` after the page's main IIFE, so an early
+return there cannot skip it. Same `LD.worldValue` / `worldQuality` /
+`worldSmallCap` keys; sections below that say "Long Term Summary" for these
+cards now mean Market Signal.
+
 ## World Small Cap vs World Cap-Weighted — 3rd Long Term Summary factor module, set up 2026-09-17
 
 `longterm.html` now has a third factor-vs-cap-weighted card, "World Small

@@ -345,6 +345,15 @@
     .rrg-scroll input { flex: 1; max-width: 520px; }
     .neg { color: var(--red); } .pos { color: var(--green); }
     .disclaimer { max-width: 960px; margin: 0 auto 16px; font-size: 11.5px; color: #8a4b0f; background: #fdf3e7; border: 1px solid #f3d9b8; border-radius: 8px; padding: 8px 14px; }
+    .ai-circ-scroll { overflow-x: auto; }
+    .ai-circ-scroll svg { min-width: 640px; }
+    #ai-circ-svg .ac-node, #ai-circ-svg .ac-edge { cursor: pointer; }
+    #ai-circ-svg .dim { opacity: .15; }
+    .ai-circ-info { font-size: 11.5px; line-height: 1.5; color: var(--text); background: #f6f9fb; border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; margin-top: 8px; min-height: 40px; }
+    .ai-circ-info b { color: var(--hinder-blue); }
+    #ai-circ-loops td, #ai-circ-watch td { white-space: normal; text-align: left; vertical-align: top; }
+    #ai-circ-loops th, #ai-circ-watch th { text-align: left; }
+    #ai-circ-watch td.num { text-align: right; white-space: nowrap; }
     @media (max-width: 760px) {
       body { padding: 20px 16px 40px; }
       .sig-grid { grid-template-columns: repeat(2, 1fr); }
@@ -483,6 +492,24 @@
     <svg id="ms-dc-count-svg" width="900" height="110" viewBox="0 0 900 110"></svg>
     <div class="spy-history-legend" id="ms-dc-legend"></div>
   </div>
+</div>
+
+<!-- ── AI circular economy (hand-entered deals + live hyperscaler funding) ── -->
+<div class="mktcap-card" id="ai-circ-card" style="display:none">
+  <div class="mktcap-title">AI Circular Economy — Who Finances Whom</div>
+  <div class="mktcap-date" id="ai-circ-date"></div>
+  <div class="sig-grid" id="ai-circ-tiles" style="margin-top:10px"></div>
+  <div class="sig-note" id="ai-circ-summary" style="margin-top:10px;font-size:11.5px;color:var(--text)"></div>
+  <div class="spy-history-wrap ai-circ-scroll">
+    <svg id="ai-circ-svg" width="900" height="560" viewBox="0 0 900 560"></svg>
+    <div class="spy-history-legend" id="ai-circ-legend" style="font-size:11px"></div>
+    <div class="ai-circ-info" id="ai-circ-info"></div>
+  </div>
+  <div class="mktcap-name" style="margin-top:14px;font-weight:700;color:var(--hinder-blue)">Closed loops — the same dollar counted twice</div>
+  <div class="tbl-wrap"><table class="sig-table" id="ai-circ-loops"></table></div>
+  <div class="mktcap-name" style="margin-top:14px;font-weight:700;color:var(--hinder-blue)">What to watch — would the loop hold without vendor money?</div>
+  <div class="tbl-wrap"><table class="sig-table" id="ai-circ-watch"></table></div>
+  <div class="sig-note" id="ai-circ-note"></div>
 </div>
 
 <!-- ── World Value vs World Cap-Weighted (rendered by JS from live_data.js) ── -->
@@ -1084,6 +1111,215 @@
   if (LD?.worldValue)    renderFactorVsCapWeighted(LD.worldValue,    'world-value',    'value');
   if (LD?.worldQuality)  renderFactorVsCapWeighted(LD.worldQuality,  'world-quality',  'quality');
   if (LD?.worldSmallCap) renderFactorVsCapWeighted(LD.worldSmallCap, 'world-smallcap', 'small cap');
+})();
+</script>
+<script>
+// AI circular economy card (added 2026-11-20). Deals and the Nvidia /
+// CoreWeave watch figures are HAND-ENTERED in AI_CIRCULAR below (sources in
+// each item); the hyperscaler tiles and rows are live from
+// LD.hyperscalerCapex / LD.hyperscalerFunding, node caps from LD.mag7.
+(function () {
+  const LD = (typeof LIVE_DATA !== "undefined") ? LIVE_DATA : null;
+
+  const AI_CIRCULAR = {
+    asOf: '2026-11-19',
+    nodes: [
+      { id: 'nvda', label: 'Nvidia',    ticker: 'NVDA', x: 450, y: 72,  note: 'Supplier and, under Jensen Huang, financier and guarantor of its own customers. Supply commitments $390bn (Oct 2026). Huang resigned 12.11.2026; CFO Colette Kress is interim CEO.' },
+      { id: 'msft', label: 'Microsoft', ticker: 'MSFT', x: 150, y: 290, note: 'Investor in OpenAI and Anthropic, and their cloud. The only one of the five big US clouds still FCF-positive in Q3 2026 (Impactfull) and still repaying debt.' },
+      { id: 'orcl', label: 'Oracle',    ticker: null,   x: 740, y: 110, note: '$300bn cloud contract with OpenAI, financed with debt (BBB). Force majeure notice on the Project Jupiter campus (New Mexico) on 24.9.2026: power not yet permitted.' },
+      { id: 'oai',  label: 'OpenAI',    ticker: null,   x: 450, y: 300, r: 46, sub: 'private', note: 'The hub of the loop: most arrows start or end here. Its commitments (cloud, chips, leases) are far larger than its revenue, so every supplier is exposed to its ability to keep raising money.' },
+      { id: 'cwv',  label: 'CoreWeave', ticker: null,   x: 190, y: 90,  note: 'Neocloud financed with debt. Q3 2026: operating income $207m vs net interest $846m; ~$11bn of principal due in 2027. 84 % of Core Scientific\'s revenue (its landlord) comes from CoreWeave.' },
+      { id: 'amd',  label: 'AMD',       ticker: null,   x: 790, y: 320, note: 'Pays its customer partly in its own shares: warrants on up to 160M AMD shares to OpenAI, vesting with the 6 GW of GPUs deployed.' },
+      { id: 'sb',   label: 'SoftBank',  ticker: null,   x: 290, y: 500, sub: 'Ohio campus', note: 'Lead OpenAI investor (Stargate) and builder of the 9.2 GW Ohio campus for OpenAI via SB Energy. Wrote off $3.7bn of surplus turbine reservations on 10.11.2026.' },
+      { id: 'avgo', label: 'Broadcom',  ticker: null,   x: 620, y: 500, note: 'Custom AI accelerators for OpenAI (10 GW). Its October 2026 filing shows a resale backstop on racks: the less a repossessed rack sells for, the more Broadcom owes.' },
+      { id: 'ant',  label: 'Anthropic', ticker: 'ANT',  x: 150, y: 490, note: 'IPO on 19.11.2026, with a concurrent $26bn private placement to Google, Nvidia, AMD, Broadcom, Micron, Microsoft and TSMC — suppliers again financing a customer.' },
+    ],
+    // type: invest (equity / funding), buy (purchase or cloud contract =
+    // revenue for the target), guar (guarantee / backstop), warr (supplier
+    // pays its customer in its own shares). Arrows follow the money.
+    edges: [
+      { f: 'nvda', t: 'oai',  type: 'invest', label: 'up to $100bn', d: 'Nvidia agreed (Sept 2025) to invest up to $100bn in OpenAI as GW are deployed; ~$30bn put in during 2026 (Impactfull). OpenAI spends it on Nvidia systems, mostly through the clouds below.' },
+      { f: 'oai',  t: 'orcl', type: 'buy',    label: '$300bn cloud', d: 'OpenAI signed a ~$300bn, ~5-year cloud contract with Oracle (Sept 2025).' },
+      { f: 'orcl', t: 'nvda', type: 'buy',    label: 'chips, tens of $bn', d: 'Oracle buys tens of billions of Nvidia chips to serve that contract — debt-financed.' },
+      { f: 'oai',  t: 'amd',  type: 'buy',    label: '6 GW of GPUs', d: 'OpenAI to deploy 6 GW of AMD Instinct GPUs from H2 2026 (Oct 2025).' },
+      { f: 'amd',  t: 'oai',  type: 'warr',   label: '≤160M AMD shares', d: 'AMD gave OpenAI warrants on up to 160M AMD shares (~10 %), vesting with deployment and AMD share-price targets: part of the purchase is paid with AMD\'s own stock.' },
+      { f: 'msft', t: 'oai',  type: 'invest', label: '~27 % stake', lt: 0.3, d: 'Microsoft\'s historical investment, ~27 % of OpenAI after the October 2025 recapitalisation.' },
+      { f: 'oai',  t: 'msft', type: 'buy',    label: '$250bn Azure', lt: 0.7, d: 'OpenAI committed to an incremental $250bn of Azure services (October 2025 recapitalisation).' },
+      { f: 'msft', t: 'nvda', type: 'buy',    label: 'GPUs', lt: 0.3, d: 'Microsoft is one of Nvidia\'s largest customers — paid from its own cash flow.' },
+      { f: 'oai',  t: 'cwv',  type: 'buy',    label: '~$22bn contracts', d: 'OpenAI contracts with CoreWeave totalling ~$22bn (2025).' },
+      { f: 'nvda', t: 'cwv',  type: 'guar',   label: 'buys ≤$6.3bn unused', d: 'Nvidia (also a CoreWeave shareholder) agreed to buy up to $6.3bn of CoreWeave capacity that CoreWeave cannot sell to others.' },
+      { f: 'cwv',  t: 'nvda', type: 'buy',    label: 'GPUs (debt)', d: 'CoreWeave buys Nvidia GPUs with debt secured on those GPUs.' },
+      { f: 'sb',   t: 'oai',  type: 'invest', label: 'lead investor', d: 'SoftBank is OpenAI\'s lead investor and Stargate partner.' },
+      { f: 'oai',  t: 'sb',   type: 'buy',    label: '20-year lease', d: 'OpenAI leases the 9.2 GW Ohio campus built by SB Energy (majority SoftBank) for 20 years.' },
+      { f: 'nvda', t: 'sb',   type: 'guar',   label: 'guarantee ≤$105bn', bow: 70, lt: 0.75, anchor: 'end', d: 'August 2026: Nvidia guarantees up to $105bn on the Ohio campus — if OpenAI defaults on its 20-year lease, Nvidia covers the shortfall in what the buildings are worth (Impactfull).' },
+      { f: 'oai',  t: 'avgo', type: 'buy',    label: '10 GW custom chips', d: 'OpenAI and Broadcom: 10 GW of custom accelerators (Oct 2025).' },
+      { f: 'msft', t: 'ant',  type: 'invest', label: '$26bn placement', anchor: 'end', d: 'Anthropic\'s $26bn concurrent private placement (~313M Class N shares) went to Google, Nvidia, AMD, Broadcom, Micron, Microsoft and TSMC — strategic holders, not free float.' },
+      { f: 'ant',  t: 'msft', type: 'buy',    label: '$30bn Azure', anchor: 'start', d: 'Anthropic committed to $30bn of Azure compute (Nov 2025, alongside Microsoft / Nvidia investment).' },
+    ],
+    loops: [
+      { path: 'Nvidia → OpenAI → Oracle → Nvidia', how: 'Nvidia invests in OpenAI; OpenAI pays Oracle for cloud; Oracle buys Nvidia chips with debt.', risk: 'Oracle\'s debt and OpenAI\'s ability to pay $300bn' },
+      { path: 'Nvidia → CoreWeave → Nvidia', how: 'Nvidia holds CoreWeave shares and backstops its unused capacity; CoreWeave buys Nvidia GPUs.', risk: 'CoreWeave earns ¼ of its interest bill' },
+      { path: 'AMD → OpenAI → AMD', how: 'AMD hands OpenAI warrants on its own shares; OpenAI buys AMD GPUs.', risk: 'Revenue partly paid with AMD stock' },
+      { path: 'Microsoft → OpenAI → Microsoft', how: 'Microsoft owns ~27 % of OpenAI; OpenAI commits $250bn to Azure.', risk: 'Smallest: Microsoft pays from own cash' },
+      { path: 'Nvidia → SoftBank (Ohio) ← OpenAI', how: 'Nvidia guarantees up to $105bn on the campus OpenAI leases — Nvidia carries OpenAI\'s lease risk.', risk: 'Off-balance-sheet, triggered by an OpenAI default' },
+      { path: 'Suppliers → Anthropic → Microsoft / Nvidia', how: '$26bn placement from 7 suppliers; Anthropic buys Azure compute and chips.', risk: 'Even the "new money" is partly circular' },
+    ],
+    watch: [
+      { k: 'Nvidia days sales outstanding', now: '64 days', before: '60 (Q2)', ease: 'falls back', src: 'Nvidia Q3 FY2027, 17.11.2026' },
+      { k: 'Nvidia inventory', now: '$39.7bn', before: '$31.6bn (Q2)', ease: 'stops rising', src: 'idem' },
+      { k: 'Nvidia supply commitments', now: '$390bn', before: '$119bn (Apr) · $279bn (Jul)', ease: 'stops rising', src: 'idem' },
+      { k: 'CoreWeave operating income / net interest', now: '0.24× ($207m / $846m)', before: '—', ease: 'above 1×', src: 'CoreWeave Q3 2026' },
+      { k: 'CoreWeave principal due 2027', now: '~$11bn', before: '—', ease: 'refinanced without new guarantees', src: 'idem' },
+    ],
+    sources: 'Bloomberg News graphic of AI deals (Oct 2025); Impactfull Weekly #50 "Has the AI trade left anywhere to hide?" (K. Bortoluzzi, 19.11.2026); company announcements 2025.',
+  };
+
+  const card = document.getElementById('ai-circ-card');
+  if (!card) return;
+  card.style.display = '';
+
+  const fmtBn = v => (v == null ? '—' : (Math.abs(v) >= 1e12 ? '$' + (v / 1e12).toFixed(2) + 'tn' : '$' + Math.round(v / 1e9) + 'bn'));
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  // ── live hyperscaler figures ─────────────────────────────────────────
+  const FIVE = ['Microsoft', 'Alphabet', 'Amazon', 'Meta', 'Oracle'];
+  const comps = (LD?.hyperscalerCapex?.companies || []).filter(c => FIVE.includes(c.name));
+  function qAt(c, back) { const q = c.quarters || []; return q[q.length - 1 - back] || null; }
+  const capexRows = comps.map(c => {
+    const now = qAt(c, 0), yr = qAt(c, 4);
+    return { name: c.name, period: now?.periodEnd, now: now?.capexToOcfTTM, yr: yr?.capexToOcfTTM,
+             fcf: now && now.ocfTTM != null && now.capexTTM != null ? now.ocfTTM - now.capexTTM : null,
+             fcfYr: yr && yr.ocfTTM != null && yr.capexTTM != null ? yr.ocfTTM - yr.capexTTM : null };
+  }).filter(r => r.now != null);
+  const over100 = capexRows.filter(r => r.now > 100);
+  const fcfSum = capexRows.every(r => r.fcf != null) ? capexRows.reduce((s, r) => s + r.fcf, 0) : null;
+  const fcfSumYr = capexRows.every(r => r.fcfYr != null) ? capexRows.reduce((s, r) => s + r.fcfYr, 0) : null;
+
+  const fq = LD?.hyperscalerFunding?.quarters || [];
+  const issNow = fq[fq.length - 1], issYr = fq[fq.length - 5];
+  const bbb = (LD?.hyperscalerFunding?.spreads || []).find(s => s.rating === 'BBB');
+  const bbbH = bbb?.history || [];
+  const bbbNow = bbbH[bbbH.length - 1];
+  const bbb6m = bbbH.length > 26 ? bbbH[bbbH.length - 27] : null;
+  const bbbMin6m = bbbH.length ? Math.min(...bbbH.slice(-27).map(p => p.bp)) : null;
+
+  const capDate = capexRows[0]?.period || '—';
+  document.getElementById('ai-circ-date').textContent =
+    `Deals hand-entered as of ${AI_CIRCULAR.asOf} · hyperscaler figures live (TTM to ${capDate}; spread ${bbbNow?.date || '—'}) · Sources: Bloomberg, Impactfull Weekly #50, SEC EDGAR, Fed, ICE BofA via FRED`;
+
+  // ── tiles ────────────────────────────────────────────────────────────
+  const tiles = [];
+  if (capexRows.length) tiles.push({ name: 'Capex / operating cash flow', cls: over100.length ? 'on' : 'off',
+    state: `${over100.length} of ${capexRows.length} > 100 %`,
+    detail: capexRows.slice().sort((a, b) => b.now - a.now).map(r => `${r.name} ${Math.round(r.now)} %`).join(' · ') });
+  if (fcfSum != null) tiles.push({ name: 'Free cash flow, 5 clouds (TTM)', cls: fcfSum < 0 ? 'on' : (fcfSumYr != null && fcfSum < fcfSumYr ? 'pending' : 'off'),
+    state: fmtBn(fcfSum), detail: `vs ${fmtBn(fcfSumYr)} a year earlier · OCF − capex, ${capDate}` });
+  if (issNow) tiles.push({ name: 'Net debt issuance, 5 clouds', cls: issYr && issNow.hyperscalerNetIssuanceTTM > issYr.hyperscalerNetIssuanceTTM ? 'pending' : 'off',
+    state: fmtBn(issNow.hyperscalerNetIssuanceTTM),
+    detail: `TTM to ${issNow.quarterEnd} · ${issYr ? 'vs ' + fmtBn(issYr.hyperscalerNetIssuanceTTM) + ' a year earlier' : ''}${issNow.pctOfTreasuryNetBorrowing != null ? ' · ' + issNow.pctOfTreasuryNetBorrowing + ' % of Treasury net borrowing' : ''}` });
+  if (bbbNow) { const up = bbbNow.bp - bbbMin6m; tiles.push({ name: 'BBB spread (Oracle proxy)', cls: up >= 20 ? 'on' : (up >= 10 ? 'pending' : 'off'),
+    state: `${bbbNow.bp} bp`, detail: `+${up} bp vs 6-month low${bbb6m ? ' · ' + bbb6m.bp + ' bp six months ago' : ''}` }); }
+  document.getElementById('ai-circ-tiles').innerHTML = tiles.map(t =>
+    `<div class="sig-tile ${t.cls}" style="cursor:default"><div class="sig-name">${esc(t.name)}</div><div class="sig-state ${t.cls}">${esc(t.state)}</div><div class="sig-detail">${esc(t.detail)}</div></div>`).join('');
+
+  const parts = [];
+  parts.push('Suppliers finance their own customers: Nvidia invests in OpenAI and backstops CoreWeave and the Ohio campus, AMD pays OpenAI in its own shares, and OpenAI\'s commitments flow back to them as revenue. The revenue is real, but how good it is depends on a few buyers — above all OpenAI — and on the neoclouds\' debt.');
+  if (over100.length) parts.push(`${over100.map(r => r.name).join(' and ')} already spend more on capex than their operating cash flow`
+    + (issNow ? `; the five issued ${fmtBn(issNow.hyperscalerNetIssuanceTTM)} of net debt over the last 12 months` : '') + '.');
+  document.getElementById('ai-circ-summary').textContent = parts.join(' ');
+
+  // ── network diagram ─────────────────────────────────────────────────
+  const COL = { invest: '#005f87', buy: '#e67e22', guar: '#c0392b', warr: '#5a3e9a' };
+  const TYPE_LABEL = { invest: 'Investment / funding', buy: 'Purchase or cloud contract (revenue for the arrow\'s target)', guar: 'Guarantee / backstop', warr: 'Paid in the supplier\'s own shares' };
+  const capOf = t => (LD?.mag7?.stocks || []).find(s => s.ticker === t)?.totalT;
+  const N = Object.fromEntries(AI_CIRCULAR.nodes.map(n => [n.id, Object.assign({ r: 36 }, n)]));
+  const svg = document.getElementById('ai-circ-svg');
+  let h = '<defs>' + Object.entries(COL).map(([k, c]) =>
+    `<marker id="ac-arr-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${c}"/></marker>`).join('') + '</defs>';
+  AI_CIRCULAR.edges.forEach((e, i) => {
+    const a = N[e.f], b = N[e.t];
+    const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy);
+    const nx = -dy / L, ny = dx / L, bow = e.bow || 26;
+    const cx = (a.x + b.x) / 2 + nx * bow, cy = (a.y + b.y) / 2 + ny * bow;
+    const sx0 = cx - a.x, sy0 = cy - a.y, s0 = Math.hypot(sx0, sy0);
+    const ex0 = cx - b.x, ey0 = cy - b.y, e0 = Math.hypot(ex0, ey0);
+    const x1 = a.x + sx0 / s0 * (a.r + 2), y1 = a.y + sy0 / s0 * (a.r + 2);
+    const x2 = b.x + ex0 / e0 * (b.r + 5), y2 = b.y + ey0 / e0 * (b.r + 5);
+    const t = e.lt || 0.5, u = 1 - t;
+    const mx = u * u * x1 + 2 * u * t * cx + t * t * x2 + (e.anchor === 'end' ? -5 : e.anchor === 'start' ? 5 : 0), my = u * u * y1 + 2 * u * t * cy + t * t * y2;
+    h += `<g class="ac-edge" data-i="${i}" data-f="${e.f}" data-t="${e.t}">`
+      + `<path d="M${x1.toFixed(1)},${y1.toFixed(1)} Q${cx.toFixed(1)},${cy.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}" fill="none" stroke="transparent" stroke-width="14"/>`
+      + `<path d="M${x1.toFixed(1)},${y1.toFixed(1)} Q${cx.toFixed(1)},${cy.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}" fill="none" stroke="${COL[e.type]}" stroke-width="${e.label ? 2.2 : 1.4}"${e.type === 'guar' ? ' stroke-dasharray="6 4"' : ''} marker-end="url(#ac-arr-${e.type})"/>`
+      + (e.label ? `<text x="${mx.toFixed(1)}" y="${(my + 4).toFixed(1)}" text-anchor="${e.anchor || 'middle'}" font-size="12.5" font-weight="600" fill="${COL[e.type]}" stroke="#fff" stroke-width="4" paint-order="stroke">${esc(e.label)}</text>` : '')
+      + '</g>';
+  });
+  AI_CIRCULAR.nodes.forEach(n0 => {
+    const n = N[n0.id];
+    const cap = n.ticker ? capOf(n.ticker) : null;
+    const sub = cap != null ? `$${cap.toFixed(2)}T` : (n.sub || '');
+    const hub = n.id === 'oai';
+    h += `<g class="ac-node" data-id="${n.id}">`
+      + `<circle cx="${n.x}" cy="${n.y}" r="${n.r}" fill="${hub ? '#003a5c' : '#fff'}" stroke="#003a5c" stroke-width="2"/>`
+      + `<text x="${n.x}" y="${n.y + (sub ? -1 : 5)}" text-anchor="middle" font-size="${hub ? 15 : (n.label.length > 8 ? 12 : 13.5)}" font-weight="700" fill="${hub ? '#fff' : '#003a5c'}">${esc(n.label)}</text>`
+      + (sub ? `<text x="${n.x}" y="${n.y + 14}" text-anchor="middle" font-size="10.5" fill="${hub ? '#cfe0ea' : '#6b7a8d'}">${esc(sub)}</text>` : '')
+      + '</g>';
+  });
+  svg.innerHTML = h;
+
+  document.getElementById('ai-circ-legend').innerHTML = Object.entries(COL).map(([k, c]) =>
+    `<span style="display:inline-flex;align-items:center;gap:5px;margin-right:14px"><span style="display:inline-block;width:24px;border-top:2.5px ${k === 'guar' ? 'dashed' : 'solid'} ${c}"></span>${TYPE_LABEL[k]}</span>`).join('')
+    + '<span style="display:block;margin-top:4px">Arrows follow the money or the commitment. Caps in the circles are live (total, basic shares); amounts are headline maximums, not cash paid.</span>';
+
+  const info = document.getElementById('ai-circ-info');
+  const DEFAULT_INFO = 'Hover or tap a company or an arrow for details.';
+  info.textContent = DEFAULT_INFO;
+  const nodesEl = svg.querySelectorAll('.ac-node'), edgesEl = svg.querySelectorAll('.ac-edge');
+  function reset() { nodesEl.forEach(g => g.classList.remove('dim')); edgesEl.forEach(g => g.classList.remove('dim')); info.textContent = DEFAULT_INFO; }
+  function showNode(id) {
+    const n = N[id];
+    const linked = new Set([id]);
+    edgesEl.forEach(g => { const on = g.dataset.f === id || g.dataset.t === id; g.classList.toggle('dim', !on); if (on) { linked.add(g.dataset.f); linked.add(g.dataset.t); } });
+    nodesEl.forEach(g => g.classList.toggle('dim', !linked.has(g.dataset.id)));
+    const list = AI_CIRCULAR.edges.filter(e => e.f === id || e.t === id)
+      .map(e => `<li><span style="color:${COL[e.type]};font-weight:700">${esc(N[e.f].label)} → ${esc(N[e.t].label)}</span>: ${esc(e.d)}</li>`).join('');
+    info.innerHTML = `<b>${esc(n.label)}</b> — ${esc(n.note)}<ul style="margin:6px 0 0 18px">${list}</ul>`;
+  }
+  function showEdge(i) {
+    const e = AI_CIRCULAR.edges[i];
+    edgesEl.forEach(g => g.classList.toggle('dim', +g.dataset.i !== i));
+    nodesEl.forEach(g => g.classList.toggle('dim', g.dataset.id !== e.f && g.dataset.id !== e.t));
+    info.innerHTML = `<b style="color:${COL[e.type]}">${esc(N[e.f].label)} → ${esc(N[e.t].label)}</b> · ${esc(TYPE_LABEL[e.type])}<br>${esc(e.d)}`;
+  }
+  let pinned = null;
+  nodesEl.forEach(g => {
+    g.addEventListener('mouseenter', () => { if (!pinned) showNode(g.dataset.id); });
+    g.addEventListener('click', ev => { ev.stopPropagation(); pinned = pinned === 'n' + g.dataset.id ? null : 'n' + g.dataset.id; pinned ? showNode(g.dataset.id) : reset(); });
+  });
+  edgesEl.forEach(g => {
+    g.addEventListener('mouseenter', () => { if (!pinned) showEdge(+g.dataset.i); });
+    g.addEventListener('click', ev => { ev.stopPropagation(); pinned = pinned === 'e' + g.dataset.i ? null : 'e' + g.dataset.i; pinned ? showEdge(+g.dataset.i) : reset(); });
+  });
+  svg.addEventListener('mouseleave', () => { if (!pinned) reset(); });
+  svg.addEventListener('click', () => { pinned = null; reset(); });
+
+  // ── tables ───────────────────────────────────────────────────────────
+  document.getElementById('ai-circ-loops').innerHTML =
+    '<tr><th>Loop</th><th>How the money comes back</th><th>Weak link</th></tr>'
+    + AI_CIRCULAR.loops.map(l => `<tr><td style="font-weight:600;white-space:nowrap">${esc(l.path)}</td><td>${esc(l.how)}</td><td>${esc(l.risk)}</td></tr>`).join('');
+
+  const live = [];
+  capexRows.forEach(r => live.push({ k: `${r.name} capex / operating cash flow (TTM)`, now: `${Math.round(r.now)} %`, before: r.yr != null ? `${Math.round(r.yr)} % a year earlier` : '—', ease: 'below 100 %', src: `SEC EDGAR, live (${r.period})`, bad: r.now > 100 }));
+  if (issNow) live.push({ k: 'Net debt issuance, 5 clouds (TTM)', now: fmtBn(issNow.hyperscalerNetIssuanceTTM), before: issYr ? fmtBn(issYr.hyperscalerNetIssuanceTTM) + ' a year earlier' : '—', ease: 'slows', src: `SEC EDGAR, live (${issNow.quarterEnd})` });
+  if (bbbNow) live.push({ k: 'ICE BofA BBB OAS (Oracle proxy)', now: `${bbbNow.bp} bp`, before: bbb6m ? `${bbb6m.bp} bp (${bbb6m.date})` : '—', ease: 'narrows', src: `FRED, live (${bbbNow.date})` });
+  const rows = AI_CIRCULAR.watch.map(w => Object.assign({ hand: true }, w)).concat(live);
+  document.getElementById('ai-circ-watch').innerHTML =
+    '<tr><th>Indicator</th><th style="text-align:right">Latest</th><th style="text-align:right">Before</th><th>Eases the loop if it…</th><th>Source</th></tr>'
+    + rows.map(w => `<tr><td>${esc(w.k)}${w.hand ? ' <span style="color:var(--text-muted)">✎</span>' : ''}</td><td class="num${w.bad ? ' neg' : ''}">${esc(w.now)}</td><td class="num">${esc(w.before)}</td><td>${esc(w.ease)}</td><td style="color:var(--text-muted)">${esc(w.src)}</td></tr>`).join('');
+
+  document.getElementById('ai-circ-note').innerHTML =
+    'Why it matters: in 1999–2000 Lucent, Nortel and Cisco lent to telecom operators so they could buy their equipment; when credit closed, the receivables and the revenue they had supported were written off together, and repossessed capacity was resold cheaply, pulling prices down for everyone. Here the big buyers (Microsoft, Alphabet, Amazon, Meta) are far stronger than the 2000 operators — the fragile links are OpenAI and the debt-financed neoclouds. '
+    + 'The Impactfull scenarios hinge on three questions: do customers keep taking delivery, can they finance the next campus without vendor guarantees, and does installed capacity earn its cost. Their sign that the loop is easing: Nvidia\'s payment days falling back from 64 and CoreWeave\'s operating income covering its interest. '
+    + '✎ = hand-entered, update <code>AI_CIRCULAR</code> in market-signal.html after each Nvidia / CoreWeave quarter. Deal sizes are headline maximums announced by the companies, not cash paid; some are conditional on deployment. Sources: ' + esc(AI_CIRCULAR.sources);
 })();
 </script>
 </body>

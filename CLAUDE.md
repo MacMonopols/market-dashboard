@@ -53,6 +53,27 @@ buttons (`localStorage.msRange`: 1 an / 3 ans / 5 ans / Depuis 2015).
   - No signal gave 6–9 months of warning. They work as a trend filter: the
     "fall avoided" was 83–98 % because the bear market lasted 2½ years.
 
+## AI circular economy — card on Market Signal, set up 2026-11-20
+
+Card "AI Circular Economy — Who Finances Whom" after the dot-com backtest
+(before the World factor cards), from a Bloomberg graphic of AI deals (Oct
+2025) and Impactfull Weekly #50 (K. Bortoluzzi, 19.11.2026). Page-only, no
+Python: own `<script>` block at the end of `market-signal.html`.
+- **Hand-entered** in the `AI_CIRCULAR` const there: diagram nodes / edges
+  (types invest / buy / guar / warr, arrows follow the money; optional `bow`,
+  `lt` = label position on the curve, `anchor`), the six closed loops and the
+  Nvidia / CoreWeave watch rows (✎ on the page). Update after each Nvidia /
+  CoreWeave quarter. Amounts are headline maximums, not cash paid.
+- **Live**: tiles and rows from `LD.hyperscalerCapex` (capex / OCF and OCF −
+  capex for MSFT, GOOGL, AMZN, META, ORCL vs 4 quarters earlier),
+  `LD.hyperscalerFunding` (net debt issuance TTM, BBB OAS vs 6-month low) and
+  node caps from `LD.mag7` (NVDA, MSFT, ANT).
+- Diagram: inline SVG 900×560, hover / tap a node or arrow to highlight it
+  and show details below; under 640 px it scrolls horizontally in its box.
+- At 2026-11-20: Oracle 161 % and Amazon 128 % capex / OCF, FCF of the five
+  $33bn TTM (vs $201bn a year earlier), net issuance $306bn TTM, BBB 117 bp
+  (+24 bp vs 6-month low).
+
 ## Sector & factor rotation (RRG) — card on Market Signal, set up 2026-11-17
 
 Card before the dot-com backtest on `market-signal.html`, from a pasted

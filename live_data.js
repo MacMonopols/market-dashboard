@@ -82126,7 +82126,7 @@ const LIVE_DATA = {
             "Apple",
             "Microsoft",
             "Amazon",
-            "Google",
+            "Alphabet",
             "Berkshire Hathaway",
             "Facebook",
             "JP Morgan",

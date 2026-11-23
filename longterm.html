@@ -1190,14 +1190,17 @@
     document.getElementById('ls-board-card').style.display = '';
     const cols = dim.decades.map(d => ({ year: d.year, names: d.names, share: d.sharePct, live: false }));
     if (today) cols.push({ year: today.date.slice(0, 4) + ' (today)', names: today.top10List.map(e => e.name), share: today.top10, live: true });
+    // Same company under an earlier name (Facebook → Meta in Oct 2021): one colour
+    const LS_ALIAS = { 'Facebook': 'Meta', 'Google': 'Alphabet' };
+    const ck = n => LS_ALIAS[n] || n;
     const counts = {};
-    cols.forEach(c => c.names.forEach(n => counts[n] = (counts[n] || 0) + 1));
+    cols.forEach(c => c.names.forEach(n => counts[ck(n)] = (counts[ck(n)] || 0) + 1));
     const multi = Object.keys(counts).filter(n => counts[n] > 1);
     const pal = ['#1f7a8c', '#7f8c8d', '#003a5c', '#8a8a2e', '#b5d334', '#e67e22', '#c0392b', '#8e44ad', '#16a085',
                  '#d35400', '#2c3e50', '#27ae60', '#a0522d', '#5dade2', '#c71585', '#b8922a', '#2e86c1', '#6c3483', '#117a65', '#922b21'];
     const colorOf = {}; multi.forEach((n, i) => colorOf[n] = pal[i % pal.length]);
-    const chip = n => colorOf[n]
-      ? `<span class="chip" style="background:${colorOf[n]};color:#fff">${n}</span>`
+    const chip = n => colorOf[ck(n)]
+      ? `<span class="chip" style="background:${colorOf[ck(n)]};color:#fff"${LS_ALIAS[n] ? ` title="now ${LS_ALIAS[n]}"` : ''}>${n}${LS_ALIAS[n] ? ` <small>(${LS_ALIAS[n]})</small>` : ''}</span>`
       : `<span class="chip once">${n}</span>`;
     let t = '<tr><th></th>' + cols.map(c => `<th class="${c.live ? 'live' : ''}">${c.year}</th>`).join('') + '</tr>';
     for (let r = 0; r < 10; r++)
@@ -1209,7 +1212,8 @@
     document.getElementById('ls-board-note').innerHTML =
       `Bottom row = combined weight of the 10 in the whole US market. Coloured = in the top 10 in more than one column, grey outline = once.
        Names and order for 1930–2020 are transcribed from Dimensional's bump chart; before 1980 ranks 5–10 may be a place off.
-       The ${today ? today.date.slice(0, 4) : 'today'} column uses float-adjusted weights (S&amp;P Total Market) instead of CRSP full market cap — close but not identical.`;
+       The ${today ? today.date.slice(0, 4) : 'today'} column uses float-adjusted weights (S&amp;P Total Market) instead of CRSP full market cap — close but not identical. It can rank differently from the total caps in the cards above
+       (e.g. Alphabet's unlisted Class B and insider shares are left out), and recent IPOs with most shares still locked up (SpaceX, Anthropic) carry little weight.`;
 
     // ── 3) Excess return after joining the top 10 ──
     document.getElementById('ls-excess-card').style.display = '';

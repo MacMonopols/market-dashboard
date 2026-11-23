@@ -111,7 +111,7 @@ DIMENSIONAL_DECADES = [
         "Exxon", "Intel", "Lucent", "IBM", "Citigroup", "Time Warner"]},
     {"year": 2010, "sharePct": 16.2, "names": ["Exxon", "Microsoft", "Walmart", "Apple",
         "Johnson & Johnson", "P&G", "IBM", "JP Morgan", "AT&T", "General Electric"]},
-    {"year": 2020, "sharePct": 21.7, "names": ["Apple", "Microsoft", "Amazon", "Google",
+    {"year": 2020, "sharePct": 21.7, "names": ["Apple", "Microsoft", "Amazon", "Alphabet",
         "Berkshire Hathaway", "Facebook", "JP Morgan", "Johnson & Johnson", "Walmart", "Visa"]},
 ]
 

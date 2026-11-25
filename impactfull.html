@@ -441,7 +441,9 @@
   const P = D.periods;
   document.getElementById('imp-date').textContent =
     `Fund to ${fmtD(D.asOf)} (fact sheet to ${fmtD(D.factsheetLastDate)}, then NAV ${D.nav ? D.nav.value.toFixed(2) + ' on ' + fmtD(D.nav.date) : 'n/a'})` +
-    ` · MSCI ACWI to ${fmtD(D.benchAsOf)}` + (D.stale ? ' · ⚠ stale cache' : '');
+    ` · MSCI ACWI taken on the same dates, so every comparison ends on ${fmtD(D.asOf)}` +
+    (D.benchAsOf > D.asOf ? ` (index already available to ${fmtD(D.benchAsOf)})` : '') +
+    (D.stale ? ' · ⚠ stale cache' : '');
   const tile = (name, p, extra) => {
     const ex = p.fund - p.bench;
     return `<div class="sig-tile ${ex >= 0 ? 'off' : 'on'}"><div class="sig-name">${name}</div>

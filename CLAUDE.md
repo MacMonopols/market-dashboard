@@ -53,12 +53,39 @@ buttons (`localStorage.msRange`: 1 an / 3 ans / 5 ans / Depuis 2015).
   - No signal gave 6–9 months of warning. They work as a trend filter: the
     "fall avoided" was 83–98 % because the bear market lasted 2½ years.
 
+## AI Concerns / Governance tab — `ai-governance.html`, set up 2026-11-25
+
+New page (nav entry on all six pages, after Market Signal) holding two
+cards MOVED verbatim at the user's request: the AI circular economy card
+(from `market-signal.html`: HTML, `#ai-circ-*` CSS and its own `<script>`
+with `AI_CIRCULAR`) and the governance card below (from `longterm.html`,
+with `.gv-*` CSS). The page's `<style>` is a copy of market-signal.html's.
+The sections below that say "card on Market Signal" / "on Long Term
+Summary" for these two cards now mean this page. Nvidia row updated on the
+move: Huang resigned as CEO 12.11.2026, CFO Colette Kress interim, and
+was reinstated by the board on 23.11.2026 (user, 2026-11-25; also in the
+`AI_CIRCULAR` Nvidia note).
+
+## Governance concerns Mag 7 + SpaceX + Anthropic — card on AI Concerns / Governance (first placed on Long Term Summary), set up 2026-11-25
+
+Static card `#gv-card` after "Cost of trying to time the market", in
+English, from the user's PDF of the NZZ interview with Guido Palazzo (HEC
+Lausanne, "The Dark Pattern", 07.11.2026). Page-only, no Python, no JS:
+plain HTML + `.gv-*` CSS in `longterm.html`. Six pattern factors (ideology,
+toxic leadership, corrupting goals, incentives, conformity, lawsuit breadth
+/ stalled success story), then one row per company (control structure,
+concerns, flag chips) and a takeaway pointing to the Market Signal tab.
+Palazzo names only Musk / Tesla / SpaceX, OpenAI, Anthropic, Zuckerberg,
+Bezos, Thiel; the per-company mapping and facts (public reporting to
+mid-2026) are ours, said in the note. Hand-entered: update by hand.
+
 ## AI circular economy — card on Market Signal, set up 2026-11-20
 
 Card "AI Circular Economy — Who Finances Whom" after the dot-com backtest
 (before the World factor cards), from a Bloomberg graphic of AI deals (Oct
 2025) and Impactfull Weekly #50 (K. Bortoluzzi, 19.11.2026). Page-only, no
-Python: own `<script>` block at the end of `market-signal.html`.
+Python: own `<script>` block at the end of `ai-governance.html` (moved there
+2026-11-25).
 - **Hand-entered** in the `AI_CIRCULAR` const there: diagram nodes / edges
   (types invest / buy / guar / warr, arrows follow the money; optional `bow`,
   `lt` = label position on the curve, `anchor`), the six closed loops and the

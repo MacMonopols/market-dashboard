@@ -2062,6 +2062,17 @@ def main():
         print(f"  ⚠ sector rotation failed: {e}")
         sector_rotation = None
 
+    # 5e8) Impactfull vs MSCI ACWI tab: S EUR class (factsheet track +
+    #      Yahoo NAV) vs MSCI ACWI NR EUR (impactfull.py)
+    print("\nImpactfull S EUR vs MSCI ACWI NR EUR ...")
+    try:
+        from impactfull import calc_impactfull
+        impactfull = calc_impactfull()
+        print(f"  → as of {impactfull['asOf']}" + (" (stale cache)" if impactfull.get("stale") else ""))
+    except Exception as e:
+        print(f"  ⚠ Impactfull failed: {e}")
+        impactfull = None
+
     # 5f) World Value Factor vs World Cap-Weighted (live ETF prices, IWVL vs SWDA)
     next_step7 = next_step6 + 1
     print(f"\n[{next_step7}] World Value vs World Cap-Weighted ({WORLD_VALUE_TICKER} vs {WORLD_CAPWEIGHTED_TICKER})")
@@ -2198,6 +2209,7 @@ def main():
         "marketTiming":    market_timing,
         "marketSignals":   market_signals,
         "sectorRotation":  sector_rotation,
+        "impactfull":      impactfull,
         "worldValue":      world_value,
         "worldQuality":    world_quality,
         "worldSmallCap":   world_smallcap,

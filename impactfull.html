@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Impactfull vs MSCI ACWI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #f4f6f8;
+      --card:        #ffffff;
+      --border:      #dde3ea;
+      --text:        #1a2533;
+      --text-muted:  #6b7a8d;
+      --hinder-blue: #003a5c;
+      --hinder-teal: #005f87;
+      --oblique-red: #E04822;
+      --green:       #2e7d4f;
+      --red:         #c0392b;
+      --col-stock:   #003a5c;
+      --col-bond:    #5a3e9a;
+      --na:          #bbb;
+    }
+
+    body {
+      background: var(--bg);
+      font-family: "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      padding: 32px 24px 60px;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    .header {
+      max-width: 960px;
+      margin: 0 auto 28px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+    .header-left h1 {
+      font-size: 28px;
+      font-weight: 300;
+      color: var(--hinder-blue);
+      line-height: 1.15;
+    }
+    .header-left h1 strong { font-weight: 700; }
+    .header-left .subtitle { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+    .logo a {
+      font-family: 'Nunito', sans-serif;
+      font-size: 32px; font-weight: 600;
+      color: var(--oblique-red);
+      text-decoration: none; letter-spacing: -.5px;
+    }
+    .logo a:hover { opacity: .8; }
+
+    /* ── Nav ─────────────────────────────────────────────────── */
+    .nav {
+      max-width: 960px;
+      margin: 0 auto 16px;
+      display: flex;
+      gap: 8px;
+    }
+    .nav a {
+      font-size: 12px;
+      padding: 4px 12px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      text-decoration: none;
+      color: var(--text-muted);
+      background: var(--card);
+    }
+    .nav a.active {
+      background: var(--hinder-blue);
+      color: #fff;
+      border-color: var(--hinder-blue);
+    }
+    .nav a:hover:not(.active) { background: #e8f0f6; }
+
+    /* ── Card ────────────────────────────────────────────────── */
+    .card {
+      max-width: 960px;
+      margin: 0 auto;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,58,92,.06);
+    }
+
+    /* ── Table ───────────────────────────────────────────────── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    /* group header row (Stocks / Bonds) */
+    .group-row th {
+      padding: 10px 16px 6px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #fff;
+      border-bottom: 2px solid rgba(255,255,255,.2);
+    }
+    .group-row th.label-cell {
+      background: var(--hinder-blue);
+    }
+    .group-row th.stocks { background: var(--col-stock); }
+    .group-row th.bonds  { background: var(--col-bond);  }
+
+    /* divider between stocks and bonds */
+    .divider-col { width: 2px; background: #e0e8f0; }
+
+    /* column header row */
+    .col-header th {
+      padding: 8px 12px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      text-align: center;
+      color: #fff;
+      border-bottom: 1px solid rgba(255,255,255,.15);
+      line-height: 1.3;
+    }
+    .col-header th.label-cell {
+      background: var(--hinder-blue);
+      text-align: left;
+      font-size: 10.5px;
+      color: rgba(255,255,255,.6);
+    }
+    .col-header th.stocks { background: var(--col-stock); }
+    .col-header th.bonds  { background: var(--col-bond);  }
+    .col-header th.divider-col { background: #e0e8f0; }
+
+    /* data rows */
+    .data-row td {
+      padding: 14px 12px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .data-row:last-child td { border-bottom: none; }
+    .data-row:hover td { background: #f6f9fb; }
+
+    .data-row td.label-cell {
+      text-align: left;
+      padding-left: 20px;
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .data-row td.divider-col {
+      background: #e8f0f6;
+      padding: 0;
+    }
+
+    /* value cell */
+    .val {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .val .pct {
+      font-size: 14px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -.3px;
+    }
+    .val .pct.pos { color: var(--green); }
+    .val .pct.neg { color: var(--red);   }
+    .val .arrow { font-size: 13px; }
+    .val .arrow.pos { color: var(--green); }
+    .val .arrow.neg { color: var(--red);   }
+    .val.na { color: var(--na); font-size: 18px; font-weight: 300; }
+
+    /* ── World Market Cap ────────────────────────────────────── */
+    .mktcap-card {
+      max-width: 960px;
+      margin: 0 auto 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 24px 20px;
+      box-shadow: 0 2px 12px rgba(0,58,92,.06);
+    }
+    .mktcap-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--hinder-blue);
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .mktcap-date {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      margin-bottom: 16px;
+    }
+    .mktcap-body {
+      display: flex;
+      align-items: center;
+      gap: 36px;
+    }
+
+    /* Donut via SVG */
+    .donut-wrap {
+      position: relative;
+      flex-shrink: 0;
+      width: 150px;
+      height: 150px;
+    }
+    .donut-wrap svg { display: block; }
+    .donut-wrap svg path {
+      transition: opacity .15s;
+      cursor: pointer;
+    }
+    .donut-wrap svg path:hover { opacity: .78; }
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--hinder-teal);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 8px;
+      cursor: pointer;
+      margin-bottom: 8px;
+    }
+    .back-btn:hover { background: #daeaf5; }
+
+    .range-btns { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 8px; }
+    .range-btn {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 9px;
+      cursor: pointer;
+    }
+    .range-btn:hover { background: #eef3f8; }
+    .range-btn.active { background: #003a5c; border-color: #003a5c; color: #fff; }
+
+    /* Legend */
+    .mktcap-legend {
+      display: flex;
+      gap: 28px;
+      flex-wrap: wrap;
+    }
+    .mktcap-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .mktcap-swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+      margin-top: 3px;
+      flex-shrink: 0;
+    }
+    .mktcap-pct {
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .mktcap-name {
+      font-size: 12px;
+      color: var(--text);
+      font-weight: 600;
+      margin-top: 2px;
+    }
+    .mktcap-val {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    /* ── MAG7 ───────────────────────────────────────────────── */
+    .mag7-block {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .mag7-body {
+      display: flex;
+      align-items: center;
+      gap: 36px;
+    }
+
+    /* ── S&P 500 Top 10 ─────────────────────────────────────── */
+    .spy-history-wrap {
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+    .spy-history-wrap svg { display: block; width: 100%; height: auto; }
+    .spy-history-legend {
+      display: flex;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    /* ── Footer ──────────────────────────────────────────────── */
+    .footer {
+      max-width: 960px;
+      margin: 16px auto 0;
+      font-size: 10.5px;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+    .footer code { font-size: 10px; background: #eef2f5; padding: 1px 4px; border-radius: 3px; }
+    /* ── Market Signal ───────────────────────────────────────── */
+    .sig-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .sig-tile {
+      border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+      border-left: 4px solid #b0bac6; cursor: pointer; text-decoration: none; color: inherit; display: block;
+    }
+    .sig-tile:hover { background: #f6f9fb; }
+    .sig-tile.on { border-left-color: var(--red); }
+    .sig-tile.pending { border-left-color: #e67e22; }
+    .sig-tile.off { border-left-color: var(--green); }
+    .sig-name { font-size: 11px; font-weight: 700; color: var(--hinder-blue); text-transform: uppercase; letter-spacing: .04em; }
+    .sig-state { font-size: 18px; font-weight: 700; margin-top: 4px; }
+    .sig-state.on { color: var(--red); } .sig-state.off { color: var(--green); } .sig-state.pending { color: #e67e22; }
+    .sig-detail { font-size: 11px; color: var(--text-muted); margin-top: 3px; line-height: 1.4; }
+    .sig-note { font-size: 10.5px; color: var(--text-muted); line-height: 1.5; margin-top: 10px; max-width: 880px; }
+    .sig-table { width: auto; font-size: 11.5px; margin-top: 4px; }
+    .sig-table th { font-size: 10px; color: var(--text-muted); font-weight: 600; text-align: right; padding: 3px 10px; border-bottom: 1px solid var(--border); }
+    .sig-table td { text-align: right; padding: 3px 10px; font-variant-numeric: tabular-nums; border-bottom: 1px solid #eef2f5; }
+    .sig-table th:first-child, .sig-table td:first-child { text-align: left; }
+    .tbl-wrap { overflow-x: auto; max-width: 100%; }
+    #ms-rrg-table th:first-child, #ms-rrg-table td:first-child { position: sticky; left: 0; background: var(--card); z-index: 1; box-shadow: 1px 0 0 var(--border); }
+    .rrg-scroll { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 11px; color: var(--text-muted); }
+    .rrg-scroll input { flex: 1; max-width: 520px; }
+    .neg { color: var(--red); } .pos { color: var(--green); }
+    .disclaimer { max-width: 960px; margin: 0 auto 16px; font-size: 11.5px; color: #8a4b0f; background: #fdf3e7; border: 1px solid #f3d9b8; border-radius: 8px; padding: 8px 14px; }
+    @media (max-width: 760px) {
+      body { padding: 20px 16px 40px; }
+      .sig-grid { grid-template-columns: repeat(2, 1fr); }
+      .nav { flex-wrap: wrap; }
+      .header { flex-direction: column; align-items: flex-start; gap: 8px; }
+      .mktcap-body { flex-direction: column; align-items: flex-start !important; gap: 14px !important; }
+      .tbl-wrap { overflow-x: auto; max-width: 100%; }
+    }
+    /* ── Impactfull vs MSCI ACWI ── */
+    .imp-tbl td.y { font-weight: 700; color: var(--hinder-blue); }
+    .imp-tbl tr.yr-first td { border-top: 1px solid var(--border); }
+    .imp-tbl td.lbl { color: var(--text-muted); font-size: 10.5px; text-align: left; }
+    .imp-tbl td.track { color: #8796a8; }
+    .imp-tbl td.live { font-style: italic; }
+    .imp-tbl tr.diff td { font-size: 10.5px; }
+    .imp-tbl th.yr, .imp-tbl td.yr { border-left: 1px solid var(--border); font-weight: 700; }
+    .imp-stats td.f { color: var(--hinder-blue); font-weight: 600; }
+    .imp-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+    .imp-legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: 5px; }
+    .imp-sub { font-size: 11px; font-weight: 700; color: var(--hinder-blue); margin: 14px 0 2px; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>Impactfull<br><strong>vs MSCI ACWI</strong></h1>
+    <div class="subtitle" id="subtitle"></div>
+  </div>
+  <div class="logo"><a href="https://oblique.swiss" target="_blank" rel="noopener"><i>O</i>blique</a></div>
+</div>
+
+<div class="nav">
+  <a href="index.html">YTD Dashboard</a>
+  <a href="longterm.html">Long-Term Summary</a>
+  <a href="expected-return.html">Expected Return</a>
+  <a href="hyperscaler-capex.html">Hyperscaler Capex</a>
+  <a href="market-signal.html">Market Signal</a>
+  <a href="ai-governance.html">AI Concerns / Governance</a>
+  <a href="impactfull.html" class="active">Impactfull vs MSCI ACWI</a>
+  <a href="https://market-vol-dashboard.streamlit.app" target="_blank" rel="noopener">Vol &amp; Options ↗</a>
+</div>
+
+<div class="disclaimer">The fund (EQUUS IMP Emerging Equity Trends) was launched on 30.3.2026. Before April 2026 the line is the strategy's track record with model fees, taken from the manager's marketing fact sheet — not fund NAVs, not audited.</div>
+
+<div class="mktcap-card" id="imp-card" style="display:none">
+  <div class="mktcap-title">Impactfull S EUR vs MSCI ACWI NR EUR</div>
+  <div class="mktcap-date" id="imp-date"></div>
+  <div class="sig-grid" id="imp-tiles" style="margin-top:10px"></div>
+  <div class="range-btns" id="imp-range" style="margin-top:14px"></div>
+  <div class="imp-sub">Growth of 100 (EUR, net)</div>
+  <div class="spy-history-wrap"><svg id="imp-svg-cum"></svg></div>
+  <div class="imp-legend" id="imp-legend"></div>
+  <div class="imp-sub">Drawdown from previous high</div>
+  <div class="spy-history-wrap"><svg id="imp-svg-dd"></svg></div>
+  <div class="imp-sub">Relative: fund / MSCI ACWI (100 = start of the window; rising = fund ahead)</div>
+  <div class="spy-history-wrap"><svg id="imp-svg-rel"></svg></div>
+</div>
+
+<div class="mktcap-card" id="imp-stats-card" style="display:none">
+  <div class="mktcap-title">Risk and Return Statistics</div>
+  <div class="mktcap-date" id="imp-stats-date"></div>
+  <div class="tbl-wrap"><table class="sig-table imp-stats" id="imp-stats"></table></div>
+  <div class="sig-note" id="imp-stats-note"></div>
+</div>
+
+<div class="mktcap-card" id="imp-monthly-card" style="display:none">
+  <div class="mktcap-title">Net Monthly Returns in EUR — Fund vs MSCI ACWI</div>
+  <div class="mktcap-date">Grey = strategy track before launch · italic = live NAV after the fact sheet · * = month to date</div>
+  <div class="tbl-wrap"><table class="sig-table imp-tbl" id="imp-monthly"></table></div>
+  <div class="sig-note" id="imp-note"></div>
+</div>
+
+<div class="footer">Personal use. Not investment advice. Fund track hand-entered in <code>FACTSHEET_MONTHLY</code> (<code>impactfull.py</code>), live NAV and MSCI ACWI from <code>live_data.js</code>.</div>
+
+<script>document.write('<script src="live_data.js?' + Date.now() + '" onerror="window.LIVE_DATA=null"><\/script>');</script>
+<script>
+(function () {
+  const LD = (typeof LIVE_DATA !== "undefined") ? LIVE_DATA : null;
+  const D = LD && LD.impactfull;
+  document.getElementById("subtitle").textContent = LD
+    ? "As of " + LD.fetchedAt + "  ·  EQUUS IMP Emerging Equity Trends, class S EUR (LU3281045396)"
+    : "⚠ No data — run: python3 fetch_data.py";
+  if (!D) return;
+
+  const FUND_C = '#1f5c3f', BENCH_C = '#E04822', GREY = '#8796a8';
+  const txt = 'font-family="Helvetica Neue,Arial,sans-serif" font-size="10" fill="#6b7a8d"';
+  const fmtD = s => s ? s.slice(8, 10) + '.' + s.slice(5, 7) + '.' + s.slice(0, 4) : '–';
+  const pct = (v, d = 1) => v == null ? '–' : (v > 0 ? '+' : '') + v.toFixed(d) + ' %';
+  const cls = v => v == null ? '' : (v >= 0 ? 'pos' : 'neg');
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  // ── tiles ──
+  const P = D.periods;
+  document.getElementById('imp-date').textContent =
+    `Fund to ${fmtD(D.asOf)} (fact sheet to ${fmtD(D.factsheetLastDate)}, then NAV ${D.nav ? D.nav.value.toFixed(2) + ' on ' + fmtD(D.nav.date) : 'n/a'})` +
+    ` · MSCI ACWI to ${fmtD(D.benchAsOf)}` + (D.stale ? ' · ⚠ stale cache' : '');
+  const tile = (name, p, extra) => {
+    const ex = p.fund - p.bench;
+    return `<div class="sig-tile ${ex >= 0 ? 'off' : 'on'}"><div class="sig-name">${name}</div>
+      <div class="sig-state" style="color:${FUND_C}">${pct(p.fund)}</div>
+      <div class="sig-detail">MSCI ACWI ${pct(p.bench)} · <span class="${cls(ex)}">${ex >= 0 ? '+' : ''}${ex.toFixed(1)} pt</span>${extra || ''}</div></div>`;
+  };
+  document.getElementById('imp-tiles').innerHTML =
+    tile('Month to date', P.mtd, `<br>since ${fmtD(P.mtd.from)}`) +
+    tile('Year to date', P.ytd) +
+    tile('Since fund launch', P.launch, `<br>from ${fmtD(P.launch.from)} (month-end of launch)`) +
+    tile('Since Jan 2020 (track)', P.si, `<br>p.a. ${pct(P.si.fundAnn)} vs ${pct(P.si.benchAnn)}`);
+
+  // ── charts ──
+  function drawChart(svgId, dates, opts) {
+    const svg = document.getElementById(svgId);
+    const W = 900, H = opts.H || 260, padL = 50, padR = 64, padT = 12, padB = 24;
+    const t = s => Date.parse(s);
+    const t0 = t(dates[0]), t1 = t(dates[dates.length - 1]);
+    const xT = ms => padL + (W - padL - padR) * ((ms - t0) / ((t1 - t0) || 1));
+    let vals = [];
+    opts.series.forEach(s => s.v.forEach(v => v != null && vals.push(v)));
+    (opts.hlines || []).forEach(h => vals.push(h.v));
+    let lo = Math.min(...vals), hi = Math.max(...vals);
+    const span = hi - lo || 1;
+    const step = [0.5, 1, 2, 5, 10, 20, 25, 50, 100, 200].find(s => span / s <= 6) || 200;
+    lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
+    const ticks = []; for (let g = lo; g <= hi + 1e-9; g += step) ticks.push(+g.toFixed(4));
+    const y = v => H - padB - (H - padT - padB) * ((v - lo) / ((hi - lo) || 1));
+    let h = '';
+    if (opts.trackEnd && t(opts.trackEnd) > t0) {
+      const xe = xT(Math.min(t(opts.trackEnd), t1));
+      h += `<rect x="${padL}" y="${padT}" width="${(xe - padL).toFixed(1)}" height="${H - padT - padB}" fill="#eef2f5" opacity="0.7"/>`;
+      if (xe - padL > 90) h += `<text x="${padL + 6}" y="${H - padB - 5}" ${txt} font-size="9">strategy track (model fees)</text>`;
+    }
+    ticks.forEach(g => {
+      h += `<line x1="${padL}" y1="${y(g).toFixed(1)}" x2="${W - padR}" y2="${y(g).toFixed(1)}" stroke="#b0bac6" stroke-dasharray="3,3" opacity="0.5"/>`;
+      h += `<text x="${padL - 6}" y="${y(g).toFixed(1)}" text-anchor="end" dominant-baseline="middle" ${txt}>${opts.fmt ? opts.fmt(g) : g}</text>`;
+    });
+    const yrs = (t1 - t0) / 3.156e10;
+    const y0 = new Date(t0).getUTCFullYear(), y1 = new Date(t1).getUTCFullYear();
+    if (yrs <= 1.5) {
+      for (let yy = y0; yy <= y1; yy++) for (let mm = 0; mm < 12; mm += (yrs < 1.2 ? 1 : 2)) {
+        const ms = Date.UTC(yy, mm, 1); if (ms < t0 || ms > t1) continue;
+        h += `<text x="${xT(ms).toFixed(1)}" y="${H - 8}" text-anchor="middle" ${txt}>${MON[mm]}${mm === 0 ? " '" + String(yy).slice(2) : ''}</text>`;
+      }
+    } else {
+      for (let yy = y0; yy <= y1; yy++) {
+        const ms = Date.UTC(yy, 0, 1); if (ms < t0) continue;
+        h += `<line x1="${xT(ms).toFixed(1)}" y1="${H - padB}" x2="${xT(ms).toFixed(1)}" y2="${H - padB + 3}" stroke="#b0bac6"/>`;
+        h += `<text x="${xT(ms).toFixed(1)}" y="${H - 8}" text-anchor="middle" ${txt}>${yy}</text>`;
+      }
+    }
+    (opts.hlines || []).forEach(l => {
+      h += `<line x1="${padL}" y1="${y(l.v).toFixed(1)}" x2="${W - padR}" y2="${y(l.v).toFixed(1)}" stroke="${l.color}" stroke-width="1"/>`;
+    });
+    (opts.vlines || []).forEach(l => {
+      if (t(l.date) < t0 || t(l.date) > t1) return;
+      const xv = xT(t(l.date)).toFixed(1);
+      h += `<line x1="${xv}" y1="${padT}" x2="${xv}" y2="${H - padB}" stroke="${l.color}" stroke-width="1" stroke-dasharray="2,2"/>`;
+      if (l.label) h += `<text x="${(+xv - 3).toFixed(1)}" y="${padT + 10}" text-anchor="end" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" font-weight="600" fill="${l.color}">${l.label}</text>`;
+    });
+    opts.series.forEach(s => {
+      let p = '', pen = false;
+      s.v.forEach((v, k) => {
+        if (v == null) { pen = false; return; }
+        p += (pen ? 'L' : 'M') + xT(t(dates[k])).toFixed(1) + ',' + y(v).toFixed(1); pen = true;
+      });
+      if (s.fill) h += `<path d="${p}L${xT(t1).toFixed(1)},${y(0).toFixed(1)}L${xT(t0).toFixed(1)},${y(0).toFixed(1)}Z" fill="${s.color}" opacity="0.18"/>`;
+      h += `<path d="${p}" fill="none" stroke="${s.color}" stroke-width="${s.w || 1.6}" ${s.dash ? `stroke-dasharray="${s.dash}"` : ''}/>`;
+    });
+    // end labels
+    opts.series.forEach(s => {
+      if (!s.endLabel) return;
+      const v = s.v[s.v.length - 1];
+      h += `<text x="${W - padR + 4}" y="${y(v).toFixed(1)}" dominant-baseline="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="10" font-weight="700" fill="${s.color}">${s.endLabel(v)}</text>`;
+    });
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
+    svg.innerHTML = h;
+  }
+
+  const last = D.dates[D.dates.length - 1];
+  const minus = (iso, y, m) => { const d = new Date(iso); d.setUTCFullYear(d.getUTCFullYear() - y); d.setUTCMonth(d.getUTCMonth() - (m || 0)); return d.toISOString().slice(0, 10); };
+  const RANGES = [
+    { key: 'si',  label: 'Since Jan 2020', from: D.dates[0] },
+    { key: '3y',  label: '3 years', from: minus(last, 3) },
+    { key: '1y',  label: '1 year', from: minus(last, 1) },
+    { key: 'ytd', label: 'YTD', from: P.ytd.from },
+    { key: 'launch', label: 'Since launch', from: P.launch.from },
+  ];
+  let range = localStorage.getItem('impRange') || 'si';
+  if (!RANGES.some(r => r.key === range)) range = 'si';
+
+  function redraw() {
+    const r = RANGES.find(x => x.key === range);
+    // start at the last point on or before the window start
+    let i0 = 0; D.dates.forEach((d, k) => { if (d <= r.from) i0 = k; });
+    const dates = D.dates.slice(i0);
+    const f = D.fund.slice(i0), b = D.bench.slice(i0);
+    const fr = f.map(v => v / f[0] * 100), br = b.map(v => v / b[0] * 100);
+    const dd = arr => { let pk = -Infinity; return arr.map(v => { pk = Math.max(pk, v); return (v / pk - 1) * 100; }); };
+    const rel = f.map((v, k) => (v / f[0]) / (b[k] / b[0]) * 100);
+    const common = { trackEnd: P.launch.from, vlines: [{ date: D.launch, label: 'Fund launch 30.3.2026', color: FUND_C }, { date: D.factsheetLastDate, label: '', color: GREY }] };
+    drawChart('imp-svg-cum', dates, Object.assign({}, common, {
+      H: 280, hlines: [{ v: 100, color: '#b0bac6' }],
+      series: [
+        { v: br, color: BENCH_C, dash: '6,3', endLabel: v => 'ACWI ' + v.toFixed(0) },
+        { v: fr, color: FUND_C, w: 2, endLabel: v => 'Fund ' + v.toFixed(0) },
+      ] }));
+    drawChart('imp-svg-dd', dates, Object.assign({}, common, {
+      H: 170, fmt: g => g + ' %', hlines: [{ v: 0, color: '#b0bac6' }],
+      series: [
+        { v: dd(br), color: BENCH_C, dash: '6,3' },
+        { v: dd(fr), color: FUND_C, fill: true },
+      ] }));
+    drawChart('imp-svg-rel', dates, Object.assign({}, common, {
+      H: 170, hlines: [{ v: 100, color: '#b0bac6' }],
+      series: [{ v: rel, color: '#003a5c', w: 1.8, endLabel: v => v.toFixed(1) }] }));
+    document.querySelectorAll('#imp-range .range-btn').forEach(x => x.classList.toggle('active', x.dataset.k === range));
+    localStorage.setItem('impRange', range);
+  }
+  const rb = document.getElementById('imp-range');
+  rb.innerHTML = RANGES.map(r => `<button class="range-btn" data-k="${r.key}">${r.label}</button>`).join('');
+  rb.querySelectorAll('.range-btn').forEach(x => x.addEventListener('click', () => { range = x.dataset.k; redraw(); }));
+  document.getElementById('imp-legend').innerHTML =
+    `<span><i style="border-color:${FUND_C}"></i>Impactfull S EUR (net)</span>` +
+    `<span><i style="border-color:${BENCH_C};border-top-style:dashed"></i>MSCI ACWI NR EUR</span>` +
+    `<span>Monthly points to ${fmtD(D.factsheetLastDate)}, daily after · drawdowns before that date are month-end only</span>`;
+  redraw();
+  document.getElementById('imp-card').style.display = '';
+
+  // ── statistics ──
+  const S = D.stats;
+  const cols = [['si', 'Since Jan 2020'], ['3y', 'Last 3 years'], ['launch', 'Since launch']].filter(([k]) => S[k]);
+  const rows = [
+    ['Months', s => s.months, null, 0],
+    ['Cumulative return', s => s.cum, s => s.benchCum, 1, '%'],
+    ['Annualized return', s => s.ann, s => s.benchAnn, 1, '%'],
+    ['Excess return p.a.', s => s.excessAnn, null, 1, '%'],
+    ['Volatility p.a.', s => s.vol, s => s.benchVol, 1, '%'],
+    ['Return / volatility', s => s.retVol, s => s.benchRetVol, 2],
+    ['Max drawdown (month-end)', s => s.maxDD, s => s.benchMaxDD, 1, '%'],
+    ['Beta vs ACWI', s => s.beta, null, 2],
+    ['Correlation', s => s.corr, null, 2],
+    ['Tracking error', s => s.te, null, 1, '%'],
+    ['Information ratio', s => s.ir, null, 2],
+    ['Months beating ACWI', s => s.hitRate, null, 0, '%'],
+    ['Up capture', s => s.upCapture, null, 0, '%'],
+    ['Down capture', s => s.downCapture, null, 0, '%'],
+    ['Best / worst month', s => s.best, s => s.worst, 1, '%'],
+  ];
+  const fv = (v, d, u) => v == null ? '–' : (u === '%' && d ? (v > 0 ? '+' : '') : '') + v.toFixed(d) + (u ? ' %' : '');
+  let th = '<tr><th></th>' + cols.map(([, l]) => `<th>${l}<br>Fund</th><th>${l}<br>ACWI</th>`).join('') + '</tr>';
+  let tb = rows.map(([lbl, fn, bn, d, u]) => {
+    const best = lbl.startsWith('Best');
+    return `<tr><td>${lbl}</td>` + cols.map(([k]) => {
+      const s = S[k];
+      const a = fn(s), b = bn ? bn(s) : null;
+      return best
+        ? `<td class="f">${fv(a, d, u)} / ${fv(b, d, u)}</td><td></td>`
+        : `<td class="f">${fv(a, d, u)}</td><td>${bn ? fv(b, d, u) : ''}</td>`;
+    }).join('') + '</tr>';
+  }).join('');
+  document.getElementById('imp-stats').innerHTML = th + tb;
+  document.getElementById('imp-stats-date').textContent = 'Full calendar months only · last full month ' +
+    (D.monthly.filter(m => !m.partial).slice(-1)[0] || {}).ym;
+  const H = D.factsheetHeadline;
+  document.getElementById('imp-stats-note').innerHTML =
+    `<b>Fact sheet check:</b> its monthly table compounds to <b>${pct(S.si.cum)}</b> since Jan 2020 (${pct(S.si.ann)} p.a.), ` +
+    `while its headline shows ITD +${H.itd.toFixed(1)} % / ${H.annSI.toFixed(1)} % p.a. — the monthly figures and each yearly total agree, the headline does not. ` +
+    `MSCI ACWI matches (${pct(S.si.benchCum)} vs +${H.benchItd.toFixed(1)} %). Since launch covers only ${S.launch ? S.launch.months : 0} months: annualized figures and capture ratios there are not meaningful. ` +
+    `Return / volatility has no risk-free rate (not the fact sheet's Sharpe).`;
+  document.getElementById('imp-stats-card').style.display = '';
+
+  // ── monthly table ──
+  const byYear = {};
+  D.monthly.forEach(m => { (byYear[m.ym.slice(0, 4)] = byYear[m.ym.slice(0, 4)] || {})[+m.ym.slice(5)] = m; });
+  const yr = (arr) => { let g = 1; arr.forEach(v => g *= 1 + v / 100); return (g - 1) * 100; };
+  let mt = '<tr><th>Year</th><th></th>' + MON.map(m => `<th>${m}</th>`).join('') + '<th class="yr">Year</th></tr>';
+  Object.keys(byYear).sort().reverse().forEach(y => {
+    const ms = byYear[y];
+    const ks = Object.keys(ms).map(Number);
+    const fy = yr(ks.map(k => ms[k].fund)), by = yr(ks.map(k => ms[k].bench));
+    const cell = (k, key) => {
+      const m = ms[k]; if (!m) return '<td></td>';
+      const c = m.src === 'track' ? 'track' : (m.src === 'nav' ? 'live' : '');
+      return `<td class="${c} ${key === 'fund' && m.src !== 'track' ? cls(m.fund) : ''}">${m[key].toFixed(2)}${m.partial ? '*' : ''}</td>`;
+    };
+    const part = ks.some(k => ms[k].partial) ? '*' : '';
+    mt += `<tr class="yr-first"><td class="y">${y}</td><td class="lbl">Fund</td>` + MON.map((_, i) => cell(i + 1, 'fund')).join('') +
+          `<td class="yr ${cls(fy)}">${fy.toFixed(2)}${part}</td></tr>`;
+    mt += `<tr><td></td><td class="lbl">ACWI</td>` + MON.map((_, i) => cell(i + 1, 'bench')).join('') + `<td class="yr">${by.toFixed(2)}${part}</td></tr>`;
+    mt += `<tr class="diff"><td></td><td class="lbl">Δ pt</td>` + MON.map((_, i) => {
+      const m = ms[i + 1]; if (!m) return '<td></td>';
+      const dv = m.fund - m.bench; return `<td class="${cls(dv)}">${dv >= 0 ? '+' : ''}${dv.toFixed(1)}</td>`;
+    }).join('') + `<td class="yr ${cls(fy - by)}">${fy - by >= 0 ? '+' : ''}${(fy - by).toFixed(1)}</td></tr>`;
+  });
+  document.getElementById('imp-monthly').innerHTML = mt;
+  document.getElementById('imp-note').textContent = D.note + ' Source of the track: ' + D.factsheet + '.';
+  document.getElementById('imp-monthly-card').style.display = '';
+})();
+</script>
+</body>
+</html>

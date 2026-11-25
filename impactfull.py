@@ -1,0 +1,305 @@
+"""
+impactfull.py – "Impactfull vs MSCI ACWI" tab: EQUUS IMP Emerging Equity
+Trends, share class S EUR (LU3281045396), against the MSCI ACWI net total
+return index in EUR.
+
+Fund series
+  - 2020-01 .. FACTSHEET_LAST_MONTH: monthly net returns in EUR HAND-ENTERED
+    from the Impactfull monthly teaser (data as of 30.10.2026, "NET MONTHLY
+    PERFORMANCE (EUR)" table). The fund was only launched on 30.3.2026
+    (FUND_LAUNCH); the months before are the strategy's track record (model
+    fees, ACA track-record letter), not fund NAVs.
+  - After FACTSHEET_LAST_DATE: daily NAV of the S EUR class from Yahoo
+    (Morningstar feed, FUND_TICKER), chained onto the factsheet track. The
+    Yahoo NAV starts 11.5.2026 and matches the factsheet months Jun–Oct 2026
+    within 0.01 pt.
+  Update: add each new factsheet month to FACTSHEET_MONTHLY and move
+  FACTSHEET_LAST_MONTH / FACTSHEET_LAST_DATE (the live NAV then takes over
+  from the new date).
+
+  Known inconsistency in the factsheet: its monthly table compounds to
+  +268.5 % since Jan 2020 (21.0 % p.a.; each "Year" column matches), while
+  the headline says ITD +342.0 % / 22.3 % p.a. We use the monthly table.
+
+Benchmark
+  MSCI ACWI (892400) NETR in EUR, daily, from MSCI's index-data endpoint
+  (getLevelDataForGraph, same as country_returns.py; automated use OK'd by
+  the user 2026-10-31). Raw levels are never stored: the cache and
+  live_data.js hold only the series rebased to 100. MSCI EUR ITD 2020-01 to
+  2026-10 = +120.9 %, same as the factsheet.
+
+Cache impactfull_cache.json (git-ignored), stale: true on fallback.
+"""
+
+import json
+import math
+import os
+from datetime import date, datetime
+
+import requests
+
+from country_returns import MSCI_URL, MSCI_HEADERS
+
+FUND_NAME = "EQUUS IMP Emerging Equity Trends – S EUR"
+FUND_ISIN = "LU3281045396"
+FUND_TICKER = "0P0002D4QT.F"          # Yahoo (Morningstar) NAV, S EUR Acc
+FUND_LAUNCH = "2026-03-30"
+BENCH_NAME = "MSCI ACWI NR EUR"
+BENCH_CODE = "892400"
+TRACK_START = "2019-12-31"            # base date of the track (= 100)
+FACTSHEET_LABEL = "Impactfull monthly teaser, data as of 30.10.2026"
+FACTSHEET_LAST_MONTH = "2026-10"
+FACTSHEET_LAST_DATE = "2026-10-30"    # last NAV date the factsheet covers
+
+# Net monthly returns in EUR (%), Jan..Dec, from the factsheet table.
+FACTSHEET_MONTHLY = {
+    2020: [1.90, -6.13, -13.58, 12.25, 6.85, 3.16, -0.88, 3.94, -1.43, -0.24, 14.26, 3.42],
+    2021: [1.06, 3.30, 3.86, 1.81, -0.38, 5.46, -1.18, 3.08, -1.10, 3.75, -1.46, 1.35],
+    2022: [-6.34, -1.60, 2.38, -4.80, -3.95, -5.74, 10.86, 0.86, -5.40, 6.34, 3.81, -5.70],
+    2023: [9.64, 2.35, 0.53, -0.87, 7.91, 5.37, 4.17, 0.96, -1.80, -2.48, 12.53, 4.32],
+    2024: [1.32, 6.89, 4.20, -3.40, 3.69, 1.95, 0.60, -1.45, 1.69, 2.80, 6.69, 0.46],
+    2025: [4.10, -0.71, -5.64, -3.33, 9.90, 3.54, 4.56, 3.23, 4.18, 2.61, -2.11, 0.76],
+    2026: [7.26, 6.98, -10.05, 12.34, 3.86, -3.06, -3.05, 9.33, 0.89, -5.37],
+}
+# Headline figures printed on the factsheet (shown for comparison only).
+FACTSHEET_HEADLINE = {"itd": 342.0, "annSI": 22.3, "benchItd": 120.9, "benchAnnSI": 12.3,
+                      "ytd": 18.13, "benchYtd": 17.0}
+
+CACHE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "impactfull_cache.json")
+
+NOTE = (
+    "Fund: Jan 2020 – Oct 2026 = net monthly returns in EUR from the Impactfull monthly teaser "
+    "(data as of 30.10.2026). The fund was launched on 30.3.2026; the months before are the strategy's "
+    "track record with model fees (ACA track-record letter), not fund NAVs. After 30.10.2026: daily NAV of "
+    "the S EUR class (LU3281045396) from Yahoo / Morningstar, chained on. The factsheet's monthly table "
+    "compounds to a lower figure than its headline (ITD +342.0 % / 22.3 % p.a.); the monthly table is used. "
+    "Benchmark: MSCI ACWI net total return in EUR (MSCI; levels not redistributed, rebased to 100). "
+    "Statistics use full calendar months, no risk-free rate (Sharpe-like ratio = return / volatility). "
+    "Marketing document data, not audited. Past performance is not a guide to future returns."
+)
+
+
+def _ym_end_dates(levels):
+    """{YYYY-MM: (date, level)} last point of each month."""
+    out = {}
+    for d, v in levels:
+        out[d[:7]] = (d, v)
+    return out
+
+
+def _fetch_bench():
+    url = MSCI_URL.format(cur="EUR", start=TRACK_START.replace("-", ""),
+                          end=date.today().strftime("%Y%m%d"), freq="DAILY", code=BENCH_CODE)
+    r = requests.get(url, headers=MSCI_HEADERS, timeout=40)
+    r.raise_for_status()
+    lv = (r.json().get("indexes") or {}).get("INDEX_LEVELS") or []
+    if len(lv) < 1000:
+        raise ValueError(f"MSCI ACWI EUR: only {len(lv)} levels")
+    out = []
+    for x in sorted(lv, key=lambda x: x["calc_date"]):
+        s = str(x["calc_date"])
+        out.append((f"{s[:4]}-{s[4:6]}-{s[6:]}", float(x["level_eod"])))
+    return out
+
+
+def _fetch_nav():
+    import yfinance as yf
+    h = yf.Ticker(FUND_TICKER).history(period="max", auto_adjust=True)
+    if h.empty:
+        raise ValueError(f"no NAV for {FUND_TICKER}")
+    return [(i.strftime("%Y-%m-%d"), float(v)) for i, v in h["Close"].dropna().items()]
+
+
+def _stats(f, b):
+    """Monthly-return statistics. f, b: lists of % returns (same months)."""
+    n = len(f)
+    if n < 3:
+        return None
+    fr = [x / 100 for x in f]
+    br = [x / 100 for x in b]
+    gf = math.prod(1 + x for x in fr)
+    gb = math.prod(1 + x for x in br)
+    ann_f = gf ** (12 / n) - 1
+    ann_b = gb ** (12 / n) - 1
+    mf, mb = sum(fr) / n, sum(br) / n
+    vf = math.sqrt(sum((x - mf) ** 2 for x in fr) / (n - 1) * 12)
+    vb = math.sqrt(sum((x - mb) ** 2 for x in br) / (n - 1) * 12)
+    cov = sum((x - mf) * (y - mb) for x, y in zip(fr, br)) / (n - 1)
+    varb = sum((y - mb) ** 2 for y in br) / (n - 1)
+    act = [x - y for x, y in zip(fr, br)]
+    ma = sum(act) / n
+    te = math.sqrt(sum((a - ma) ** 2 for a in act) / (n - 1) * 12)
+
+    def mdd(r):
+        g = peak = 1.0
+        worst = 0.0
+        for x in r:
+            g *= 1 + x
+            peak = max(peak, g)
+            worst = min(worst, g / peak - 1)
+        return worst
+
+    up = [(x, y) for x, y in zip(fr, br) if y > 0]
+    dn = [(x, y) for x, y in zip(fr, br) if y < 0]
+
+    def capture(pairs):
+        if not pairs:
+            return None
+        k = len(pairs)
+        a = math.prod(1 + x for x, _ in pairs) ** (1 / k) - 1
+        c = math.prod(1 + y for _, y in pairs) ** (1 / k) - 1
+        return round(a / c * 100, 0) if c else None
+
+    r2 = lambda x: round(x * 100, 2)
+    corr = cov / math.sqrt(varb * (vf ** 2 / 12)) if varb and vf else None
+    return {
+        "months": n,
+        "cum": r2(gf - 1), "benchCum": r2(gb - 1),
+        "ann": r2(ann_f), "benchAnn": r2(ann_b), "excessAnn": r2(ann_f - ann_b),
+        "vol": r2(vf), "benchVol": r2(vb),
+        "retVol": round(ann_f / vf, 2) if vf else None,
+        "benchRetVol": round(ann_b / vb, 2) if vb else None,
+        "maxDD": r2(mdd(fr)), "benchMaxDD": r2(mdd(br)),
+        "beta": round(cov / varb, 2) if varb else None,
+        "corr": round(corr, 2) if corr is not None else None,
+        "te": r2(te),
+        "ir": round((ann_f - ann_b) / te, 2) if te else None,
+        "hitRate": round(sum(1 for a in act if a > 0) / n * 100, 0),
+        "upCapture": capture(up), "downCapture": capture(dn),
+        "best": r2(max(fr)), "worst": r2(min(fr)),
+    }
+
+
+def _build(bench, nav, today):
+    bench_m = _ym_end_dates(bench)
+    b0 = dict(bench)[TRACK_START] if TRACK_START in dict(bench) else bench[0][1]
+
+    def bench_at(d):
+        """Benchmark level on date d (last level on or before d)."""
+        lv = None
+        for bd, v in bench:
+            if bd > d:
+                break
+            lv = v
+        return lv
+
+    # ── fund: month-ends from the factsheet, then daily NAV after the cut ──
+    dates, fund, monthly = [TRACK_START], [100.0], []
+    g = 100.0
+    for y in sorted(FACTSHEET_MONTHLY):
+        for m, r in enumerate(FACTSHEET_MONTHLY[y], start=1):
+            ym = f"{y}-{m:02d}"
+            if ym > FACTSHEET_LAST_MONTH:
+                break
+            g *= 1 + r / 100
+            d = FACTSHEET_LAST_DATE if ym == FACTSHEET_LAST_MONTH else bench_m[ym][0]
+            dates.append(d)
+            fund.append(g)
+            monthly.append({"ym": ym, "fund": r, "src": "fund" if ym > FUND_LAUNCH[:7] else "track"})
+
+    nav_cut = [v for d, v in nav if d <= FACTSHEET_LAST_DATE]
+    live = [(d, v) for d, v in nav if d > FACTSHEET_LAST_DATE]
+    nav_source = None
+    if nav_cut and live:
+        base_nav, base_g = nav_cut[-1], fund[-1]
+        for d, v in live:
+            dates.append(d)
+            fund.append(base_g * v / base_nav)
+        nav_source = "yahoo"
+        # live months (closed and the current one) from the chained series
+        prev_end = base_g
+        by_month = {}
+        for d, v in zip(dates, fund):
+            if d > FACTSHEET_LAST_DATE:
+                by_month[d[:7]] = (d, v)
+        for ym in sorted(by_month):
+            d, v = by_month[ym]
+            monthly.append({"ym": ym, "fund": round((v / prev_end - 1) * 100, 2), "src": "nav",
+                            "partial": ym >= today.strftime("%Y-%m")})
+            prev_end = v
+
+    bench_series = [round(bench_at(d) / b0 * 100, 3) for d in dates]
+    fund = [round(v, 3) for v in fund]
+
+    # benchmark monthly returns on the same month-end dates
+    prev = None
+    ends = {}
+    for d, v in zip(dates, bench_series):
+        ends[d[:7]] = v
+    prev = 100.0
+    for row in monthly:
+        v = ends[row["ym"]]
+        row["bench"] = round((v / prev - 1) * 100, 2)
+        prev = v
+
+    full = [r for r in monthly if not r.get("partial")]
+    stats = {
+        "si": _stats([r["fund"] for r in full], [r["bench"] for r in full]),
+        "launch": _stats([r["fund"] for r in full if r["ym"] > FUND_LAUNCH[:7]],
+                         [r["bench"] for r in full if r["ym"] > FUND_LAUNCH[:7]]),
+        "3y": _stats([r["fund"] for r in full[-36:]], [r["bench"] for r in full[-36:]]) if len(full) >= 36 else None,
+    }
+
+    # headline periods on the daily-ish series
+    def period(start_date):
+        i = max(k for k, d in enumerate(dates) if d <= start_date) if any(d <= start_date for d in dates) else 0
+        return {"fund": round((fund[-1] / fund[i] - 1) * 100, 2),
+                "bench": round((bench_series[-1] / bench_series[i] - 1) * 100, 2), "from": dates[i]}
+
+    last = dates[-1]
+    ly = str(int(last[:4]) - 1)
+    ytd_start = max(d for d in dates if d[:4] == ly)
+    prev_m = max(d for d in dates if d[:7] < last[:7])
+    years = (datetime.strptime(last, "%Y-%m-%d") - datetime.strptime(TRACK_START, "%Y-%m-%d")).days / 365.25
+    periods = {
+        "mtd": period(prev_m),
+        "ytd": period(ytd_start),
+        # base = end of the launch month (the factsheet's first fund month is April 2026)
+        "launch": period(max(d for d in dates if d[:7] <= FUND_LAUNCH[:7])),
+        "si": period(TRACK_START),
+    }
+    periods["si"]["fundAnn"] = round(((fund[-1] / 100) ** (1 / years) - 1) * 100, 2)
+    periods["si"]["benchAnn"] = round(((bench_series[-1] / 100) ** (1 / years) - 1) * 100, 2)
+
+    last_nav = nav[-1] if nav else None
+    return {
+        "asOf": last,
+        "fundName": FUND_NAME, "isin": FUND_ISIN, "ticker": FUND_TICKER,
+        "benchName": BENCH_NAME, "launch": FUND_LAUNCH,
+        "factsheet": FACTSHEET_LABEL, "factsheetLastDate": FACTSHEET_LAST_DATE,
+        "factsheetHeadline": FACTSHEET_HEADLINE,
+        "nav": {"date": last_nav[0], "value": round(last_nav[1], 2)} if last_nav else None,
+        "navSource": nav_source,
+        "benchAsOf": bench[-1][0],
+        "dates": dates, "fund": fund, "bench": bench_series,
+        "monthly": monthly, "stats": stats, "periods": periods,
+        "note": NOTE,
+    }
+
+
+def calc_impactfull(today=None):
+    today = today or date.today()
+    try:
+        bench = _fetch_bench()
+        try:
+            nav = _fetch_nav()
+        except Exception as e:
+            print(f"  ⚠ Impactfull NAV ({FUND_TICKER}) failed: {e} — factsheet track only")
+            nav = []
+        out = _build(bench, nav, today)
+        with open(CACHE_PATH, "w") as f:
+            json.dump(out, f)
+        return out
+    except Exception as e:
+        print(f"  ⚠ Impactfull vs ACWI live fetch failed: {e}")
+        with open(CACHE_PATH) as f:
+            out = json.load(f)
+        out["stale"] = True
+        return out
+
+
+if __name__ == "__main__":
+    o = calc_impactfull()
+    print(o["asOf"], o["nav"], o["periods"])
+    print(json.dumps(o["stats"], indent=1))
+    print(o["monthly"][-4:])

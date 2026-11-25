@@ -1,5 +1,38 @@
 # market-dashboard
 
+## Impactfull vs MSCI ACWI tab — `impactfull.html`, set up 2026-11-25
+
+New page (nav entry on all seven pages, after AI Concerns / Governance):
+EQUUS IMP Emerging Equity Trends (Impactfull, K. Bortoluzzi), class **S EUR
+LU3281045396**, vs **MSCI ACWI NR EUR**. `impactfull.py`
+(`calc_impactfull()` → `LD.impactfull`), cache `impactfull_cache.json`
+(git-ignored), `stale: true` on fallback.
+- **Fund series**: Jan 2020 – Oct 2026 = net monthly EUR returns
+  HAND-ENTERED in `FACTSHEET_MONTHLY` from the user's PDF "Impactfull Monthly
+  Teaser - October 26" (data as of 30.10.2026; the user called it the
+  "September 26" factsheet). Fund launched 30.3.2026: months up to Mar 2026
+  are the strategy track (model fees, ACA letter), shaded on the charts and
+  grey in the table. After `FACTSHEET_LAST_DATE`: daily NAV from Yahoo
+  `0P0002D4QT.F` (Morningstar feed, starts 11.5.2026, matches the factsheet's
+  Jun–Oct 2026 months within 0.01 pt), chained on. Each new factsheet: append
+  the month(s) and move `FACTSHEET_LAST_MONTH` / `FACTSHEET_LAST_DATE`.
+- **Benchmark**: MSCI `getLevelDataForGraph`, code 892400, NETR, EUR, daily
+  (one request; levels rebased to 100, never stored raw). ITD Jan 2020 – Oct
+  2026 = +120.9 %, same as the factsheet.
+- **Factsheet inconsistency (flagged on the page)**: the monthly table (and
+  each "Year" total) compounds to +268.5 % ITD / 21.0 % p.a., but the
+  headline says +342.0 % / 22.3 % p.a. The monthly table is used. Also its
+  commentary says ACWI "c.-3 %" in Oct 2026; MSCI EUR NR was +0.08 %.
+- Page: 4 tiles (MTD, YTD, since launch = from 31.3.2026 month-end, since
+  Jan 2020 p.a.), range buttons (`localStorage.impRange`), growth of 100 /
+  drawdown / relative charts, stats table (since 2020 / 3 y / since launch,
+  full months only: ann. return, vol, return/vol without rf, max DD
+  month-end, beta, TE, IR, hit rate, up/down capture), monthly grid Fund /
+  ACWI / Δ.
+- At 2026-11-23: NAV 101.30; MTD −9.8 % vs −3.1 %; YTD +6.6 % vs +13.4 %;
+  since launch +3.3 % vs +14.9 %; since 2020 track 21.0 % vs 12.3 % p.a.
+  (to Oct), beta 1.12, TE 8.3 %, IR 1.05.
+
 ## Market Signal tab — `market-signal.html`, set up 2026-11-17
 
 New page "Market Signal" (nav entry on all five pages, after Hyperscaler

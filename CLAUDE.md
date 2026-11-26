@@ -47,7 +47,9 @@ LU3281045396**, vs **MSCI ACWI NR EUR**. `impactfull.py`
   stay = ACWI (output byte-identical to before on a synthetic test). EM IMI
   fetch failure only drops it. Page: "Compare with" toggle
   (`localStorage.impBench`) drives tiles, charts, stats, monthly grid; the
-  other index is a thin dotted line on the growth chart. Not yet run on live
+  other index is a thinner line on the growth chart (all lines solid since
+  2026-11-26, user's request: fund green, ACWI orange, EM IMI purple; end
+  labels pushed apart when close). Not yet run on live
   data (MSCI blocked from the cloud session): first Actions run fills it, the
   toggle hides while only ACWI is present.
 - At 2026-11-23: NAV 101.30; MTD −9.8 % vs −3.1 %; YTD +6.6 % vs +13.4 %;

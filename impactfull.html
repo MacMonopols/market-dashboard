@@ -520,11 +520,11 @@
     (opts.hlines || []).forEach(l => {
       h += `<line x1="${padL}" y1="${y(l.v).toFixed(1)}" x2="${W - padR}" y2="${y(l.v).toFixed(1)}" stroke="${l.color}" stroke-width="1"/>`;
     });
-    (opts.vlines || []).forEach(l => {
+    (opts.vlines || []).forEach((l, li) => {
       if (t(l.date) < t0 || t(l.date) > t1) return;
       const xv = xT(t(l.date)).toFixed(1);
       h += `<line x1="${xv}" y1="${padT}" x2="${xv}" y2="${H - padB}" stroke="${l.color}" stroke-width="1" stroke-dasharray="2,2"/>`;
-      if (l.label) h += `<text x="${(+xv - 3).toFixed(1)}" y="${padT + 10}" text-anchor="end" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" font-weight="600" fill="${l.color}">${l.label}</text>`;
+      if (l.label) h += `<text x="${(+xv - 3).toFixed(1)}" y="${padT + 10}" text-anchor="end" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" font-weight="600" fill="${l.color}" transform="translate(0,${li * 11})">${l.label}</text>`;
     });
     opts.series.forEach(s => {
       let p = '', pen = false;
@@ -535,11 +535,13 @@
       if (s.fill) h += `<path d="${p}L${xT(t1).toFixed(1)},${y(0).toFixed(1)}L${xT(t0).toFixed(1)},${y(0).toFixed(1)}Z" fill="${s.color}" opacity="0.18"/>`;
       h += `<path d="${p}" fill="none" stroke="${s.color}" stroke-width="${s.w || 1.6}" ${s.dash ? `stroke-dasharray="${s.dash}"` : ''}/>`;
     });
-    // end labels
-    opts.series.forEach(s => {
-      if (!s.endLabel) return;
-      const v = s.v[s.v.length - 1];
-      h += `<text x="${W - padR + 4}" y="${y(v).toFixed(1)}" dominant-baseline="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="10" font-weight="700" fill="${s.color}">${s.endLabel(v)}</text>`;
+    // end labels, pushed apart so close lines keep readable labels
+    const labs = opts.series.filter(s => s.endLabel).map(s => {
+      const v = s.v[s.v.length - 1]; return { s, v, yy: y(v) };
+    }).sort((a, b) => a.yy - b.yy);
+    for (let k = 1; k < labs.length; k++) labs[k].yy = Math.max(labs[k].yy, labs[k - 1].yy + 12);
+    labs.forEach(({ s, v, yy }) => {
+      h += `<text x="${W - padR + 4}" y="${yy.toFixed(1)}" dominant-baseline="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="10" font-weight="700" fill="${s.color}">${s.endLabel(v)}</text>`;
     });
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
     svg.innerHTML = h;
@@ -571,15 +573,15 @@
       H: 280, hlines: [{ v: 100, color: '#b0bac6' }],
       series: BENCHES.filter(o => o.key !== B.key).map(o => {
         const ob = o.bench.slice(i0);
-        return { v: ob.map(v => v / ob[0] * 100), color: BCOL[o.key] || GREY, dash: '2,3', w: 1.1, endLabel: v => o.short + ' ' + v.toFixed(0) };
+        return { v: ob.map(v => v / ob[0] * 100), color: BCOL[o.key] || GREY, w: 1.3, endLabel: v => o.short + ' ' + v.toFixed(0) };
       }).concat([
-        { v: br, color: BENCH_C, dash: '6,3', endLabel: v => B.short + ' ' + v.toFixed(0) },
+        { v: br, color: BENCH_C, endLabel: v => B.short + ' ' + v.toFixed(0) },
         { v: fr, color: FUND_C, w: 2, endLabel: v => 'Fund ' + v.toFixed(0) },
       ]) }));
     drawChart('imp-svg-dd', dates, Object.assign({}, common, {
       H: 170, fmt: g => g + ' %', hlines: [{ v: 0, color: '#b0bac6' }],
       series: [
-        { v: dd(br), color: BENCH_C, dash: '6,3' },
+        { v: dd(br), color: BENCH_C },
         { v: dd(fr), color: FUND_C, fill: true },
       ] }));
     drawChart('imp-svg-rel', dates, Object.assign({}, common, {
@@ -589,8 +591,8 @@
     try { localStorage.setItem('impRange', range); } catch (e) {}
     document.getElementById('imp-legend').innerHTML =
       `<span><i style="border-color:${FUND_C}"></i>Impactfull S EUR (net)</span>` +
-      `<span><i style="border-color:${BENCH_C};border-top-style:dashed"></i>${B.name}</span>` +
-      BENCHES.filter(o => o.key !== B.key).map(o => `<span><i style="border-color:${BCOL[o.key] || GREY};border-top-style:dotted;border-top-width:1px"></i>${o.name} (for reference)</span>`).join('') +
+      `<span><i style="border-color:${BENCH_C}"></i>${B.name}</span>` +
+      BENCHES.filter(o => o.key !== B.key).map(o => `<span><i style="border-color:${BCOL[o.key] || GREY}"></i>${o.name} (for reference)</span>`).join('') +
       (D.navFrom
         ? `<span>Fact sheet month-ends to ${fmtD(D.dates.filter(d => d < D.navFrom).slice(-1)[0])}, daily NAV from ${fmtD(D.navFrom)} · drawdowns before that are month-end only</span>`
         : `<span>Monthly points to ${fmtD(D.factsheetLastDate)}, daily after · drawdowns before that date are month-end only</span>`);

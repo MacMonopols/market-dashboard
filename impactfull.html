@@ -415,7 +415,7 @@
 
 <div class="mktcap-card" id="imp-monthly-card" style="display:none">
   <div class="mktcap-title" id="imp-monthly-title">Net Monthly Returns in EUR — Fund vs MSCI ACWI</div>
-  <div class="mktcap-date">Grey = strategy track before launch · italic = live NAV after the fact sheet · * = month to date</div>
+  <div class="mktcap-date">Grey = strategy track before launch · italic = daily NAV (Yahoo / Morningstar), plain = fact sheet · * = month to date</div>
   <div class="tbl-wrap"><table class="sig-table imp-tbl" id="imp-monthly"></table></div>
   <div class="sig-note" id="imp-note"></div>
 </div>
@@ -458,7 +458,9 @@
   document.getElementById('imp-rel-title').textContent = `Relative: fund / ${B.name.replace(' NR EUR', '')} (100 = start of the window; rising = fund ahead)`;
   document.getElementById('imp-monthly-title').textContent = 'Net Monthly Returns in EUR — Fund vs ' + B.name.replace(' NR EUR', '');
   document.getElementById('imp-date').textContent =
-    `Fund to ${fmtD(D.asOf)} (fact sheet to ${fmtD(D.factsheetLastDate)}, then NAV ${D.nav ? D.nav.value.toFixed(2) + ' on ' + fmtD(D.nav.date) : 'n/a'})` +
+    (D.navAnchor
+      ? `Fund to ${fmtD(D.asOf)}: daily NAV from ${fmtD(D.navFrom)} (last ${D.nav.value.toFixed(2)} on ${fmtD(D.nav.date)}), launch to ${MON[+D.navAnchor.slice(5, 7) - 1]} ${D.navAnchor.slice(0, 4)} returns from the fact sheet (Yahoo NAV starts later)`
+      : `Fund to ${fmtD(D.asOf)} (fact sheet to ${fmtD(D.factsheetLastDate)}, then NAV ${D.nav ? D.nav.value.toFixed(2) + ' on ' + fmtD(D.nav.date) : 'n/a'})`) +
     ` · ${B.name.replace(' NR EUR', '')} taken on the same dates, so every comparison ends on ${fmtD(D.asOf)}` +
     ((B.asOf || D.benchAsOf) > D.asOf ? ` (index already available to ${fmtD(B.asOf || D.benchAsOf)})` : '') +
     (D.stale ? ' · ⚠ stale cache' : '');
@@ -564,7 +566,7 @@
     const fr = f.map(v => v / f[0] * 100), br = b.map(v => v / b[0] * 100);
     const dd = arr => { let pk = -Infinity; return arr.map(v => { pk = Math.max(pk, v); return (v / pk - 1) * 100; }); };
     const rel = f.map((v, k) => (v / f[0]) / (b[k] / b[0]) * 100);
-    const common = { trackEnd: D.periods.launch.from, vlines: [{ date: D.launch, label: 'Fund launch 30.3.2026', color: FUND_C }, { date: D.factsheetLastDate, label: '', color: GREY }] };
+    const common = { trackEnd: D.periods.launch.from, vlines: [{ date: D.launch, label: 'Fund launch 30.3.2026', color: FUND_C }, { date: D.navFrom || D.factsheetLastDate, label: D.navFrom ? 'NAV from ' + fmtD(D.navFrom) : '', color: GREY }] };
     drawChart('imp-svg-cum', dates, Object.assign({}, common, {
       H: 280, hlines: [{ v: 100, color: '#b0bac6' }],
       series: BENCHES.filter(o => o.key !== B.key).map(o => {
@@ -589,7 +591,9 @@
       `<span><i style="border-color:${FUND_C}"></i>Impactfull S EUR (net)</span>` +
       `<span><i style="border-color:${BENCH_C};border-top-style:dashed"></i>${B.name}</span>` +
       BENCHES.filter(o => o.key !== B.key).map(o => `<span><i style="border-color:${BCOL[o.key] || GREY};border-top-style:dotted;border-top-width:1px"></i>${o.name} (for reference)</span>`).join('') +
-      `<span>Monthly points to ${fmtD(D.factsheetLastDate)}, daily after · drawdowns before that date are month-end only</span>`;
+      (D.navFrom
+        ? `<span>Fact sheet month-ends to ${fmtD(D.dates.filter(d => d < D.navFrom).slice(-1)[0])}, daily NAV from ${fmtD(D.navFrom)} · drawdowns before that are month-end only</span>`
+        : `<span>Monthly points to ${fmtD(D.factsheetLastDate)}, daily after · drawdowns before that date are month-end only</span>`);
   }
   const rb = document.getElementById('imp-range');
   rb.innerHTML = RANGES.map(r => `<button class="range-btn" data-k="${r.key}">${r.label}</button>`).join('');
@@ -638,7 +642,10 @@
     (B.key === 'acwi' ? `MSCI ACWI matches (${pct(S.si.benchCum)} vs +${H.benchItd.toFixed(1)} %). `
       : `MSCI ACWI matches the fact sheet's benchmark (+${H.benchItd.toFixed(1)} %); MSCI EM IMI (${pct(S.si.benchCum)}) is our addition, not on the fact sheet. `) +
     `Since launch covers only ${S.launch ? S.launch.months : 0} months: annualized figures and capture ratios there are not meaningful. ` +
-    `Return / volatility has no risk-free rate (not the fact sheet's Sharpe).`;
+    `Return / volatility has no risk-free rate (not the fact sheet's Sharpe).` +
+    ((D.factsheetCheck || []).length ? `<br><b>NAV vs fact sheet:</b> ` + D.factsheetCheck.map(c =>
+      `${MON[+c.ym.slice(5) - 1]} ${c.nav.toFixed(2)} vs ${c.factsheet.toFixed(2)}`).join(' · ') +
+      ` % — largest gap ${Math.max(...D.factsheetCheck.map(c => Math.abs(c.diff))).toFixed(2)} pt.` : '');
   document.getElementById('imp-stats-card').style.display = '';
   }
 

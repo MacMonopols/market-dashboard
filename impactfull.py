@@ -3,19 +3,22 @@ impactfull.py – "Impactfull vs ACWI & EM IMI" tab: EQUUS IMP Emerging Equity
 Trends, share class S EUR (LU3281045396), against the MSCI ACWI net total
 return index in EUR.
 
-Fund series
-  - 2020-01 .. FACTSHEET_LAST_MONTH: monthly net returns in EUR HAND-ENTERED
-    from the Impactfull monthly teaser (data as of 30.10.2026, "NET MONTHLY
+Fund series (switched to real NAV from launch on 2026-11-26, user's request)
+  - 2020-01 .. launch: monthly net returns in EUR HAND-ENTERED from the
+    Impactfull monthly teaser (data as of 30.10.2026, "NET MONTHLY
     PERFORMANCE (EUR)" table). The fund was only launched on 30.3.2026
     (FUND_LAUNCH); the months before are the strategy's track record (model
     fees, ACA track-record letter), not fund NAVs.
-  - After FACTSHEET_LAST_DATE: daily NAV of the S EUR class from Yahoo
-    (Morningstar feed, FUND_TICKER), chained onto the factsheet track. The
-    Yahoo NAV starts 11.5.2026 and matches the factsheet months Jun–Oct 2026
-    within 0.01 pt.
-  Update: add each new factsheet month to FACTSHEET_MONTHLY and move
-  FACTSHEET_LAST_MONTH / FACTSHEET_LAST_DATE (the live NAV then takes over
-  from the new date).
+  - After launch: daily NAV of the S EUR class from Yahoo (Morningstar
+    feed, FUND_TICKER). Yahoo's NAV only starts on 11.5.2026, so the
+    factsheet still bridges launch -> the first month-end with a NAV (the
+    "anchor", 29.5.2026: April and May come from the factsheet); from there
+    on every point and monthly return is the NAV. The NAV points inside the
+    anchor month (11.5-29.5) are scaled to the factsheet's May month-end.
+    Later factsheet months are only a cross-check (`factsheetCheck`).
+    Without NAV the factsheet runs to FACTSHEET_LAST_MONTH as before.
+  Update: new factsheet months are no longer needed for the fund line; add
+  them to FACTSHEET_MONTHLY only for the cross-check.
 
   Known inconsistency in the factsheet: its monthly table compounds to
   +268.5 % since Jan 2020 (21.0 % p.a.; each "Year" column matches), while
@@ -81,10 +84,11 @@ FACTSHEET_HEADLINE = {"itd": 342.0, "annSI": 22.3, "benchItd": 120.9, "benchAnnS
 CACHE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "impactfull_cache.json")
 
 NOTE = (
-    "Fund: Jan 2020 – Oct 2026 = net monthly returns in EUR from the Impactfull monthly teaser "
-    "(data as of 30.10.2026). The fund was launched on 30.3.2026; the months before are the strategy's "
-    "track record with model fees (ACA track-record letter), not fund NAVs. After 30.10.2026: daily NAV of "
-    "the S EUR class (LU3281045396) from Yahoo / Morningstar, chained on. The factsheet's monthly table "
+    "Fund: Jan 2020 – Mar 2026 = the strategy's track record with model fees (ACA track-record letter), "
+    "net monthly returns in EUR from the Impactfull monthly teaser (data as of 30.10.2026), not fund NAVs; "
+    "the fund was launched on 30.3.2026. After launch: daily NAV of the S EUR class (LU3281045396) from "
+    "Yahoo / Morningstar. Yahoo's NAV starts on 11.5.2026, so April and May 2026 still come from the "
+    "fact sheet (NAV points from 11.5 scaled to its May month-end); every month from June 2026 is the NAV. The factsheet's monthly table "
     "compounds to a lower figure than its headline (ITD +342.0 % / 22.3 % p.a.); the monthly table is used. "
     "Benchmarks: MSCI ACWI and MSCI Emerging Markets IMI, net total return in EUR (MSCI; levels not "
     "redistributed, rebased to 100). "
@@ -199,39 +203,66 @@ def _build(benches, nav, today):
     bench = benches[BENCHMARKS[0][0]]
     bench_m = _ym_end_dates(bench)
 
-    # ── fund: month-ends from the factsheet, then daily NAV after the cut ──
-    dates, fund, monthly = [TRACK_START], [100.0], []
-    g = 100.0
+    # ── fund: factsheet month-ends up to the NAV anchor, then daily NAV ──
+    # Anchor = the first fund month (after the launch month) whose month-end
+    # already has a NAV: the factsheet covers the months before it (the
+    # NAV on Yahoo starts after launch), the real NAV everything after it.
+    # Without NAV, the factsheet runs to FACTSHEET_LAST_MONTH as before.
+    fs = []                                       # (ym, return %, month-end date)
     for y in sorted(FACTSHEET_MONTHLY):
         for m, r in enumerate(FACTSHEET_MONTHLY[y], start=1):
             ym = f"{y}-{m:02d}"
             if ym > FACTSHEET_LAST_MONTH:
                 break
-            g *= 1 + r / 100
-            d = FACTSHEET_LAST_DATE if ym == FACTSHEET_LAST_MONTH else bench_m[ym][0]
+            fs.append((ym, r, FACTSHEET_LAST_DATE if ym == FACTSHEET_LAST_MONTH else bench_m[ym][0]))
+    anchor = None                                 # (ym, NAV date, NAV)
+    if nav:
+        nav_by_m = _ym_end_dates(nav)
+        for ym, _, _ in fs:
+            if ym > FUND_LAUNCH[:7] and ym in nav_by_m and nav[0][0] < nav_by_m[ym][0]:
+                anchor = (ym, *nav_by_m[ym])
+                break
+    fs_cut = anchor[0] if anchor else FACTSHEET_LAST_MONTH
+
+    dates, fund, monthly = [TRACK_START], [100.0], []
+    g = 100.0
+    for ym, r, d in fs:
+        if ym > fs_cut:
+            break
+        g *= 1 + r / 100
+        monthly.append({"ym": ym, "fund": r, "src": "fund" if ym > FUND_LAUNCH[:7] else "track"})
+        if anchor and ym == fs_cut:
+            # daily NAV inside the anchor month, scaled so its month-end = factsheet level
+            for dn, v in nav:
+                if dn[:7] == ym:
+                    dates.append(dn)
+                    fund.append(g * v / anchor[2])
+        else:
             dates.append(d)
             fund.append(g)
-            monthly.append({"ym": ym, "fund": r, "src": "fund" if ym > FUND_LAUNCH[:7] else "track"})
 
-    nav_cut = [v for d, v in nav if d <= FACTSHEET_LAST_DATE]
-    live = [(d, v) for d, v in nav if d > FACTSHEET_LAST_DATE]
-    nav_source = None
-    if nav_cut and live:
-        base_nav, base_g = nav_cut[-1], fund[-1]
+    nav_source, fs_check = None, []
+    if anchor:
+        nav_source = "yahoo"
+        base_g, base_nav = fund[-1], anchor[2]
+        live = [(d, v) for d, v in nav if d > anchor[1]]
         for d, v in live:
             dates.append(d)
             fund.append(base_g * v / base_nav)
-        nav_source = "yahoo"
-        # live months (closed and the current one) from the chained series
-        prev_end = base_g
         by_month = {}
         for d, v in zip(dates, fund):
-            if d > FACTSHEET_LAST_DATE:
+            if d > anchor[1]:
                 by_month[d[:7]] = (d, v)
+        prev_end = base_g
+        fs_ret = {ym: r for ym, r, _ in fs}
         for ym in sorted(by_month):
             d, v = by_month[ym]
-            monthly.append({"ym": ym, "fund": round((v / prev_end - 1) * 100, 2), "src": "nav",
-                            "partial": ym >= today.strftime("%Y-%m")})
+            r = round((v / prev_end - 1) * 100, 2)
+            partial = ym >= today.strftime("%Y-%m")
+            monthly.append({"ym": ym, "fund": r, "src": "nav", "partial": partial})
+            if ym in fs_ret and not partial:
+                fs_check.append({"ym": ym, "nav": r, "factsheet": fs_ret[ym],
+                                 "diff": round(r - fs_ret[ym], 2)})
             prev_end = v
 
     fund = [round(v, 3) for v in fund]
@@ -299,6 +330,10 @@ def _build(benches, nav, today):
         "factsheetHeadline": FACTSHEET_HEADLINE,
         "nav": {"date": last_nav[0], "value": round(last_nav[1], 2)} if last_nav else None,
         "navSource": nav_source,
+        # first NAV on Yahoo, and the month-end from which the fund line is NAV only
+        "navFrom": nav[0][0] if nav else None,
+        "navAnchor": anchor[1] if anchor else None,
+        "factsheetCheck": fs_check,
         "benchAsOf": bench[-1][0],
         "dates": dates, "fund": fund, "bench": bench_series,
         "benchmarks": benchmarks,

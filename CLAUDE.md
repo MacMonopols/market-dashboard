@@ -29,6 +29,17 @@ LU3281045396**, vs **MSCI ACWI NR EUR**. `impactfull.py`
   full months only: ann. return, vol, return/vol without rf, max DD
   month-end, beta, TE, IR, hit rate, up/down capture), monthly grid Fund /
   ACWI / Δ.
+- **Real NAV from launch** (2026-11-26, user's request, replaces the
+  "factsheet to Oct, NAV after" cut above): the factsheet is used only for
+  the track (to Mar 2026) and to bridge launch → the first month-end that
+  has a Yahoo NAV (`anchor`, computed: 29.5.2026, so Apr + May 2026 are
+  factsheet returns, Yahoo's NAV starting 11.5). NAV points 11.5–29.5 are
+  scaled to the factsheet's May month-end; from June every point and
+  monthly return is the NAV. Later factsheet months only feed
+  `factsheetCheck` (NAV vs factsheet per month, shown under the stats). New
+  output keys `navFrom`, `navAnchor`. No NAV → old behaviour (factsheet to
+  `FACTSHEET_LAST_MONTH`). Tested on synthetic data only (Yahoo blocked
+  from the cloud session).
 - **Second benchmark MSCI EM IMI** (added 2026-11-26, user's request): code
   **664220** (msci.com index page), NETR EUR, same endpoint / rebasing.
   `BENCHMARKS` in `impactfull.py`; each gets `bench`, `monthly`, `stats`,

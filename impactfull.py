@@ -1,5 +1,5 @@
 """
-impactfull.py – "Impactfull vs MSCI ACWI" tab: EQUUS IMP Emerging Equity
+impactfull.py – "Impactfull vs ACWI & EM IMI" tab: EQUUS IMP Emerging Equity
 Trends, share class S EUR (LU3281045396), against the MSCI ACWI net total
 return index in EUR.
 

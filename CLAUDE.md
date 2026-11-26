@@ -1,6 +1,6 @@
 # market-dashboard
 
-## Impactfull vs MSCI ACWI tab — `impactfull.html`, set up 2026-11-25
+## Impactfull vs ACWI & EM IMI tab — `impactfull.html`, set up 2026-11-25 (renamed from "vs MSCI ACWI" 2026-11-26)
 
 New page (nav entry on all seven pages, after AI Concerns / Governance):
 EQUUS IMP Emerging Equity Trends (Impactfull, K. Bortoluzzi), class **S EUR

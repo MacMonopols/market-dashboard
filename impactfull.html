@@ -364,6 +364,7 @@
     .imp-stats td.f { color: var(--hinder-blue); font-weight: 600; }
     .imp-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 11px; color: var(--text-muted); margin-top: 6px; }
     .imp-legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: 5px; }
+    .imp-bench-lbl { font-size: 11px; color: var(--text-muted); align-self: center; margin-right: 4px; }
     .imp-sub { font-size: 11px; font-weight: 700; color: var(--hinder-blue); margin: 14px 0 2px; }
   </style>
 </head>
@@ -371,7 +372,7 @@
 
 <div class="header">
   <div class="header-left">
-    <h1>Impactfull<br><strong>vs MSCI ACWI</strong></h1>
+    <h1>Impactfull<br><strong>vs MSCI ACWI &amp; EM IMI</strong></h1>
     <div class="subtitle" id="subtitle"></div>
   </div>
   <div class="logo"><a href="https://oblique.swiss" target="_blank" rel="noopener"><i>O</i>blique</a></div>
@@ -391,8 +392,9 @@
 <div class="disclaimer">The fund (EQUUS IMP Emerging Equity Trends) was launched on 30.3.2026. Before April 2026 the line is the strategy's track record with model fees, taken from the manager's marketing fact sheet — not fund NAVs, not audited.</div>
 
 <div class="mktcap-card" id="imp-card" style="display:none">
-  <div class="mktcap-title">Impactfull S EUR vs MSCI ACWI NR EUR</div>
+  <div class="mktcap-title" id="imp-title">Impactfull S EUR vs MSCI ACWI NR EUR</div>
   <div class="mktcap-date" id="imp-date"></div>
+  <div class="range-btns" id="imp-bench" style="margin-top:10px"></div>
   <div class="sig-grid" id="imp-tiles" style="margin-top:10px"></div>
   <div class="range-btns" id="imp-range" style="margin-top:14px"></div>
   <div class="imp-sub">Growth of 100 (EUR, net)</div>
@@ -400,7 +402,7 @@
   <div class="imp-legend" id="imp-legend"></div>
   <div class="imp-sub">Drawdown from previous high</div>
   <div class="spy-history-wrap"><svg id="imp-svg-dd"></svg></div>
-  <div class="imp-sub">Relative: fund / MSCI ACWI (100 = start of the window; rising = fund ahead)</div>
+  <div class="imp-sub" id="imp-rel-title">Relative: fund / MSCI ACWI (100 = start of the window; rising = fund ahead)</div>
   <div class="spy-history-wrap"><svg id="imp-svg-rel"></svg></div>
 </div>
 
@@ -412,13 +414,13 @@
 </div>
 
 <div class="mktcap-card" id="imp-monthly-card" style="display:none">
-  <div class="mktcap-title">Net Monthly Returns in EUR — Fund vs MSCI ACWI</div>
+  <div class="mktcap-title" id="imp-monthly-title">Net Monthly Returns in EUR — Fund vs MSCI ACWI</div>
   <div class="mktcap-date">Grey = strategy track before launch · italic = live NAV after the fact sheet · * = month to date</div>
   <div class="tbl-wrap"><table class="sig-table imp-tbl" id="imp-monthly"></table></div>
   <div class="sig-note" id="imp-note"></div>
 </div>
 
-<div class="footer">Personal use. Not investment advice. Fund track hand-entered in <code>FACTSHEET_MONTHLY</code> (<code>impactfull.py</code>), live NAV and MSCI ACWI from <code>live_data.js</code>.</div>
+<div class="footer">Personal use. Not investment advice. Fund track hand-entered in <code>FACTSHEET_MONTHLY</code> (<code>impactfull.py</code>), live NAV, MSCI ACWI and MSCI EM IMI from <code>live_data.js</code>.</div>
 
 <script>document.write('<script src="live_data.js?' + Date.now() + '" onerror="window.LIVE_DATA=null"><\/script>');</script>
 <script>
@@ -430,7 +432,20 @@
     : "⚠ No data — run: python3 fetch_data.py";
   if (!D) return;
 
-  const FUND_C = '#1f5c3f', BENCH_C = '#E04822', GREY = '#8796a8';
+  const FUND_C = '#1f5c3f', GREY = '#8796a8';
+  const BCOL = { acwi: '#E04822', emimi: '#6a4c93' };
+  // one entry per benchmark (older caches only have the top-level ACWI keys)
+  const BENCHES = D.benchmarks && D.benchmarks.length ? D.benchmarks : [{
+    key: 'acwi', short: 'ACWI', name: 'MSCI ACWI NR EUR', bench: D.bench,
+    monthly: D.monthly.map(m => m.bench), stats: D.stats, periods: D.periods, asOf: D.benchAsOf }];
+  let bk = BENCHES[0].key; try { bk = localStorage.getItem('impBench') || bk; } catch (e) {}
+  if (!BENCHES.some(b => b.key === bk)) bk = BENCHES[0].key;
+  let B, P, BENCH_C;
+  const setBench = () => {
+    B = BENCHES.find(b => b.key === bk); P = B.periods; BENCH_C = BCOL[B.key] || '#E04822';
+    D.monthly.forEach((m, k) => { m.bench = B.monthly[k]; });
+  };
+  setBench();
   const txt = 'font-family="Helvetica Neue,Arial,sans-serif" font-size="10" fill="#6b7a8d"';
   const fmtD = s => s ? s.slice(8, 10) + '.' + s.slice(5, 7) + '.' + s.slice(0, 4) : '–';
   const pct = (v, d = 1) => v == null ? '–' : (v > 0 ? '+' : '') + v.toFixed(d) + ' %';
@@ -438,23 +453,27 @@
   const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
   // ── tiles ──
-  const P = D.periods;
+  function renderTiles() {
+  document.getElementById('imp-title').textContent = 'Impactfull S EUR vs ' + B.name;
+  document.getElementById('imp-rel-title').textContent = `Relative: fund / ${B.name.replace(' NR EUR', '')} (100 = start of the window; rising = fund ahead)`;
+  document.getElementById('imp-monthly-title').textContent = 'Net Monthly Returns in EUR — Fund vs ' + B.name.replace(' NR EUR', '');
   document.getElementById('imp-date').textContent =
     `Fund to ${fmtD(D.asOf)} (fact sheet to ${fmtD(D.factsheetLastDate)}, then NAV ${D.nav ? D.nav.value.toFixed(2) + ' on ' + fmtD(D.nav.date) : 'n/a'})` +
-    ` · MSCI ACWI taken on the same dates, so every comparison ends on ${fmtD(D.asOf)}` +
-    (D.benchAsOf > D.asOf ? ` (index already available to ${fmtD(D.benchAsOf)})` : '') +
+    ` · ${B.name.replace(' NR EUR', '')} taken on the same dates, so every comparison ends on ${fmtD(D.asOf)}` +
+    ((B.asOf || D.benchAsOf) > D.asOf ? ` (index already available to ${fmtD(B.asOf || D.benchAsOf)})` : '') +
     (D.stale ? ' · ⚠ stale cache' : '');
   const tile = (name, p, extra) => {
     const ex = p.fund - p.bench;
     return `<div class="sig-tile ${ex >= 0 ? 'off' : 'on'}"><div class="sig-name">${name}</div>
       <div class="sig-state" style="color:${FUND_C}">${pct(p.fund)}</div>
-      <div class="sig-detail">MSCI ACWI ${pct(p.bench)} · <span class="${cls(ex)}">${ex >= 0 ? '+' : ''}${ex.toFixed(1)} pt</span>${extra || ''}</div></div>`;
+      <div class="sig-detail">${B.short} ${pct(p.bench)} · <span class="${cls(ex)}">${ex >= 0 ? '+' : ''}${ex.toFixed(1)} pt</span>${extra || ''}</div></div>`;
   };
   document.getElementById('imp-tiles').innerHTML =
     tile('Month to date', P.mtd, `<br>since ${fmtD(P.mtd.from)}`) +
     tile('Year to date', P.ytd) +
     tile('Since fund launch', P.launch, `<br>from ${fmtD(P.launch.from)} (month-end of launch)`) +
     tile('Since Jan 2020 (track)', P.si, `<br>p.a. ${pct(P.si.fundAnn)} vs ${pct(P.si.benchAnn)}`);
+  }
 
   // ── charts ──
   function drawChart(svgId, dates, opts) {
@@ -530,10 +549,10 @@
     { key: 'si',  label: 'Since Jan 2020', from: D.dates[0] },
     { key: '3y',  label: '3 years', from: minus(last, 3) },
     { key: '1y',  label: '1 year', from: minus(last, 1) },
-    { key: 'ytd', label: 'YTD', from: P.ytd.from },
-    { key: 'launch', label: 'Since launch', from: P.launch.from },
+    { key: 'ytd', label: 'YTD', from: D.periods.ytd.from },
+    { key: 'launch', label: 'Since launch', from: D.periods.launch.from },
   ];
-  let range = localStorage.getItem('impRange') || 'si';
+  let range = 'si'; try { range = localStorage.getItem('impRange') || 'si'; } catch (e) {}
   if (!RANGES.some(r => r.key === range)) range = 'si';
 
   function redraw() {
@@ -541,17 +560,20 @@
     // start at the last point on or before the window start
     let i0 = 0; D.dates.forEach((d, k) => { if (d <= r.from) i0 = k; });
     const dates = D.dates.slice(i0);
-    const f = D.fund.slice(i0), b = D.bench.slice(i0);
+    const f = D.fund.slice(i0), b = B.bench.slice(i0);
     const fr = f.map(v => v / f[0] * 100), br = b.map(v => v / b[0] * 100);
     const dd = arr => { let pk = -Infinity; return arr.map(v => { pk = Math.max(pk, v); return (v / pk - 1) * 100; }); };
     const rel = f.map((v, k) => (v / f[0]) / (b[k] / b[0]) * 100);
-    const common = { trackEnd: P.launch.from, vlines: [{ date: D.launch, label: 'Fund launch 30.3.2026', color: FUND_C }, { date: D.factsheetLastDate, label: '', color: GREY }] };
+    const common = { trackEnd: D.periods.launch.from, vlines: [{ date: D.launch, label: 'Fund launch 30.3.2026', color: FUND_C }, { date: D.factsheetLastDate, label: '', color: GREY }] };
     drawChart('imp-svg-cum', dates, Object.assign({}, common, {
       H: 280, hlines: [{ v: 100, color: '#b0bac6' }],
-      series: [
-        { v: br, color: BENCH_C, dash: '6,3', endLabel: v => 'ACWI ' + v.toFixed(0) },
+      series: BENCHES.filter(o => o.key !== B.key).map(o => {
+        const ob = o.bench.slice(i0);
+        return { v: ob.map(v => v / ob[0] * 100), color: BCOL[o.key] || GREY, dash: '2,3', w: 1.1, endLabel: v => o.short + ' ' + v.toFixed(0) };
+      }).concat([
+        { v: br, color: BENCH_C, dash: '6,3', endLabel: v => B.short + ' ' + v.toFixed(0) },
         { v: fr, color: FUND_C, w: 2, endLabel: v => 'Fund ' + v.toFixed(0) },
-      ] }));
+      ]) }));
     drawChart('imp-svg-dd', dates, Object.assign({}, common, {
       H: 170, fmt: g => g + ' %', hlines: [{ v: 0, color: '#b0bac6' }],
       series: [
@@ -562,20 +584,20 @@
       H: 170, hlines: [{ v: 100, color: '#b0bac6' }],
       series: [{ v: rel, color: '#003a5c', w: 1.8, endLabel: v => v.toFixed(1) }] }));
     document.querySelectorAll('#imp-range .range-btn').forEach(x => x.classList.toggle('active', x.dataset.k === range));
-    localStorage.setItem('impRange', range);
+    try { localStorage.setItem('impRange', range); } catch (e) {}
+    document.getElementById('imp-legend').innerHTML =
+      `<span><i style="border-color:${FUND_C}"></i>Impactfull S EUR (net)</span>` +
+      `<span><i style="border-color:${BENCH_C};border-top-style:dashed"></i>${B.name}</span>` +
+      BENCHES.filter(o => o.key !== B.key).map(o => `<span><i style="border-color:${BCOL[o.key] || GREY};border-top-style:dotted;border-top-width:1px"></i>${o.name} (for reference)</span>`).join('') +
+      `<span>Monthly points to ${fmtD(D.factsheetLastDate)}, daily after · drawdowns before that date are month-end only</span>`;
   }
   const rb = document.getElementById('imp-range');
   rb.innerHTML = RANGES.map(r => `<button class="range-btn" data-k="${r.key}">${r.label}</button>`).join('');
   rb.querySelectorAll('.range-btn').forEach(x => x.addEventListener('click', () => { range = x.dataset.k; redraw(); }));
-  document.getElementById('imp-legend').innerHTML =
-    `<span><i style="border-color:${FUND_C}"></i>Impactfull S EUR (net)</span>` +
-    `<span><i style="border-color:${BENCH_C};border-top-style:dashed"></i>MSCI ACWI NR EUR</span>` +
-    `<span>Monthly points to ${fmtD(D.factsheetLastDate)}, daily after · drawdowns before that date are month-end only</span>`;
-  redraw();
-  document.getElementById('imp-card').style.display = '';
 
   // ── statistics ──
-  const S = D.stats;
+  function renderStats() {
+  const S = B.stats;
   const cols = [['si', 'Since Jan 2020'], ['3y', 'Last 3 years'], ['launch', 'Since launch']].filter(([k]) => S[k]);
   const rows = [
     ['Months', s => s.months, null, 0],
@@ -585,17 +607,17 @@
     ['Volatility p.a.', s => s.vol, s => s.benchVol, 1, '%'],
     ['Return / volatility', s => s.retVol, s => s.benchRetVol, 2],
     ['Max drawdown (month-end)', s => s.maxDD, s => s.benchMaxDD, 1, '%'],
-    ['Beta vs ACWI', s => s.beta, null, 2],
+    ['Beta vs ' + B.short, s => s.beta, null, 2],
     ['Correlation', s => s.corr, null, 2],
     ['Tracking error', s => s.te, null, 1, '%'],
     ['Information ratio', s => s.ir, null, 2],
-    ['Months beating ACWI', s => s.hitRate, null, 0, '%'],
+    ['Months beating ' + B.short, s => s.hitRate, null, 0, '%'],
     ['Up capture', s => s.upCapture, null, 0, '%'],
     ['Down capture', s => s.downCapture, null, 0, '%'],
     ['Best / worst month', s => s.best, s => s.worst, 1, '%'],
   ];
   const fv = (v, d, u) => v == null ? '–' : (u === '%' && d ? (v > 0 ? '+' : '') : '') + v.toFixed(d) + (u ? ' %' : '');
-  let th = '<tr><th></th>' + cols.map(([, l]) => `<th>${l}<br>Fund</th><th>${l}<br>ACWI</th>`).join('') + '</tr>';
+  let th = '<tr><th></th>' + cols.map(([, l]) => `<th>${l}<br>Fund</th><th>${l}<br>${B.short}</th>`).join('') + '</tr>';
   let tb = rows.map(([lbl, fn, bn, d, u]) => {
     const best = lbl.startsWith('Best');
     return `<tr><td>${lbl}</td>` + cols.map(([k]) => {
@@ -613,11 +635,15 @@
   document.getElementById('imp-stats-note').innerHTML =
     `<b>Fact sheet check:</b> its monthly table compounds to <b>${pct(S.si.cum)}</b> since Jan 2020 (${pct(S.si.ann)} p.a.), ` +
     `while its headline shows ITD +${H.itd.toFixed(1)} % / ${H.annSI.toFixed(1)} % p.a. — the monthly figures and each yearly total agree, the headline does not. ` +
-    `MSCI ACWI matches (${pct(S.si.benchCum)} vs +${H.benchItd.toFixed(1)} %). Since launch covers only ${S.launch ? S.launch.months : 0} months: annualized figures and capture ratios there are not meaningful. ` +
+    (B.key === 'acwi' ? `MSCI ACWI matches (${pct(S.si.benchCum)} vs +${H.benchItd.toFixed(1)} %). `
+      : `MSCI ACWI matches the fact sheet's benchmark (+${H.benchItd.toFixed(1)} %); MSCI EM IMI (${pct(S.si.benchCum)}) is our addition, not on the fact sheet. `) +
+    `Since launch covers only ${S.launch ? S.launch.months : 0} months: annualized figures and capture ratios there are not meaningful. ` +
     `Return / volatility has no risk-free rate (not the fact sheet's Sharpe).`;
   document.getElementById('imp-stats-card').style.display = '';
+  }
 
   // ── monthly table ──
+  function renderMonthly() {
   const byYear = {};
   D.monthly.forEach(m => { (byYear[m.ym.slice(0, 4)] = byYear[m.ym.slice(0, 4)] || {})[+m.ym.slice(5)] = m; });
   const yr = (arr) => { let g = 1; arr.forEach(v => g *= 1 + v / 100); return (g - 1) * 100; };
@@ -634,7 +660,7 @@
     const part = ks.some(k => ms[k].partial) ? '*' : '';
     mt += `<tr class="yr-first"><td class="y">${y}</td><td class="lbl">Fund</td>` + MON.map((_, i) => cell(i + 1, 'fund')).join('') +
           `<td class="yr ${cls(fy)}">${fy.toFixed(2)}${part}</td></tr>`;
-    mt += `<tr><td></td><td class="lbl">ACWI</td>` + MON.map((_, i) => cell(i + 1, 'bench')).join('') + `<td class="yr">${by.toFixed(2)}${part}</td></tr>`;
+    mt += `<tr><td></td><td class="lbl">${B.short}</td>` + MON.map((_, i) => cell(i + 1, 'bench')).join('') + `<td class="yr">${by.toFixed(2)}${part}</td></tr>`;
     mt += `<tr class="diff"><td></td><td class="lbl">Δ pt</td>` + MON.map((_, i) => {
       const m = ms[i + 1]; if (!m) return '<td></td>';
       const dv = m.fund - m.bench; return `<td class="${cls(dv)}">${dv >= 0 ? '+' : ''}${dv.toFixed(1)}</td>`;
@@ -643,6 +669,23 @@
   document.getElementById('imp-monthly').innerHTML = mt;
   document.getElementById('imp-note').textContent = D.note + ' Source of the track: ' + D.factsheet + '.';
   document.getElementById('imp-monthly-card').style.display = '';
+  }
+
+  // ── benchmark toggle ──
+  const bb = document.getElementById('imp-bench');
+  if (BENCHES.length > 1) {
+    bb.innerHTML = '<span class="imp-bench-lbl">Compare with</span>' +
+      BENCHES.map(o => `<button class="range-btn" data-k="${o.key}">${o.name.replace(' NR EUR', '')}</button>`).join('');
+    bb.querySelectorAll('.range-btn').forEach(x => x.addEventListener('click', () => { bk = x.dataset.k; renderAll(); }));
+  } else bb.style.display = 'none';
+  function renderAll() {
+    setBench();
+    bb.querySelectorAll('.range-btn').forEach(x => x.classList.toggle('active', x.dataset.k === bk));
+    try { localStorage.setItem('impBench', bk); } catch (e) {}
+    renderTiles(); redraw(); renderStats(); renderMonthly();
+  }
+  renderAll();
+  document.getElementById('imp-card').style.display = '';
 })();
 </script>
 </body>

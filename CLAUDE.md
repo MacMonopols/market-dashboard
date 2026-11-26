@@ -29,6 +29,16 @@ LU3281045396**, vs **MSCI ACWI NR EUR**. `impactfull.py`
   full months only: ann. return, vol, return/vol without rf, max DD
   month-end, beta, TE, IR, hit rate, up/down capture), monthly grid Fund /
   ACWI / Δ.
+- **Second benchmark MSCI EM IMI** (added 2026-11-26, user's request): code
+  **664220** (msci.com index page), NETR EUR, same endpoint / rebasing.
+  `BENCHMARKS` in `impactfull.py`; each gets `bench`, `monthly`, `stats`,
+  `periods` in `LD.impactfull.benchmarks`; top-level bench / stats / periods
+  stay = ACWI (output byte-identical to before on a synthetic test). EM IMI
+  fetch failure only drops it. Page: "Compare with" toggle
+  (`localStorage.impBench`) drives tiles, charts, stats, monthly grid; the
+  other index is a thin dotted line on the growth chart. Not yet run on live
+  data (MSCI blocked from the cloud session): first Actions run fills it, the
+  toggle hides while only ACWI is present.
 - At 2026-11-23: NAV 101.30; MTD −9.8 % vs −3.1 %; YTD +6.6 % vs +13.4 %;
   since launch +3.3 % vs +14.9 %; since 2020 track 21.0 % vs 12.3 % p.a.
   (to Oct), beta 1.12, TE 8.3 %, IR 1.05.

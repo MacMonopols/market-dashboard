@@ -1,5 +1,5 @@
 """
-impactfull.py – "Impactfull vs MSCI ACWI" tab: EQUUS IMP Emerging Equity
+impactfull.py – "Impactfull vs ACWI & EM IMI" tab: EQUUS IMP Emerging Equity
 Trends, share class S EUR (LU3281045396), against the MSCI ACWI net total
 return index in EUR.
 
@@ -28,6 +28,13 @@ Benchmark
   live_data.js hold only the series rebased to 100. MSCI EUR ITD 2020-01 to
   2026-10 = +120.9 %, same as the factsheet.
 
+Second benchmark (added 2026-11-26, user's request): MSCI Emerging Markets
+  IMI (664220) NETR in EUR, same endpoint, same rebasing — the fund invests in
+  emerging-market equity trends, so EM IMI (large + mid + small cap, 24 EM
+  countries) is the closer peer. Every benchmark gets its own series, monthly
+  returns, stats and periods in `benchmarks`; the top-level bench / stats /
+  periods keys stay = MSCI ACWI. A failed EM IMI fetch only drops that entry.
+
 Cache impactfull_cache.json (git-ignored), stale: true on fallback.
 """
 
@@ -46,6 +53,12 @@ FUND_TICKER = "0P0002D4QT.F"          # Yahoo (Morningstar) NAV, S EUR Acc
 FUND_LAUNCH = "2026-03-30"
 BENCH_NAME = "MSCI ACWI NR EUR"
 BENCH_CODE = "892400"
+# (key, short label, full name, MSCI code); the first one drives the fund's
+# month-end dates and the top-level keys.
+BENCHMARKS = [
+    ("acwi", "ACWI", "MSCI ACWI NR EUR", "892400"),
+    ("emimi", "EM IMI", "MSCI Emerging Markets IMI NR EUR", "664220"),
+]
 TRACK_START = "2019-12-31"            # base date of the track (= 100)
 FACTSHEET_LABEL = "Impactfull monthly teaser, data as of 30.10.2026"
 FACTSHEET_LAST_MONTH = "2026-10"
@@ -73,7 +86,8 @@ NOTE = (
     "track record with model fees (ACA track-record letter), not fund NAVs. After 30.10.2026: daily NAV of "
     "the S EUR class (LU3281045396) from Yahoo / Morningstar, chained on. The factsheet's monthly table "
     "compounds to a lower figure than its headline (ITD +342.0 % / 22.3 % p.a.); the monthly table is used. "
-    "Benchmark: MSCI ACWI net total return in EUR (MSCI; levels not redistributed, rebased to 100). "
+    "Benchmarks: MSCI ACWI and MSCI Emerging Markets IMI, net total return in EUR (MSCI; levels not "
+    "redistributed, rebased to 100). "
     "Statistics use full calendar months, no risk-free rate (Sharpe-like ratio = return / volatility). "
     "Marketing document data, not audited. Past performance is not a guide to future returns."
 )
@@ -87,14 +101,14 @@ def _ym_end_dates(levels):
     return out
 
 
-def _fetch_bench():
+def _fetch_bench(code=BENCH_CODE):
     url = MSCI_URL.format(cur="EUR", start=TRACK_START.replace("-", ""),
-                          end=date.today().strftime("%Y%m%d"), freq="DAILY", code=BENCH_CODE)
+                          end=date.today().strftime("%Y%m%d"), freq="DAILY", code=code)
     r = requests.get(url, headers=MSCI_HEADERS, timeout=40)
     r.raise_for_status()
     lv = (r.json().get("indexes") or {}).get("INDEX_LEVELS") or []
     if len(lv) < 1000:
-        raise ValueError(f"MSCI ACWI EUR: only {len(lv)} levels")
+        raise ValueError(f"MSCI {code} EUR: only {len(lv)} levels")
     out = []
     for x in sorted(lv, key=lambda x: x["calc_date"]):
         s = str(x["calc_date"])
@@ -170,18 +184,20 @@ def _stats(f, b):
     }
 
 
-def _build(bench, nav, today):
-    bench_m = _ym_end_dates(bench)
-    b0 = dict(bench)[TRACK_START] if TRACK_START in dict(bench) else bench[0][1]
+def _level_at(levels, d):
+    """Benchmark level on date d (last level on or before d)."""
+    lv = None
+    for bd, v in levels:
+        if bd > d:
+            break
+        lv = v
+    return lv
 
-    def bench_at(d):
-        """Benchmark level on date d (last level on or before d)."""
-        lv = None
-        for bd, v in bench:
-            if bd > d:
-                break
-            lv = v
-        return lv
+
+def _build(benches, nav, today):
+    """benches: {key: [(date, level), ...]}; the first BENCHMARKS key is required."""
+    bench = benches[BENCHMARKS[0][0]]
+    bench_m = _ym_end_dates(bench)
 
     # ── fund: month-ends from the factsheet, then daily NAV after the cut ──
     dates, fund, monthly = [TRACK_START], [100.0], []
@@ -218,48 +234,61 @@ def _build(bench, nav, today):
                             "partial": ym >= today.strftime("%Y-%m")})
             prev_end = v
 
-    bench_series = [round(bench_at(d) / b0 * 100, 3) for d in dates]
     fund = [round(v, 3) for v in fund]
-
-    # benchmark monthly returns on the same month-end dates
-    prev = None
-    ends = {}
-    for d, v in zip(dates, bench_series):
-        ends[d[:7]] = v
-    prev = 100.0
-    for row in monthly:
-        v = ends[row["ym"]]
-        row["bench"] = round((v / prev - 1) * 100, 2)
-        prev = v
-
-    full = [r for r in monthly if not r.get("partial")]
-    stats = {
-        "si": _stats([r["fund"] for r in full], [r["bench"] for r in full]),
-        "launch": _stats([r["fund"] for r in full if r["ym"] > FUND_LAUNCH[:7]],
-                         [r["bench"] for r in full if r["ym"] > FUND_LAUNCH[:7]]),
-        "3y": _stats([r["fund"] for r in full[-36:]], [r["bench"] for r in full[-36:]]) if len(full) >= 36 else None,
-    }
-
-    # headline periods on the daily-ish series
-    def period(start_date):
-        i = max(k for k, d in enumerate(dates) if d <= start_date) if any(d <= start_date for d in dates) else 0
-        return {"fund": round((fund[-1] / fund[i] - 1) * 100, 2),
-                "bench": round((bench_series[-1] / bench_series[i] - 1) * 100, 2), "from": dates[i]}
-
     last = dates[-1]
     ly = str(int(last[:4]) - 1)
     ytd_start = max(d for d in dates if d[:4] == ly)
     prev_m = max(d for d in dates if d[:7] < last[:7])
     years = (datetime.strptime(last, "%Y-%m-%d") - datetime.strptime(TRACK_START, "%Y-%m-%d")).days / 365.25
-    periods = {
-        "mtd": period(prev_m),
-        "ytd": period(ytd_start),
-        # base = end of the launch month (the factsheet's first fund month is April 2026)
-        "launch": period(max(d for d in dates if d[:7] <= FUND_LAUNCH[:7])),
-        "si": period(TRACK_START),
-    }
-    periods["si"]["fundAnn"] = round(((fund[-1] / 100) ** (1 / years) - 1) * 100, 2)
-    periods["si"]["benchAnn"] = round(((bench_series[-1] / 100) ** (1 / years) - 1) * 100, 2)
+    full = [r for r in monthly if not r.get("partial")]
+
+    def versus(levels):
+        """Benchmark series on the fund's dates + monthly returns, stats, periods."""
+        base = dict(levels).get(TRACK_START, levels[0][1])
+        series = [round(_level_at(levels, d) / base * 100, 3) for d in dates]
+        ends = {d[:7]: v for d, v in zip(dates, series)}
+        prev, mret = 100.0, []
+        for row in monthly:
+            v = ends[row["ym"]]
+            mret.append(round((v / prev - 1) * 100, 2))
+            prev = v
+        fm = [r["fund"] for r in full]
+        bm = mret[:len(full)]
+        launch = [k for k, r in enumerate(full) if r["ym"] > FUND_LAUNCH[:7]]
+        stats = {
+            "si": _stats(fm, bm),
+            "launch": _stats([fm[k] for k in launch], [bm[k] for k in launch]),
+            "3y": _stats(fm[-36:], bm[-36:]) if len(full) >= 36 else None,
+        }
+
+        def period(start_date):
+            i = max((k for k, d in enumerate(dates) if d <= start_date), default=0)
+            return {"fund": round((fund[-1] / fund[i] - 1) * 100, 2),
+                    "bench": round((series[-1] / series[i] - 1) * 100, 2), "from": dates[i]}
+
+        periods = {
+            "mtd": period(prev_m),
+            "ytd": period(ytd_start),
+            # base = end of the launch month (the factsheet's first fund month is April 2026)
+            "launch": period(max(d for d in dates if d[:7] <= FUND_LAUNCH[:7])),
+            "si": period(TRACK_START),
+        }
+        periods["si"]["fundAnn"] = round(((fund[-1] / 100) ** (1 / years) - 1) * 100, 2)
+        periods["si"]["benchAnn"] = round(((series[-1] / 100) ** (1 / years) - 1) * 100, 2)
+        return {"bench": series, "monthly": mret, "stats": stats, "periods": periods,
+                "asOf": levels[-1][0]}
+
+    benchmarks = []
+    for key, short, name, code in BENCHMARKS:
+        if key not in benches:
+            continue
+        v = versus(benches[key])
+        v.update({"key": key, "short": short, "name": name, "code": code})
+        benchmarks.append(v)
+    main = benchmarks[0]
+    for row, r in zip(monthly, main["monthly"]):
+        row["bench"] = r
+    bench_series, stats, periods = main["bench"], main["stats"], main["periods"]
 
     last_nav = nav[-1] if nav else None
     return {
@@ -272,6 +301,7 @@ def _build(bench, nav, today):
         "navSource": nav_source,
         "benchAsOf": bench[-1][0],
         "dates": dates, "fund": fund, "bench": bench_series,
+        "benchmarks": benchmarks,
         "monthly": monthly, "stats": stats, "periods": periods,
         "note": NOTE,
     }
@@ -280,13 +310,18 @@ def _build(bench, nav, today):
 def calc_impactfull(today=None):
     today = today or date.today()
     try:
-        bench = _fetch_bench()
+        benches = {BENCHMARKS[0][0]: _fetch_bench(BENCHMARKS[0][3])}
+        for key, short, _, code in BENCHMARKS[1:]:
+            try:
+                benches[key] = _fetch_bench(code)
+            except Exception as e:
+                print(f"  ⚠ Impactfull benchmark {short} ({code}) failed: {e} — skipped")
         try:
             nav = _fetch_nav()
         except Exception as e:
             print(f"  ⚠ Impactfull NAV ({FUND_TICKER}) failed: {e} — factsheet track only")
             nav = []
-        out = _build(bench, nav, today)
+        out = _build(benches, nav, today)
         with open(CACHE_PATH, "w") as f:
             json.dump(out, f)
         return out
@@ -301,5 +336,6 @@ def calc_impactfull(today=None):
 if __name__ == "__main__":
     o = calc_impactfull()
     print(o["asOf"], o["nav"], o["periods"])
-    print(json.dumps(o["stats"], indent=1))
+    for b in o.get("benchmarks", []):
+        print(b["short"], b["periods"]["si"], b["stats"]["si"] and b["stats"]["si"]["beta"])
     print(o["monthly"][-4:])

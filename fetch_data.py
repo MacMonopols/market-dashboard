@@ -2062,7 +2062,7 @@ def main():
         print(f"  ⚠ sector rotation failed: {e}")
         sector_rotation = None
 
-    # 5e8) Impactfull vs MSCI ACWI tab: S EUR class (factsheet track +
+    # 5e8) Impactfull vs ACWI & EM IMI tab: S EUR class (factsheet track +
     #      Yahoo NAV) vs MSCI ACWI NR EUR (impactfull.py)
     print("\nImpactfull S EUR vs MSCI ACWI NR EUR ...")
     try:

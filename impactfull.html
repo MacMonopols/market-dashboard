@@ -533,7 +533,7 @@
         p += (pen ? 'L' : 'M') + xT(t(dates[k])).toFixed(1) + ',' + y(v).toFixed(1); pen = true;
       });
       if (s.fill) h += `<path d="${p}L${xT(t1).toFixed(1)},${y(0).toFixed(1)}L${xT(t0).toFixed(1)},${y(0).toFixed(1)}Z" fill="${s.color}" opacity="0.18"/>`;
-      h += `<path d="${p}" fill="none" stroke="${s.color}" stroke-width="${s.w || 1.6}" ${s.dash ? `stroke-dasharray="${s.dash}"` : ''}/>`;
+      h += `<path d="${p}" fill="none" stroke="${s.color}" stroke-width="${s.w || 1.6}" ${s.op ? `stroke-opacity="${s.op}"` : ''} ${s.dash ? `stroke-dasharray="${s.dash}"` : ''}/>`;
     });
     // end labels, pushed apart so close lines keep readable labels
     const labs = opts.series.filter(s => s.endLabel).map(s => {
@@ -541,7 +541,7 @@
     }).sort((a, b) => a.yy - b.yy);
     for (let k = 1; k < labs.length; k++) labs[k].yy = Math.max(labs[k].yy, labs[k - 1].yy + 12);
     labs.forEach(({ s, v, yy }) => {
-      h += `<text x="${W - padR + 4}" y="${yy.toFixed(1)}" dominant-baseline="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="10" font-weight="700" fill="${s.color}">${s.endLabel(v)}</text>`;
+      h += `<text x="${W - padR + 4}" y="${yy.toFixed(1)}" dominant-baseline="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="10" font-weight="${s.op ? 400 : 700}" fill="${s.color}" ${s.op ? `fill-opacity="${Math.min(1, s.op + 0.25)}"` : ''}>${s.endLabel(v)}</text>`;
     });
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
     svg.innerHTML = h;
@@ -573,15 +573,15 @@
       H: 280, hlines: [{ v: 100, color: '#b0bac6' }],
       series: BENCHES.filter(o => o.key !== B.key).map(o => {
         const ob = o.bench.slice(i0);
-        return { v: ob.map(v => v / ob[0] * 100), color: BCOL[o.key] || GREY, w: 1.3, endLabel: v => o.short + ' ' + v.toFixed(0) };
+        return { v: ob.map(v => v / ob[0] * 100), color: BCOL[o.key] || GREY, w: 1.1, op: 0.35, endLabel: v => o.short + ' ' + v.toFixed(0) };
       }).concat([
-        { v: br, color: BENCH_C, endLabel: v => B.short + ' ' + v.toFixed(0) },
+        { v: br, color: BENCH_C, w: 2, endLabel: v => B.short + ' ' + v.toFixed(0) },
         { v: fr, color: FUND_C, w: 2, endLabel: v => 'Fund ' + v.toFixed(0) },
       ]) }));
     drawChart('imp-svg-dd', dates, Object.assign({}, common, {
       H: 170, fmt: g => g + ' %', hlines: [{ v: 0, color: '#b0bac6' }],
       series: [
-        { v: dd(br), color: BENCH_C },
+        { v: dd(br), color: BENCH_C, w: 1.8 },
         { v: dd(fr), color: FUND_C, fill: true },
       ] }));
     drawChart('imp-svg-rel', dates, Object.assign({}, common, {
@@ -591,8 +591,8 @@
     try { localStorage.setItem('impRange', range); } catch (e) {}
     document.getElementById('imp-legend').innerHTML =
       `<span><i style="border-color:${FUND_C}"></i>Impactfull S EUR (net)</span>` +
-      `<span><i style="border-color:${BENCH_C}"></i>${B.name}</span>` +
-      BENCHES.filter(o => o.key !== B.key).map(o => `<span><i style="border-color:${BCOL[o.key] || GREY}"></i>${o.name} (for reference)</span>`).join('') +
+      `<span><i style="border-color:${BENCH_C};border-top-width:3px"></i><b>${B.name}</b></span>` +
+      BENCHES.filter(o => o.key !== B.key).map(o => `<span style="opacity:.55"><i style="border-color:${BCOL[o.key] || GREY};border-top-width:1px"></i>${o.name} (for reference)</span>`).join('') +
       (D.navFrom
         ? `<span>Fact sheet month-ends to ${fmtD(D.dates.filter(d => d < D.navFrom).slice(-1)[0])}, daily NAV from ${fmtD(D.navFrom)} · drawdowns before that are month-end only</span>`
         : `<span>Monthly points to ${fmtD(D.factsheetLastDate)}, daily after · drawdowns before that date are month-end only</span>`);
